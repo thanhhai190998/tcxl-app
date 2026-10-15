@@ -215,7 +215,14 @@
     try { await wb.xlsx.load(await file.arrayBuffer()); } catch (e) { throw new Error('Không đọc được file — file hỏng hoặc không phải Excel .xlsx'); }
     const meta = wb.getWorksheet('_meta');
     const mv = meta ? meta.getRow(1).values.slice(1).map(x => asText(cellVal(x))) : [];
-    if (mv[0] !== MAGIC) throw new Error('File này không phải mẫu tải từ app (thiếu sheet nhận diện). Hãy tải mẫu ở bước 1 rồi điền vào đó.');
+    if (mv[0] !== MAGIC) {
+      const full = wb.getWorksheet('Full'), h = full ? full.getRow(3).values.map(x => asText(cellVal(x))) : [];
+      if (h[1] === 'No.' && /restart phase/i.test(h[5] || '')) {   // file Total 28 cột ("Goods delivered to Site")
+        const e = new Error('Đây là file Total 28 cột ("Goods delivered to Site") — file này nạp ở thẻ "File Total 28 cột", không phải ở mẫu ' + TPL[m].label + '.');
+        e.code = 'TOTAL'; throw e;
+      }
+      throw new Error('File này không phải mẫu tải từ app (thiếu sheet nhận diện). Hãy tải mẫu ở bước 1 rồi điền vào đó.');
+    }
     if (mv[1] !== m) throw new Error(`Đây là mẫu "${(TPL[mv[1]] || {}).label || mv[1]}", không phải "${TPL[m].label}". Chọn đúng loại mẫu ở trên rồi tải lên lại.`);
     const goi = mv[2], keys = meta.getRow(2).values.slice(1).map(x => asText(cellVal(x)));
     const ws = wb.getWorksheet(TPL[m].sheet) || wb.worksheets.find(w => w.state === 'visible');
@@ -478,7 +485,9 @@
     await Promise.all(ts.map(t => DB.loadDeps(t).catch(() => {})));
     lib().catch(() => {});   // tải sẵn thư viện ở nền
     const st = X.state, qs = new URLSearchParams(location.hash.split('?')[1] || '');
-    if (qs.get('m') && (TPL[qs.get('m')] || qs.get('m') === 'TOTAL')) { st.m = qs.get('m'); history.replaceState(null, '', '#/i/' + it.key); }
+    if (qs.get('m') && (TPL[qs.get('m')] || qs.get('m') === 'TOTAL')) { st.m = qs.get('m'); st.touched = true; history.replaceState(null, '', '#/i/' + it.key); }
+    // App chưa có kiện nào (Sheet mới) → quản trị viên thấy thẻ File Total trước
+    if (!st.touched && App.user.admin && !DB.rows('KIEN').length) st.m = 'TOTAL';
     const goiL = goiRows();
     if (!goiL.some(g => g.MaGoi === st.goi)) st.goi = (goiL.find(g => DB.rows('KIEN').some(k => k.Goi_thau === g.MaGoi)) || goiL[0] || {}).MaGoi || '';
     const canUp = App.user.admin || Perm.rank((App.user.quyen || {}).EXCEL) === 2;
@@ -497,7 +506,8 @@
           <div class="fld"><span class="lbl">${st.m === 'KIEN' ? 'Nội dung mẫu' : 'Kiện đưa vào mẫu'}</span><div class="seg" data-sc>${T.scopes.map(s => `<button type="button" class="segb ${s.v === sc ? 'on' : ''}" data-v="${s.v}">${esc(s.l)}</button>`).join('')}</div></div>
           <div class="xact"><button type="button" class="btn" data-dl>${Icon('download')} Tải mẫu</button>
             <span class="muted small">${st.m === 'KIEN' && sc === 'empty' ? 'Mẫu trống, sẵn ' + U.int(BLANK_ROWS) + ' dòng để điền' : U.int(n) + ' kiện của gói ' + esc(st.goi) + ' sẽ có sẵn trong mẫu'}</span></div>`
-          : '<div class="empty">Bạn chưa được xem gói thầu nào.</div>'}
+          : `<div class="empty">${App.user.admin ? 'Chưa có gói thầu nào trong app. Nạp file Total ở thẻ <b>File Total 28 cột</b> (tự tạo các gói) hoặc thêm gói ở mục Gói thầu.'
+            : 'Bạn chưa được xem gói thầu nào — liên hệ quản trị viên.'}</div>`}
         </section>
         <section class="card xstep"><div class="fsec"><span class="xn">2</span>Điền rồi tải lên — xem trước trước khi ghi</div>
           ${canUp ? `<label class="upbox xdrop" id="xdrop">${Icon('upload')}<span><b>Chọn file .xlsx</b> hoặc kéo thả vào đây</span><input type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden id="xfile"></label>
@@ -533,7 +543,7 @@
     function bindMods() {
       App.main.querySelectorAll('[data-m]').forEach(b => b.onclick = async () => {
         if ((P || TP) && !(await U.confirm('Bỏ file đang xem trước?'))) return;
-        P = null; TP = null; TSRC = null; st.m = b.dataset.m; paint();
+        P = null; TP = null; TSRC = null; st.m = b.dataset.m; st.touched = true; paint();
       });
     }
 
@@ -661,7 +671,15 @@
         if (!goiRows().some(g => g.MaGoi === f.goi)) throw new Error(`File là mẫu của gói ${f.goi} — bạn không có quyền với gói này`);
         P = plan(st.m, f); fileName = file.name; view = { f: P.n.err ? 'err' : 'all', lim: PAGE };
         if (!P.rows.length) { P = null; throw new Error('File không có dòng nào được điền'); }
-      } catch (e) { P = null; box.innerHTML = `<div class="xerr">${Icon('alert')}<span>${esc(e.message)}</span></div>`; return; }
+      } catch (e) {
+        P = null;
+        // Chọn nhầm file Total ở thẻ mẫu → quản trị viên: tự chuyển sang thẻ File Total và đọc luôn file đó
+        if (e.code === 'TOTAL' && App.user.admin) {
+          U.toast('Đây là file Total 28 cột — đã chuyển sang thẻ "File Total 28 cột"', 'ok');
+          st.m = 'TOTAL'; st.touched = true; paint(); tload(file); return;
+        }
+        box.innerHTML = `<div class="xerr">${Icon('alert')}<span>${esc(e.code === 'TOTAL' ? e.message + ' Chỉ quản trị viên được đồng bộ file Total.' : e.message)}</span></div>`; return;
+      }
       drawPrev();
       box.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }

@@ -101,8 +101,8 @@
     footer() {
       const y = new Date().getFullYear(), since = C.copyrightSince || y;
       const owner = U.esc(C.copyright || C.appName), yr = since < y ? `${since}–${y}` : y;
-      const by = C.designer ? 'Thiết kế: <b>' + U.esc(C.designer) + '</b>' : '';
-      // Dòng 1: đơn vị sở hữu · Dòng 2: người thiết kế · chính sách bảo mật · phiên bản (tự xuống dòng gọn trên điện thoại)
+      const by = C.designer ? 'Developed by <b>' + U.esc(C.designer) + '</b>' : '';
+      // Dòng 1: đơn vị sở hữu · Dòng 2: Developed by … · chính sách bảo mật · phiên bản (tự xuống dòng gọn trên điện thoại)
       document.getElementById('foot').innerHTML = `<div class="foot-in">
         <div class="foot-org">© ${yr} ${owner}<span class="foot-rr">Bảo lưu mọi quyền</span></div>
         <div class="foot-meta">${by ? `<span>${by}</span>` : ''}<a href="privacy.html">Chính sách bảo mật</a><span>Phiên bản ${U.esc(C.version)}</span></div></div>`;

@@ -77,7 +77,7 @@ main { max-width: 1040px; margin: 0 auto; padding: 12px 12px 20px; overflow-x: c
 @media (max-width: 759px) {
   .foot-rr { display: block; }   /* điện thoại: "Bảo lưu mọi quyền" xuống dòng riêng, bỏ dấu chấm */
   .foot-rr::before { content: none; }
-  .foot-meta > span:first-child { width: 100%; }   /* "Thiết kế: …" một dòng riêng, dòng dưới: chính sách · phiên bản */
+  .foot-meta > span:first-child { width: 100%; }   /* "Developed by …" một dòng riêng, dòng dưới: chính sách · phiên bản */
   .foot-meta > span:first-child + *::before { content: none; }
   .foot { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }   /* chừa chỗ thanh điều hướng / nút Lưu */
   body:has(.fab) .foot { padding-bottom: calc(150px + env(safe-area-inset-bottom)); }   /* và nút + nổi */

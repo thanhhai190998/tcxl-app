@@ -7,7 +7,8 @@ window.APP_CONFIG = {
   primaryColor: '#0e8a6b',          // màu chủ đạo (đổi cả theme-color trong manifest.webmanifest nếu muốn)
   primaryColor2: '#0b6b9a',         // màu thứ 2 của dải màu thanh trên
   font: 'K2D',                      // tên font trên Google Fonts (phải hỗ trợ tiếng Việt); '' = font mặc định của máy
-  copyright: 'Phòng Thi công Xây lắp – Ban QLDA Long Phú 1', // chủ bản quyền hiện ở chân trang
+  copyright: 'Phòng Thi công Xây lắp – Ban QLDA ĐLDK Long Phú 1', // chủ bản quyền hiện ở chân trang
+  designer: 'Đinh Thanh Hải',       // người thiết kế app — hiện ở chân trang và màn hình đăng nhập ('' = ẩn)
   copyrightSince: 2026,             // năm bắt đầu — chân trang tự hiện "2026–<năm nay>" khi sang năm mới
 
   // 'live' = dữ liệu thật trên Google Sheets qua Apps Script
@@ -21,5 +22,5 @@ window.APP_CONFIG = {
   // Cảnh báo vật tư (trang Thống kê tổng)
   waitOpenDays: 180,         // kiện đã kiểm đếm quá N ngày mà chưa mở kiện
   listPage: 100,             // danh sách dài (vd danh sách kiện) hiện từng trang N dòng
-  version: '0.4.1'
+  version: '0.4.2'
 };

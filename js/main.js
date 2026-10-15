@@ -101,9 +101,12 @@
     footer() {
       const y = new Date().getFullYear(), since = C.copyrightSince || y;
       const owner = U.esc(C.copyright || C.appName), yr = since < y ? `${since}–${y}` : y;
-      document.getElementById('foot').innerHTML = `<div class="foot-in"><span>© ${yr} ${owner}. Bảo lưu mọi quyền.</span>
-        <span><a href="privacy.html">Chính sách bảo mật</a> · Phiên bản ${U.esc(C.version)}</span></div>`;
-      document.getElementById('lfoot').innerHTML = `© ${yr} ${owner} · <a href="privacy.html">Chính sách bảo mật</a>`;
+      const by = C.designer ? 'Thiết kế: <b>' + U.esc(C.designer) + '</b>' : '';
+      // Dòng 1: đơn vị sở hữu · Dòng 2: người thiết kế · chính sách bảo mật · phiên bản (tự xuống dòng gọn trên điện thoại)
+      document.getElementById('foot').innerHTML = `<div class="foot-in">
+        <div class="foot-org">© ${yr} ${owner}<span class="foot-rr">Bảo lưu mọi quyền</span></div>
+        <div class="foot-meta">${by ? `<span>${by}</span>` : ''}<a href="privacy.html">Chính sách bảo mật</a><span>Phiên bản ${U.esc(C.version)}</span></div></div>`;
+      document.getElementById('lfoot').innerHTML = `© ${yr} ${owner}<br>${by ? by + ' · ' : ''}<a href="privacy.html">Chính sách bảo mật</a>`;
     },
     // Giao diện: '' = theo máy, 'light', 'dark' (nhớ trên từng máy)
     theme() { try { return localStorage.getItem('tcxl-theme') || ''; } catch (e) { return ''; } },

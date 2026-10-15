@@ -14,8 +14,8 @@ window.APP_CONFIG = {
   // 'demo' = chạy thử với dữ liệu giả (lưu trong trình duyệt) — mở app kèm ?demo ở cuối địa chỉ
   mode: /[?&]demo\b/.test(location.search) ? 'demo' : 'live',
 
-  // Dùng khi mode = 'live' (chưa triển khai — điền sau khi tạo Google Sheet + Apps Script riêng của Phòng)
-  apiUrl: '',
+  // Dùng khi mode = 'live' — Apps Script "TCXL App Backend" của Google Sheet "TCXL App - Data" (triển khai 15/10/2026)
+  apiUrl: 'https://script.google.com/macros/s/AKfycbzTXfwvUu-kLp5BzvIvodbYMNCPJg4Tc0R7uJ050T5HJj2Bc7GVNuC8nr8xDxC1iLh32g/exec',
   googleClientId: '1062531895029-959l1ua2ph5ld003fm7n0mr8crcvo5r1.apps.googleusercontent.com',  // dùng chung OAuth Client với app DTH (cùng địa chỉ github.io)
 
   // Cảnh báo vật tư (trang Thống kê tổng)

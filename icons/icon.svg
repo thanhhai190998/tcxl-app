@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#12A07C"/>
+      <stop offset="100%" stop-color="#0B5F8A"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+  <!-- Kiện hàng (thùng gỗ) + dấu tích kiểm đếm -->
+  <g fill="none" stroke="#fff" stroke-width="26" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M256 104 L400 182 L256 260 L112 182 Z"/>
+    <path d="M112 182 V334 L256 412 L400 334 V182"/>
+    <path d="M256 260 V412"/>
+    <path d="M184 143 L328 221 V286"/>
+  </g>
+  <circle cx="380" cy="370" r="84" fill="#fff"/>
+  <path d="M340 370 L368 398 L422 342" fill="none" stroke="#0E8A6B" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

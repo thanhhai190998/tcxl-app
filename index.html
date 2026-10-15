@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0e8a6b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TCXL">
+<title>Phòng TCXL · LP1</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="stylesheet" href="css/app.css?v=0.4.0">
+<script>try { var t = localStorage.getItem('tcxl-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
+</head>
+<body>
+<header class="top">
+  <button id="menuBtn" class="ibtn" aria-label="Menu"></button>
+  <button id="back" class="ibtn" hidden aria-label="Quay lại">‹</button>
+  <a href="#/" id="logo"><img src="icons/icon.svg" alt="Trang chủ" width="34" height="34"></a>
+  <div id="title" class="ttl">…</div>
+  <span class="demo-pill" title="Dữ liệu giả, chỉ lưu trong trình duyệt này">DEMO</span>
+  <button id="update" class="ibtn" title="Làm mới dữ liệu" aria-label="Làm mới dữ liệu"></button>
+  <button id="lock" class="ibtn" hidden></button>
+  <button id="menu" class="avatar" title="Cài đặt"><span id="avatar">?</span></button>
+</header>
+<div id="syncbar" class="syncbar" hidden></div>
+<div id="hero" hidden></div>
+<main id="view"></main>
+<footer id="foot" class="foot"></footer>
+<nav id="bnav" class="bnav"></nav>
+<aside id="drawer" class="drawer" aria-label="Menu"></aside>
+<div id="scrim" class="scrim"></div>
+
+<div id="login" class="login" hidden>
+  <div class="login-box">
+    <img src="icons/icon.svg" alt="" width="80" height="80">
+    <h1 id="appname"></h1>
+    <p class="muted">Đăng nhập bằng tài khoản Google đã được cấp quyền</p>
+    <div id="gbtn"></div>
+    <p id="lfoot" class="lfoot"></p>
+  </div>
+</div>
+
+<script src="js/config.js?v=0.4.0"></script>
+<script src="js/util.js?v=0.4.0"></script>
+<script src="js/icons.js?v=0.4.0"></script>
+<script src="js/perm.js?v=0.4.0"></script>
+<script src="js/vault.js?v=0.4.0"></script>
+<script src="js/schema.js?v=0.4.0"></script>
+<script src="js/api.js?v=0.4.0"></script>
+<script src="js/mock.js?v=0.4.0"></script>
+<script src="js/store.js?v=0.4.0"></script>
+<script src="js/views.js?v=0.4.0"></script>
+<script src="js/dash.js?v=0.4.0"></script>
+<script src="js/admin.js?v=0.4.0"></script>
+<script src="js/pick.js?v=0.4.0"></script>
+<script src="js/excel.js?v=0.4.0"></script>
+<script src="js/total.js?v=0.4.0"></script>
+<script src="js/lock.js?v=0.4.0"></script>
+<script src="js/main.js?v=0.4.0"></script>
+</body>
+</html>

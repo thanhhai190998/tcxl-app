@@ -175,7 +175,12 @@
         }
         // Biên bản chưa có gói: các kiện đã chọn cùng 1 gói → gán gói đó (để cán bộ / nhà thầu của gói thấy biên bản)
         const gs = new Set([...sel].map(x => (K(x) || {}).Goi_thau).filter(Boolean));
-        if (noGoi && gs.size === 1) { btn.textContent = 'Đang gán gói thầu…'; await DB.update(t, { [DB.keyField(t)]: rec.id, Goi_thau: [...gs][0] }); }
+        if (noGoi && gs.size === 1) {
+          btn.textContent = 'Đang gán gói thầu…';
+          // Kiện đã lưu xong; gán gói lỗi (vd gói đó đã có biên bản cùng số) thì chỉ báo, không coi cả lần lưu là hỏng
+          try { await DB.update(t, { [DB.keyField(t)]: rec.id, Goi_thau: [...gs][0] }); }
+          catch (e) { U.toast('Đã lưu kiện nhưng chưa gán được gói ' + [...gs][0] + ' cho biên bản: ' + e.message, 'err'); }
+        }
         orig.clear(); sel.forEach(x => orig.add(x));   // đã lưu → không hỏi lại khi rời trang
         U.toast(`Đã lưu: ${title} có ${U.int(sel.size)} kiện`, 'ok');
         location.replace('#/r/' + t + '/' + enc(rec.id));

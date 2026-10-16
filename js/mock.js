@@ -227,6 +227,15 @@
     max = Math.floor(max);
     list.forEach(r => { if (r.STT == null || String(r.STT).trim() === '') r.STT = ++max; });
   };
+  // Giống máy chủ (Code.gs checkUniqueNo_): thêm / sửa từng biên bản — số đã có trong cùng gói → lỗi
+  const soKey = (t, s) => { const k = U.norm(s).replace(/\s+/g, '').replace(new RegExp('^' + t.toLowerCase() + '[-_.:#]*(no\\.?)?(?=.)'), ''); return /^\d+$/.test(k) ? String(+k) : k; };
+  const checkUniqueNo = (t, kf, row, old) => {
+    if (!['MGMER', 'GIR', 'OSD'].includes(t)) return;
+    const k = soKey(t, row.So), g = String(row.Goi_thau ?? '');
+    if (!k || (old && soKey(t, old.So) === k && String(old.Goi_thau ?? '') === g)) return;
+    const dup = rows(t).find(x => String(x[kf]) !== String(row[kf]) && String(x.Goi_thau ?? '') === g && soKey(t, x.So) === k);
+    if (dup) throw new Error(`Số "${row.So}" đã có ${g ? 'trong gói ' + g : '(biên bản chưa có gói)'}${dup.Ngay ? ', ngày ' + U.fmtDate(dup.Ngay) : ''} — hãy dùng số khác`);
+  };
 
   window.MockAPI = {
     async me() { await wait(); return me(); },
@@ -251,6 +260,7 @@
       if (level(u, t, row) < 2) throw new Error('Bạn không có quyền thêm vào mục này');
       if (!row[kf]) throw new Error('Thiếu khoá ' + kf);
       if (findIdx(t, kf, row[kf]) >= 0) throw new Error('Khoá đã tồn tại: ' + row[kf]);
+      checkUniqueNo(t, kf, row, null);
       row = clone(row); autoStt(t, [row]);
       rows(t).push(clone(row)); await persist(); return clone(row);
     },
@@ -259,6 +269,7 @@
       const i = findIdx(t, kf, row[kf]); if (i < 0) throw new Error('Không tìm thấy dòng');
       const old = rows(t)[i], merged = Object.assign({}, old, row);
       if (level(u, t, old) < 2 || level(u, t, merged) < 2) throw new Error('Bạn không có quyền sửa dòng này');
+      checkUniqueNo(t, kf, merged, old);
       rows(t)[i] = merged; await persist(); return clone(merged);
     },
     // Thêm / sửa nhiều dòng một lần (gắn hàng trăm kiện vào 1 biên bản): kiểm tra quyền TỪNG dòng,

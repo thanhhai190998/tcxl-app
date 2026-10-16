@@ -100,8 +100,7 @@
     list: { hint: 'Tìm mô tả, số PKL, số kiện, bản vẽ, nhà cung cấp…', excel: 'KIEN', filter: ['Goi_thau', 'Phase'], lead: 'Goi_thau', sort: 'STT', cols: ['Nha_cung_cap', 'Vi_tri', 'Ngay_dem'], countUnit: 'kiện', page: true },
     detail: { stats: ['Ngay_dem', 'Ngay_mo', 'Vi_tri'], hide: ['Phase'] },
     badge: (r, db) => {
-      const o = r.OSD && db.get('OSD', r.OSD);
-      if (o && o.Trang_thai !== 'Closed') return { text: 'OSD đang mở', cls: 'bad' };
+      if (r.OSD && db.get('OSD', r.OSD)) return { text: 'Có OSD', cls: 'warn' };
       return r.GIR ? { text: 'Đã mở kiện', cls: 'ok' } : r.MGMER ? { text: 'Đã kiểm đếm', cls: 'info' } : { text: 'Chưa về', cls: 'muted' };
     },
     related: [{ t: 'KIEM_TRA', fk: 'Kien', l: 'Lịch sử vị trí & tình trạng' }]
@@ -185,7 +184,11 @@
 
   T.OSD = {
     label: 'Biên bản OSD', key: 'id',
-    title: r => r.So || '(chưa có số)', sub: r => [r.Goi_thau, r.Loai].filter(Boolean).join(' · '),
+    // OSD chỉ là biên bản ghi nhận dư / thiếu / hỏng — không theo dõi Open/Closed nữa (user chốt 16/10/2026);
+    // biện pháp xử lý ghi dần vào Ghi chú. Ghi chú dùng lại cột Noi_dung có sẵn trên Sheet (không phải đổi máy chủ);
+    // cột Trang_thai / Ngay_dong cũ trên Sheet để nguyên, app không đọc / ghi nữa.
+    title: r => r.So || '(chưa có số)',
+    sub: r => [r.Loai, r.Noi_dung && String(r.Noi_dung).replace(/\s+/g, ' ').slice(0, 90)].filter(Boolean).join(' · '),
     needs: ['GOI_THAU', 'GIR', 'KIEN'],
     fields: [
       { n: 'So', l: 'Số OSD', t: 'text', req: true },
@@ -193,15 +196,12 @@
       { n: 'Goi_thau', l: 'Gói thầu', t: 'ref', ref: 'GOI_THAU', req: true },
       { n: 'GIR', l: 'Phát sinh từ lần mở kiện', t: 'ref', ref: 'GIR' },
       { n: 'Loai', l: 'Loại', t: 'enum', opts: ['Thiếu (Shortage)', 'Hư hỏng (Damage)', 'Dư (Overage)', 'Khác'] },
-      { n: 'Noi_dung', l: 'Nội dung', t: 'longtext' },
-      { n: 'Trang_thai', l: 'Trạng thái', t: 'enum', opts: ['Open', 'Closed'], init: 'Open', req: true },
-      { n: 'Ngay_dong', l: 'Ngày đóng', t: 'date' },
+      { n: 'Noi_dung', l: 'Ghi chú', t: 'longtext', ph: 'Dư / thiếu / hỏng gì, biện pháp xử lý (bù hàng, thay thế, chấp nhận, bảo hiểm…) — cập nhật dần' },
       { n: 'File', l: 'Biên bản (PDF)', t: 'file' },
       { n: 'So_kien', l: 'Số kiện', t: 'number', v: (r, db) => countBy(db, 'OSD').get(String(r.id)) || 0 }
     ],
-    list: { group: 'Trang_thai', groupOrder: ['Open', 'Closed'], filter: 'Goi_thau', lead: 'Goi_thau', sort: 'Ngay', desc: true, cols: ['Ngay', 'So_kien'], countUnit: 'biên bản', range: true },
-    detail: { stats: ['Ngay', 'Trang_thai', 'Ngay_dong'], hide: [] },
-    badge: r => r.Trang_thai === 'Closed' ? { text: 'Đã đóng', cls: 'ok' } : { text: 'Đang mở', cls: 'bad' },
+    list: { hint: 'Tìm số OSD, ghi chú…', filter: ['Goi_thau', 'Loai'], lead: 'Goi_thau', sort: 'Ngay', desc: true, cols: ['Ngay', 'So_kien'], sum: 'So_kien', unit: 'kiện', countUnit: 'biên bản', range: true },
+    detail: { stats: ['Ngay', 'Loai', 'So_kien'], hide: [] },
     related: [{ t: 'KIEN', fk: 'OSD', l: 'Các kiện liên quan', pick: true }],
     assign: { field: 'OSD', verb: 'lập OSD', modes: [
       { id: 'gir', l: 'Thuộc lần mở kiện phát sinh OSD', when: rec => rec.GIR, f: (k, rec) => k.GIR === rec.GIR },

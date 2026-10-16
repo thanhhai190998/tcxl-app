@@ -171,7 +171,7 @@
       { id: 'tot', ts: ['KIEN'], label: 'Tổng số kiện', ic: 'box', href: '#/i/KIEN' },
       { id: 've', ts: ['KIEN'], label: 'Đã về, chưa mở kiện', ic: 'inspect', href: kl + encodeURIComponent(PH[1]) },
       { id: 'mo', ts: ['KIEN'], label: 'Đã mở kiện', ic: 'open', href: kl + encodeURIComponent(PH[2]) },
-      { id: 'osd', ts: ['OSD'], label: 'OSD đang mở', ic: 'alert', href: '#/i/OSD' }
+      { id: 'osd', ts: ['OSD'], label: 'Biên bản OSD', ic: 'alert', href: '#/i/OSD' }
     ].filter(k => k.ts.some(t => can(t) > 0));
     const quick = [
       { t: 'KIEN', label: 'Kiện mới' }, { t: 'MGMER', label: 'Biên bản kiểm đếm' },
@@ -247,8 +247,7 @@
       set('tot', fmt(kien.length));
       set('ve', fmt(kien.filter(r => r.MGMER && !r.GIR).length));
       set('mo', fmt(kien.filter(r => r.GIR).length));
-      const open = DB.rows('OSD').filter(r => r.Trang_thai !== 'Closed').length;
-      set('osd', open, true);
+      set('osd', fmt(DB.rows('OSD').length));
     }
   };
 
@@ -827,7 +826,7 @@
         return `<button type="button" class="segb ${on ? 'on' : ''}" aria-pressed="${on}" ${on && !f.req ? 'title="Đang chọn — bấm lần nữa để bỏ chọn"' : ''} data-v="${esc(o.v)}">${esc(o.l)}</button>`; }).join('')}</div>`;
     let input;
     switch (f.t) {
-      case 'longtext': input = `<textarea ${nm} rows="3">${esc(v)}</textarea>`; break;
+      case 'longtext': input = `<textarea ${nm} rows="3"${f.ph ? ` placeholder="${esc(f.ph)}"` : ''}>${esc(v)}</textarea>`; break;
       case 'price':
         input = `<div class="inl money"><input ${nm} type="text" inputmode="numeric" autocomplete="off" data-money value="${esc(moneyFmt(v === '' ? '' : Math.round(U.num(v))))}"><span class="unit">₫</span></div>`;
         break;

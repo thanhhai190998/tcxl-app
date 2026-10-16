@@ -209,7 +209,7 @@
     const link = (o = {}) => '#/i/KIEN?' + new URLSearchParams(Object.assign(st.g === '*' ? {} : { Goi_thau: st.g }, o)).toString();
     const [p3, p2, p1] = tri(rows), came = p3 + p2;
     const tons = rows.filter(r => /^kg$/i.test(r.Don_vi_KL || 'Kg')).reduce((s, r) => s + U.num(r.KL_tinh), 0) / 1000;
-    const osdOpen = DB.rows('OSD').filter(r => inG(r) && r.Trang_thai !== 'Closed');
+    const osd = DB.rows('OSD').filter(inG), osdKien = rows.filter(r => r.OSD).length;
 
     let h = goiAll.length > 1 ? filterRow('g', [{ v: '*', l: 'Tất cả gói' }, ...goiAll.map(g => ({ v: g, l: g }))], st.g) : '';
     h += `<section class="dhero2"><div class="dh2-l">${st.g === '*' ? 'Tổng số kiện vật tư' : 'Số kiện vật tư gói ' + esc(st.g)}</div>
@@ -219,7 +219,8 @@
       { ic: 'inspect', l: 'Đã về công trường', v: U.int(came), href: link(), delta: rows.length ? { t: pct(came / rows.length * 100) + ' số kiện', cls: '' } : null },
       { ic: 'box', l: 'Đã về, chờ mở kiện', v: U.int(p2), href: link({ Phase: PH[1] }) },
       { ic: 'open', l: 'Đã mở kiện', v: U.int(p3), href: link({ Phase: PH[2] }), delta: came ? { t: pct(p3 / came * 100) + ' số đã về', cls: '' } : null },
-      { ic: 'alert', l: 'Biên bản OSD đang mở', v: U.int(osdOpen.length), href: '#/i/OSD', cls: osdOpen.length ? 'warn' : 'good' }
+      { ic: 'alert', l: 'Biên bản OSD (dư / thiếu / hỏng)', v: U.int(osd.length), href: '#/i/OSD' + (st.g === '*' ? '' : '?Goi_thau=' + encodeURIComponent(st.g)),
+        delta: osdKien ? { t: U.int(osdKien) + ' kiện liên quan', cls: '' } : null }
     ].map(tile).join('')}</div>`;
 
     // Tiến độ theo gói / theo hệ thống
@@ -274,7 +275,8 @@
       ${note ? `<div class="dnote">${esc(note)}</div>` : ''}
       ${rs.length ? Views.renderRows(t, rs.slice(0, 5), { flat: true, sortBy: 'none', compact: true }) : none()}</div>`;
     h += card('Cần chú ý', 'bell', 'var(--g4)',
-      (can('OSD') ? part('Biên bản OSD đang mở', 'dư / thiếu / hư hỏng chưa xử lý xong', osdOpen, 'OSD', '#/i/OSD') : '')
+      (can('OSD') ? part('Biên bản OSD gần đây', 'mới lập ở trên · ghi chú xử lý hiện ngay dưới số OSD',
+        [...osd].sort((a, b) => U.isoOf(b.Ngay).localeCompare(U.isoOf(a.Ngay))), 'OSD', '#/i/OSD') : '')
       + part('Đã về quá ' + waitN + ' ngày chưa mở kiện', 'cũ nhất ở trên', waiting, 'KIEN', link({ Phase: PH[1] }))
       + part('Không thấy ở lần kiểm tra gần nhất', 'cần tìm lại hoặc lập biên bản', lostRows, 'KIEN', ''));
 

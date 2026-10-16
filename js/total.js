@@ -14,7 +14,7 @@
     'OSD Status  ', 'Remarks', 'Location', 'Status of package', 'Date', 'Remarks after checking', 'RFI (Hard Copy)'];
   const TITLE = 'LONG PHU 01 THERMAL POWER PLANT PROJECT\nLIST OF PACKAGES FOR MATERIALS/EQUIPMENT DELIVERED TO SITE';
   const WIDTH = [7.1, 5.1, 19.7, 28, 13.9, 30.9, 43.3, 32.5, 12.5, 18.1, 14.1, 20.3, 8.5, 10.1, 8.7, 13.7, 13.5, 13.5, 12.5, 9.9, 18.7, 11.5, 22.5, 11.5, 15.3, 10.5, 29.3, 19.5];
-  const NONE = /^(n\/a|not open)?$/i;   // ô "trống" theo quy ước của file gốc
+  const NONE = /^(n\/+a|not open)?$/i;   // ô "trống" theo quy ước của file gốc (có ô gõ nhầm "N//a")
   const pad = (n, w) => String(n).padStart(w, '0');
   const hash = s => { let h = 5381; for (const c of String(s)) h = (h * 33 + c.charCodeAt(0)) >>> 0; return h.toString(36); };
 
@@ -110,7 +110,7 @@
   // ---------- 2. Lập kế hoạch (so với dữ liệu đang có trong app) ----------
   // map: Restart Phase → mã gói; mode: 'all' = thêm + cập nhật, 'new' = chỉ thêm cái chưa có
   TS.plan = (src, map, mode, empty) => {   // empty = coi như app chưa có kiện / biên bản nào (demo: xoá dữ liệu giả trước khi nạp)
-    const I = { odd: [], txtNum: 0, badNum: [], mgDays: new Map(), giDays: new Map(), osdMix: [], linkMix: new Set(), noDate: 0, noLoc: 0, mgWord: [], osdBlank: 0 };
+    const I = { odd: [], txtNum: 0, badNum: [], mgDays: new Map(), giDays: new Map(), linkMix: new Set(), noDate: 0, noLoc: 0, mgWord: [] };
     const yearNow = new Date().getFullYear();
     const out = { KIEN: [], MGMER: new Map(), GIR: new Map(), OSD: new Map(), KIEM_TRA: [], GOI: new Map() };
     const usedIds = new Set();
@@ -164,14 +164,13 @@
         }
         d.mgs.add(k.MGMER); d.n++; k.GIR = d.id;
       }
-      // Biên bản OSD: theo gói + số; trạng thái Open nếu còn kiện nào Open
-      const osNo = T(20), osSt = T(21);
+      // Biên bản OSD: theo gói + số. Cột V "OSD Status" không đọc nữa — app bỏ trạng thái Open/Closed (16/10/2026);
+      // không gửi Noi_dung để nạp lại file không xoá ghi chú xử lý đã nhập trong app
+      const osNo = T(20);
       if (osNo && !NONE.test(osNo)) {
         const key = goi + '|' + osNo;
         let d = out.OSD.get(key);
-        if (!d) { d = { id: 'OS-' + goi + '-' + hash(osNo), So: osNo, Ngay: '', Goi_thau: goi, GIR: '', Loai: '', Noi_dung: '', Trang_thai: '', Ngay_dong: '', File: '', sts: new Set(), girs: new Set(), n: 0 }; out.OSD.set(key, d); }
-        d.sts.add(/^clos/i.test(osSt) ? 'Closed' : /^open/i.test(osSt) ? 'Open' : '');
-        if (!/^(clos|open)/i.test(osSt)) I.osdBlank++;
+        if (!d) { d = { id: 'OS-' + goi + '-' + hash(osNo), So: osNo, Goi_thau: goi, GIR: '', girs: new Set(), n: 0 }; out.OSD.set(key, d); }
         d.girs.add(k.GIR); d.n++; k.OSD = d.id;
       }
       // Kiểm tra tình trạng (X–AB) → 1 lần kiểm tra
@@ -186,13 +185,7 @@
     }
     // Hoàn thiện biên bản
     out.GIR.forEach(d => { const m = [...d.mgs].filter(Boolean); d.MGMER = m.length === 1 ? m[0] : ''; delete d.mgs; });
-    out.OSD.forEach(d => {
-      const s = [...d.sts].filter(Boolean);
-      d.Trang_thai = s.includes('Open') || !s.length ? 'Open' : 'Closed';
-      if (s.length > 1) I.osdMix.push(`${d.So} (${d.Goi_thau})`);
-      const g = [...d.girs].filter(Boolean); d.GIR = g.length === 1 ? g[0] : '';
-      delete d.sts; delete d.girs;
-    });
+    out.OSD.forEach(d => { const g = [...d.girs].filter(Boolean); d.GIR = g.length === 1 ? g[0] : ''; delete d.girs; });
     const multi = m => [...m].filter(([, s]) => s.size > 1).map(([k, s]) => `${k.split('|')[1]} (${k.split('|')[0]}): ${[...s].map(x => x ? U.fmtDate(x) : 'không ngày').join(', ')}`);
 
     // So với dữ liệu đang có: thêm / cập nhật / không đổi
@@ -220,8 +213,6 @@
         [I.odd.length, 'ngày bất thường (có thể gõ nhầm năm) — giữ nguyên, nên sửa trong app', I.odd],
         [multi(I.mgDays).length, 'số MGMER có nhiều ngày khác nhau — tách thành nhiều biên bản cùng số, đúng ngày từng dòng', multi(I.mgDays)],
         [multi(I.giDays).length, 'số GIR có nhiều ngày khác nhau — tách tương tự', multi(I.giDays)],
-        [I.osdMix.length, 'biên bản OSD có kiện Open lẫn Closed — để trạng thái Open', I.osdMix],
-        [I.osdBlank, 'kiện có số OSD nhưng không ghi trạng thái — theo trạng thái của biên bản (không rõ thì Open)', []],
         [I.linkMix.size, 'biên bản MGMER có link thư mục khác nhau giữa các dòng — lấy link đầu tiên', [...I.linkMix]],
         [I.mgWord.length, 'ô MGMER No. ghi chữ, không có ngày — coi như chưa về, chép chữ vào Ghi chú', I.mgWord],
         [I.txtNum, 'ô số lượng / khối lượng gõ dạng chữ — đã đổi thành số', []],
@@ -230,6 +221,7 @@
         [I.noLoc, 'lần kiểm tra tình trạng không ghi vị trí (cột Location)', []]
       ].filter(x => x[0])
     };
+    P.OSD.add = P.OSD.add.map(r => ({ Ngay: '', Loai: '', Noi_dung: '', File: '', ...r }));   // biên bản mới: đủ cột; biên bản cũ: giữ ghi chú
     P.writes = goiNew.length + ['MGMER', 'GIR', 'OSD', 'KIEN', 'KIEM_TRA'].reduce((s, t) => s + P[t].add.length + P[t].upd.length, 0);
     return P;
   };
@@ -297,7 +289,7 @@
         asNumIf(k.PKL_No), asNumIf(k.PSIC_No), asNumIf(k.Package_No), k.DVT, k.So_luong, k.Don_vi_KL, k.KL_tinh,
         m && m.Ngay ? dt(m.Ngay) : '', m ? link(asNumIf(m.So), m.Duong_dan) : '',
         g ? (g.Ngay ? dt(g.Ngay) : '') : m ? 'N/A' : '', g ? asNumIf(g.So) : m ? 'Not Open' : '',
-        o ? asNumIf(o.So) : '', o ? o.Trang_thai : '', k.Ghi_chu,
+        o ? asNumIf(o.So) : '', '', k.Ghi_chu,   // cột V OSD Status: app không theo dõi trạng thái OSD nữa → để trống
         c ? c.Vi_tri : '', c ? c.Tinh_trang : '', c && c.Ngay ? dt(c.Ngay) : '', c ? link(c.Ghi_chu, c.Anh_link) : '', c ? link(c.RFI, c.RFI_link) : ''
       ]);
       [17, 19, 26].forEach(i => { r.getCell(i).numFmt = 'mm-dd-yy'; });

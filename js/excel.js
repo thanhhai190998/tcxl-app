@@ -100,11 +100,11 @@
         { k: 'gir_ngay', h: 'Ngày mở kiện', w: 13, type: 'date', note: 'dd/mm/yyyy — bắt buộc khi là biên bản mới' },
         { k: 'osd_so', h: 'Số OSD (nếu có)', w: 18, note: 'Chỉ điền khi kiện dư / thiếu / hư hỏng' },
         { k: 'osd_loai', h: 'Loại OSD', w: 16, list: DB.field('OSD', 'Loai').opts },
-        { k: 'osd_nd', h: 'Nội dung OSD', w: 30 }],
+        { k: 'osd_nd', h: 'Ghi chú OSD', alt: ['Nội dung OSD'], w: 30 }],
       fill: k => { const m = docOf('MGMER', k.MGMER), g = docOf('GIR', k.GIR), o = docOf('OSD', k.OSD);
         return { ...k, mg_now: m ? m.So : '', gir_so: g ? g.So : '', gir_ngay: g ? g.Ngay : '', osd_so: o ? o.So : '', osd_loai: o ? o.Loai : '', osd_nd: o ? o.Noi_dung : '' }; },
       guide: ['Mỗi dòng là 1 kiện có sẵn trong app (cột xám chỉ để xem, không sửa).', 'Điền "Số GIR" và "Ngày mở kiện" cho kiện đã mở. Nhiều kiện cùng số = cùng 1 biên bản.',
-        'Kiện dư / thiếu / hư hỏng: điền thêm "Số OSD", loại và nội dung — app tạo biên bản OSD (trạng thái Open) gắn với lần mở kiện.',
+        'Kiện dư / thiếu / hư hỏng: điền thêm "Số OSD", loại và ghi chú — app tạo biên bản OSD gắn với lần mở kiện.',
         'Để trống = không đổi.']
     }
   };
@@ -347,7 +347,7 @@
         if (!so && ng) x.msgs.push('Có ngày mở kiện nhưng thiếu số GIR');
         const osdTypes = DB.field('OSD', 'Loai').opts, loai = asText(r.osd_loai) && canon(osdTypes, r.osd_loai);
         if (loai && !osdTypes.includes(loai)) x.msgs.push('"Loại OSD" phải là một trong: ' + osdTypes.join(', '));
-        if (!oso && (loai || asText(r.osd_nd))) x.msgs.push('Có loại / nội dung OSD nhưng thiếu số OSD');
+        if (!oso && (loai || asText(r.osd_nd))) x.msgs.push('Có loại / ghi chú OSD nhưng thiếu số OSD');
         let d = null;
         if (so && !x.msgs.length) d = doc('GIR', so, ng, x, {});
         const cur = docOf('GIR', k.GIR);
@@ -391,7 +391,7 @@
       ds.forEach(d => { d.id = U.uid(); });
       const rows = ds.map(d => t === 'MGMER' ? { id: d.id, So: d.so, Ngay: d.ngay, Goi_thau: P.goi, Dia_diem: 'Tại công trường', Thanh_phan: '', File: '', Thu_muc: '', Ghi_chu: note }
         : t === 'GIR' ? { id: d.id, So: d.so, Ngay: d.ngay, Goi_thau: P.goi, MGMER: d.mg && d.mg.size === 1 ? [...d.mg][0] : '', Thanh_phan: '', File: '', Ghi_chu: note }
-        : { id: d.id, So: d.so, Ngay: d.ngay, Goi_thau: P.goi, GIR: d.gir ? d.gir.id : '', Loai: d.loai || '', Noi_dung: d.nd || '', Trang_thai: 'Open', Ngay_dong: '', File: '' });
+        : { id: d.id, So: d.so, Ngay: d.ngay, Goi_thau: P.goi, GIR: d.gir ? d.gir.id : '', Loai: d.loai || '', Noi_dung: d.nd || '', File: '' });
       step('Đang tạo ' + ds.length + ' biên bản ' + t + '…');
       await DB.addMany(t, rows);
       add[t] = rows.map(r => r.id);

@@ -129,8 +129,9 @@
     // ---- OSD: vài lần mở kiện phát hiện thiếu / hỏng ----
     t.GIR.filter((g, i) => i % 6 === 2).slice(0, 8).forEach((g, i) => {
       const o = { id: id('OS'), So: 'OSD-DEMO-' + pad(i + 1, 3), Ngay: addDays(g.Ngay, int(0, 3)), Goi_thau: g.Goi_thau, GIR: g.id,
-        Loai: pick(['Thiếu (Shortage)', 'Hư hỏng (Damage)', 'Hư hỏng (Damage)', 'Dư (Overage)']), Noi_dung: 'Phát hiện khi mở kiện (demo)',
-        Trang_thai: i < 3 ? 'Open' : 'Closed', Ngay_dong: i < 3 ? '' : addDays(g.Ngay, int(20, 120)), File: '' };
+        Loai: pick(['Thiếu (Shortage)', 'Hư hỏng (Damage)', 'Hư hỏng (Damage)', 'Dư (Overage)']),
+        Noi_dung: 'Phát hiện khi mở kiện (demo)' + (i < 3 ? '' : '. ' + pick(['Nhà thầu đã bù đủ hàng', 'Đã thay thế thiết bị hỏng', 'Chủ đầu tư chấp nhận, ghi nhận vào biên bản', 'Chuyển bảo hiểm xử lý']) + ' ngày ' + U.fmtDate(addDays(g.Ngay, int(20, 120)))),
+        File: '' };
       t.OSD.push(o);
       t.KIEN.filter(r => r.GIR === g.id).slice(0, int(1, 3)).forEach(r => { r.OSD = o.id; });
     });

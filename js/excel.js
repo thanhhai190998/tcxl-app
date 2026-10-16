@@ -29,7 +29,8 @@
   // ---------------- Định nghĩa 3 mẫu ----------------
   // c: k = khoá cột, h = tiêu đề, w = độ rộng, req = bắt buộc, type = number | date, list = danh sách chọn,
   //    other = được gõ giá trị ngoài danh sách, info = cột xám chỉ để xem (app không đọc), note = ghi chú ở tiêu đề
-  const ID = { k: 'id', h: 'Mã kiện', w: 12, info: true, note: 'Mã do app cấp — KHÔNG sửa. Mẫu P1: để trống = kiện mới.' };
+  // alt = tiêu đề cũ vẫn chấp nhận khi tải lên (mẫu đã tải trước khi đổi tên cột)
+  const ID = { k: 'id', h: 'Mã kiện', w: 12, info: true, note: 'Mã do app cấp — KHÔNG sửa.' };
   const INFO = [
     { k: 'PKL_No', h: 'Số PKL', w: 11, info: true }, { k: 'Package_No', h: 'Số kiện (Package No.)', w: 22, info: true },
     { k: 'Mo_ta', h: 'Mô tả hàng', w: 34, info: true }, { k: 'He_thong', h: 'Hệ thống', w: 16, info: true }
@@ -44,7 +45,8 @@
       scopes: [{ v: 'empty', l: 'Mẫu trống (thêm kiện mới)' }, { v: 'all', l: 'Kèm kiện hiện có (để sửa)' }],
       pick: (k, sc) => sc === 'all',
       cols: () => [
-        { ...ID, info: false, w: 12 },   // không có cột STT (No.): kiện mới được app tự cấp số tiếp theo khi nạp
+        // Ghi thẳng ở tiêu đề (không dùng ghi chú ô — khó thấy); không có cột STT (No.): kiện mới được app tự cấp số khi nạp
+        { ...ID, h: 'Mã kiện (Để trống khi thêm mới)', alt: ['Mã kiện'], note: '', info: false, w: 18 },
         { k: 'To_may', h: 'Tổ máy (Unit)', w: 9, list: DB.field('KIEN', 'To_may').opts },
         { k: 'He_thong', h: 'Hệ thống (System)', w: 20, list: enumOpts('KIEN', 'He_thong'), other: true },
         { k: 'Goi_PM', h: 'Gói chia theo PM', w: 22 },
@@ -231,7 +233,7 @@
     const heads = ws.getRow(1).values.slice(1).map(x => asText(cellVal(x)).replace(/\s*\*$/, ''));
     keys.forEach((k, i) => {
       const c = byKey.get(k);
-      if (c && heads[i] !== c.h) throw new Error(`Cột ${colL(i + 1)} phải là "${c.h}" nhưng file ghi "${heads[i] || '(trống)'}" — có thể cột đã bị xoá / đổi chỗ. Hãy tải mẫu mới.`);
+      if (c && heads[i] !== c.h && !(c.alt || []).includes(heads[i])) throw new Error(`Cột ${colL(i + 1)} phải là "${c.h}" nhưng file ghi "${heads[i] || '(trống)'}" — có thể cột đã bị xoá / đổi chỗ. Hãy tải mẫu mới.`);
     });
     const rows = [];
     for (let r = 2; r <= ws.rowCount; r++) {

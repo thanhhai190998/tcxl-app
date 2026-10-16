@@ -112,6 +112,7 @@
       const err = new Error(j.error === 'NOT_ALLOWED' ? 'Tài khoản ' + (j.email || '') + ' chưa được cấp quyền dùng app' : j.error);
       err.code = j.error; throw err;
     }
+    if (j.v && window.DB && DB.gotVer) DB.gotVer(j.v);   // lần ghi: phiên bản bảng trước / sau khi ghi
     return j.data;
   }
 

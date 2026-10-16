@@ -41,9 +41,9 @@ function permRowLevel(user, table, row, getParent) {
   lv = permRank(q[sc.permKey || table]);
   if (!lv) return 0;
   if (!permGoiOk(user, table, row)) return 0;
-  if (sc.parent) {
+  if (sc.parent && user.goi && user.goi.length) {   // chỉ người bị giới hạn gói mới cần tra dòng cha
     var p = getParent ? getParent(sc.parent, row[sc.col]) : null;
-    if (user.goi && user.goi.length && (!p || !permGoiOk(user, sc.parent, p))) return 0;
+    if (!p || !permGoiOk(user, sc.parent, p)) return 0;
   }
   return lv;
 }

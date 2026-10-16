@@ -71,6 +71,10 @@
     },
     // v = phiên bản máy chủ của đúng bản dữ liệu này; sửa trên máy (thêm/sửa/xoá) → không còn khớp → bỏ
     persist(t, v) { if (v) this.ver[t] = v; else delete this.ver[t]; IDB.set(ns() + t, { rows: this.data[t] || [], at: Date.now(), v: v || '' }); },
+    // Máy chủ (Code.gs mới) trả phiên bản bảng trước (v0) / sau (v) lần ghi. Máy đang giữ đúng bản trước → dữ liệu trên máy
+    // + thay đổi vừa ghi = bản sau → nhận luôn, lần làm mới tới máy chủ chỉ trả "không đổi" (khỏi tải lại cả 12.709 kiện).
+    // Không khớp (có người khác vừa sửa) → bỏ phiên bản → lần làm mới tới tải lại cả bảng như cũ.
+    gotVer(vs) { Object.keys(vs).forEach(t => { const x = vs[t]; if (x && this.ver[t] && this.ver[t] === x.v0) this.ver[t] = x.v; else delete this.ver[t]; }); },
 
     // Hẹn cập nhật ngầm (mỗi bảng 1 lần trong 1 phiên mở app)
     later(t) {
@@ -221,7 +225,7 @@
     async add(t, row) {
       const saved = await API.add(t, this.keyField(t), row);
       this.data[t] = [...(this.data[t] || []), saved];
-      this.persist(t);
+      this.persist(t, this.ver[t]);   // giữ phiên bản: máy chủ vẫn so lại, khác thì tải mới (gotVer đã nhận bản sau khi ghi)
       return saved;
     },
     async update(t, row) {
@@ -230,7 +234,7 @@
       const i = arr.findIndex(r => String(r[kf]) === String(saved[kf]));
       if (i >= 0) arr[i] = saved; else arr.push(saved);
       this.data[t] = arr;
-      this.persist(t);
+      this.persist(t, this.ver[t]);   // giữ phiên bản: máy chủ vẫn so lại, khác thì tải mới (gotVer đã nhận bản sau khi ghi)
       return saved;
     },
     // Thêm / sửa nhiều dòng: gửi từng lô 1.000 dòng (Apps Script giới hạn thời gian mỗi lần gọi),
@@ -242,7 +246,7 @@
         if (onStep) onStep(Math.min(i + 1000, list.length), list.length);
       }
       this.data[t] = [...(this.data[t] || []), ...saved];
-      this.persist(t);
+      this.persist(t, this.ver[t]);   // giữ phiên bản: máy chủ vẫn so lại, khác thì tải mới (gotVer đã nhận bản sau khi ghi)
       return saved;
     },
     async updateMany(t, list, onStep) {
@@ -253,7 +257,7 @@
       }
       const by = new Map(saved.map(r => [String(r[kf]), r]));
       this.data[t] = (this.data[t] || []).map(r => by.get(String(r[kf])) || r);
-      this.persist(t);
+      this.persist(t, this.ver[t]);   // giữ phiên bản: máy chủ vẫn so lại, khác thì tải mới (gotVer đã nhận bản sau khi ghi)
       return saved;
     },
     async removeMany(t, keys, onStep) {
@@ -264,13 +268,13 @@
       }
       const drop = new Set(keys.map(String));
       this.data[t] = (this.data[t] || []).filter(r => !drop.has(String(r[kf])));
-      this.persist(t);
+      this.persist(t, this.ver[t]);   // giữ phiên bản: máy chủ vẫn so lại, khác thì tải mới (gotVer đã nhận bản sau khi ghi)
     },
     async remove(t, key) {
       await API.remove(t, this.keyField(t), key);
       const kf = this.keyField(t);
       this.data[t] = (this.data[t] || []).filter(r => String(r[kf]) !== String(key));
-      this.persist(t);
+      this.persist(t, this.ver[t]);   // giữ phiên bản: máy chủ vẫn so lại, khác thì tải mới (gotVer đã nhận bản sau khi ghi)
     }
   });
 

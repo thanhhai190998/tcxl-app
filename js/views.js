@@ -819,7 +819,8 @@
     const nm = `name="${esc(f.n)}"`;
     const ro = def.keyEditable && f.n === def.key && !isNew ? 'readonly' : '';
     const seg = (opts, cur) => `<div class="seg" data-seg="${esc(f.n)}" ${f.req ? 'data-req="1"' : ''}><input type="hidden" ${nm} value="${esc(cur)}">
-      ${opts.map(o => `<button type="button" class="segb ${String(o.v) === String(cur) ? 'on' : ''}" data-v="${esc(o.v)}">${esc(o.l)}</button>`).join('')}</div>`;
+      ${opts.map(o => { const on = String(o.v) === String(cur);
+        return `<button type="button" class="segb ${on ? 'on' : ''}" aria-pressed="${on}" ${on && !f.req ? 'title="Đang chọn — bấm lần nữa để bỏ chọn"' : ''} data-v="${esc(o.v)}">${esc(o.l)}</button>`; }).join('')}</div>`;
     let input;
     switch (f.t) {
       case 'longtext': input = `<textarea ${nm} rows="3">${esc(v)}</textarea>`; break;
@@ -927,8 +928,8 @@
       const b = e.target.closest('.segb'); if (!b) return;
       const hid = s.querySelector('input[type=hidden]'), on = b.classList.contains('on');
       if (on && s.dataset.req) return;
-      s.querySelectorAll('.segb').forEach(x => x.classList.remove('on'));
-      if (!on) b.classList.add('on');
+      s.querySelectorAll('.segb').forEach(x => { x.classList.remove('on'); x.setAttribute('aria-pressed', 'false'); x.removeAttribute('title'); });
+      if (!on) { b.classList.add('on'); b.setAttribute('aria-pressed', 'true'); if (!s.dataset.req) b.title = 'Đang chọn — bấm lần nữa để bỏ chọn'; }
       hid.value = on ? '' : b.dataset.v;
       dirty = true; s.closest('.fld').classList.remove('err');
     }));

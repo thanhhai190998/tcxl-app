@@ -436,7 +436,10 @@ dd { margin: 0; word-break: break-word; display: flex; flex-wrap: wrap; align-it
 .segb { font: inherit; font-size: 14px; font-weight: 600; padding: 8px 14px; min-height: 40px; border-radius: 11px; cursor: pointer;
   color: var(--text); background: var(--card); border: 1px solid var(--line); text-align: left; }
 .segb:hover { border-color: color-mix(in srgb, var(--pri) 50%, var(--line)); }
-.segb.on { background: color-mix(in srgb, var(--pri) 14%, transparent); border-color: var(--pri); color: var(--pri); }
+/* Nút đang chọn: nền đặc + chữ trắng + dấu ✓ — rõ ở cả giao diện sáng lẫn tối
+   (trước đây chữ màu chủ đạo trên nền tối trông như "chưa chọn" → bấm lại thành bỏ chọn, lưu ra trống) */
+.segb.on { background: var(--pri); border-color: var(--pri); color: #fff; }
+.segb.on::before { content: "✓"; margin-right: 6px; font-weight: 700; }
 .qd { flex: none; font: inherit; font-size: 13px; font-weight: 600; padding: 0 12px; min-height: 42px; border-radius: 10px; cursor: pointer;
   color: var(--pri); background: color-mix(in srgb, var(--pri) 10%, transparent); border: 0; white-space: nowrap; }
 label.qd { display: inline-flex; align-items: center; gap: 6px; }
@@ -544,6 +547,7 @@ input.sw:checked::after { transform: translateX(18px); }
 .schev { color: var(--muted); }
 .seg.mini { flex-wrap: nowrap; gap: 4px; }
 .seg.mini .segb { padding: 5px 9px; min-height: 32px; font-size: 12.5px; }
+.seg.mini .segb.on::before { content: none; }   /* hàng nút nhỏ không xuống dòng → bỏ dấu ✓ cho khỏi tràn */
 .btn.wide { width: 100%; margin-top: 18px; }
 @media (max-width: 420px) { .srow:has(.seg.mini) { flex-wrap: wrap; } .srow:has(.seg.mini) .sa { width: 100%; padding-left: 44px; } }
 

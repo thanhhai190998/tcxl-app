@@ -14,7 +14,8 @@
 //  Thuộc tính khác: req (bắt buộc), init ('today' hoặc giá trị mặc định), v (cột ảo — hàm tính, không lưu vào Sheet),
 //    ph (chữ gợi ý trong ô ghi chú dài)
 //  Bảng: beforeSave(dòng, { db, user, isNew, old }) chạy trước khi lưu form — điền thêm cột, trả { f, msg } để chặn lưu;
-//    unique = { f: cột số, scope: cột phạm vi } — số trùng trong cùng phạm vi thì không cho lưu, khác phạm vi thì cảnh báo
+//    unique = { f: cột số, scope: cột phạm vi } — số trùng trong cùng phạm vi thì không cho lưu, khác phạm vi thì cảnh báo;
+//    fileName(dòng, db) = tên file (không đuôi) đặt cho file / ảnh tải lên Drive — trống thì giữ tên gốc
 //
 //  3 PHASE CỦA VẬT TƯ (theo file "Goods delivered to Site"):
 //    Phase 1 — nhà thầu thông báo hàng (cột A–P)        → bảng KIEN
@@ -37,6 +38,12 @@
     memo[name] = { deps, v };
     return v;
   }
+  // Tên file trên Drive khi tải biên bản lên: "<LOẠI> <số> - <gói>" (vd "GIR 1010 - T12"; số OSD đã có chữ OSD thì giữ nguyên)
+  // → file Excel chỉ ghi số vẫn tìm ngay được file trên Drive. Kèm gói vì số được trùng giữa các gói (MGMER "1" ở EPC và T12).
+  const docFile = pre => r => {
+    const so = String(r.So || '').trim(); if (!so) return '';
+    return [U.norm(so).startsWith(pre.toLowerCase()) ? so : pre + ' ' + so, r.Goi_thau].filter(Boolean).join(' - ');
+  };
   // Số kiện theo từng biên bản (MGMER / GIR / OSD)
   const countBy = (db, col) => cached('cnt:' + col, [db.rows('KIEN')], () => {
     const m = new Map();
@@ -110,7 +117,7 @@
   };
 
   T.MGMER = {
-    label: 'Biên bản kiểm đếm (MGMER)', key: 'id', unique: { f: 'So', scope: 'Goi_thau' },
+    label: 'Biên bản kiểm đếm (MGMER)', key: 'id', unique: { f: 'So', scope: 'Goi_thau' }, fileName: docFile('MGMER'),
     title: r => 'MGMER ' + (r.So || '?'), sub: r => [r.Goi_thau, r.Dia_diem].filter(Boolean).join(' · '),
     needs: ['GOI_THAU', 'KIEN'],
     fields: [
@@ -138,6 +145,8 @@
 
   T.KIEM_TRA = {
     label: 'Vị trí & tình trạng kiện', key: 'id',
+    // Ảnh kiểm tra: "KT No.<số thứ tự kiện (cột No. file Total)> - <gói> - <ngày>"
+    fileName: (r, db) => { const k = db.get('KIEN', r.Kien); return ['KT No.' + (k && k.STT !== '' && k.STT != null ? k.STT : r.Kien), k && k.Goi_thau, U.fmtDate(r.Ngay).split('/').join('-')].filter(Boolean).join(' - '); },
     title: (r, db) => { const k = db.get('KIEN', r.Kien); return k ? db.title('KIEN', k) : '(kiện đã xoá)'; },
     sub: r => [r.Vi_tri, r.Tinh_trang].filter(Boolean).join(' · '),
     needs: ['KIEN'],
@@ -162,7 +171,7 @@
   };
 
   T.GIR = {
-    label: 'Biên bản mở kiện (GIR)', key: 'id', unique: { f: 'So', scope: 'Goi_thau' },
+    label: 'Biên bản mở kiện (GIR)', key: 'id', unique: { f: 'So', scope: 'Goi_thau' }, fileName: docFile('GIR'),
     title: r => 'GIR ' + (r.So || '?'), sub: (r, db) => { const m = db.get('MGMER', r.MGMER); return [r.Goi_thau, m && 'MGMER ' + m.So].filter(Boolean).join(' · '); },
     needs: ['GOI_THAU', 'MGMER', 'KIEN'],
     fields: [
@@ -186,7 +195,7 @@
   };
 
   T.OSD = {
-    label: 'Biên bản OSD', key: 'id', unique: { f: 'So', scope: 'Goi_thau' },
+    label: 'Biên bản OSD', key: 'id', unique: { f: 'So', scope: 'Goi_thau' }, fileName: docFile('OSD'),
     // OSD chỉ là biên bản ghi nhận dư / thiếu / hỏng — không theo dõi Open/Closed nữa (user chốt 16/10/2026);
     // biện pháp xử lý ghi dần vào Ghi chú. Ghi chú dùng lại cột Noi_dung có sẵn trên Sheet (không phải đổi máy chủ);
     // cột Trang_thai / Ngay_dong cũ trên Sheet để nguyên, app không đọc / ghi nữa.

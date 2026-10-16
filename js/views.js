@@ -1102,7 +1102,13 @@
           if (file.size > 25 * 1024 * 1024) throw new Error(f.l + ': file lớn hơn 25 MB');
           const isImg = f.t === 'image' && /^image\/(jpeg|png|webp|heic|heif)/.test(file.type);
           const du = isImg ? await U.resizeImage(file, window.APP_CONFIG.mode === 'demo' ? 900 : 1600) : await U.readDataUrl(file);
-          const name = isImg ? file.name.replace(/\.[^.]+$/, '') + '.jpg' : file.name;
+          // Tên trên Drive theo số biên bản (def.fileName, vd "GIR 1010 - T12.pdf") thay cho tên gốc của file; không có thì giữ tên gốc
+          const ext = isImg ? '.jpg' : ((file.name.match(/\.[a-z0-9]{1,8}$/i) || [''])[0].toLowerCase());
+          let base = '';
+          try { base = def.fileName ? String(def.fileName(out, DB) || '').trim() : ''; } catch (e2) { base = ''; }
+          if (base && fields.filter(x => x.t === 'file' || x.t === 'image').length > 1) base += ' - ' + f.l;   // bảng có nhiều ô file
+          base = base.replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ').slice(0, 110);
+          const name = base ? base + ext : isImg ? file.name.replace(/\.[^.]+$/, '') + '.jpg' : file.name;
           btn.textContent = 'Đang tải ' + f.l.toLowerCase() + '…';
           out[f.n] = await API.upload(t, f.n, name, du);
         }

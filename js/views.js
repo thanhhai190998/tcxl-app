@@ -1112,10 +1112,12 @@
           btn.textContent = 'Đang tải ' + f.l.toLowerCase() + '…';
           out[f.n] = await API.upload(t, f.n, name, du);
         }
-        if (isNew) await DB.add(t, out); else await DB.update(t, out);
+        // Lưu nền (outbox.js): dữ liệu trên máy đổi ngay, đi tiếp; gửi máy chủ chạy ngầm, lỗi thì báo kèm "Thử lại" / "Bỏ thay đổi".
+        // (File đã tải lên ở trên xong rồi mới tới đây.)
+        Outbox.push((isNew ? 'Thêm ' : 'Sửa ') + def.label.replace(/\s*\(.*\)$/, '').toLowerCase() + ' ' + DB.title(t, out), [{ fn: isNew ? 'add' : 'update', t, rows: [out] }]);
         Files.forget(t, k);
         dirty = false;
-        U.toast(isNew && def.assign ? 'Đã tạo biên bản — chọn các kiện thuộc biên bản' : 'Đã lưu', 'ok');
+        if (isNew && def.assign) U.toast('Đã tạo biên bản — chọn các kiện thuộc biên bản', 'ok');
         location.replace((isNew && def.assign ? '#/pick/' : '#/r/') + t + '/' + enc(k));
       } catch (err) {
         if (err.message !== 'Đã huỷ') U.toast(err.message, 'err');

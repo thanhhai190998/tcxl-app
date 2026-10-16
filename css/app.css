@@ -883,3 +883,19 @@ a.hb:hover { background: var(--hover); }
 .tis summary { cursor: pointer; font-size: 13.5px; padding: 3px 0; }
 .tis .xm { margin: 2px 0 6px 18px; }
 .xerr.warn { color: var(--warn); background: color-mix(in srgb, var(--warn) 12%, transparent); }
+
+/* Lưu nền (outbox.js): ô trạng thái góc dưới — đang lưu / mất mạng / lỗi (Thử lại, Bỏ thay đổi) / đã lưu */
+.obox { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 75; display: flex; align-items: center; gap: 10px;
+  max-width: min(440px, calc(100vw - 32px)); padding: 9px 12px; border-radius: 12px; background: var(--card); color: var(--text);
+  border: 1px solid var(--line); box-shadow: 0 6px 24px rgba(0, 0, 0, .18); font-size: 13.5px; }
+.obox[hidden] { display: none; }
+.obox .ob-t { min-width: 0; line-height: 1.4; }
+.obox .ob-m { font-size: 12.5px; color: var(--muted); margin-top: 2px; word-break: break-word; }
+.obox .ob-a { display: flex; gap: 6px; flex: none; }
+.obox .ob-spin { flex: none; width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--pri); animation: spin .8s linear infinite; }
+.obox.ok { color: var(--ok); } .obox.ok .ico { color: var(--ok); }
+.obox.warn { border-color: color-mix(in srgb, var(--warn) 45%, var(--line)); }
+.obox.err { border-color: color-mix(in srgb, var(--bad) 55%, var(--line)); background: color-mix(in srgb, var(--bad) 7%, var(--card)); flex-wrap: wrap; }
+.obox.err b { color: var(--bad); }
+.has-bnav .obox { bottom: calc(76px + env(safe-area-inset-bottom)); }
+@media (max-width: 640px) { .obox, .has-bnav .obox { left: 12px; right: 12px; max-width: none; top: calc(62px + env(safe-area-inset-top)); bottom: auto; } }   /* điện thoại: dưới thanh tiêu đề, không đè thông báo / thanh menu dưới */

@@ -163,31 +163,19 @@
       const loc = A.loc ? ($('#ploc').value || '').trim() : '';
       if (loc && add.length) notes.push(`Ghi vị trí "${loc}" cho ${U.int(add.length)} kiện mới chọn.`);
       if (!(await U.confirm(notes.join(' ')))) return;
-      const btn = $('[data-save]'), label = btn.innerHTML;
-      btn.disabled = true; btn.textContent = 'Đang lưu…';
-      try {
-        const rows = [...add.map(x => ({ id: x, [F]: rec.id })), ...del.map(x => ({ id: x, [F]: '' }))];
-        await DB.updateMany('KIEN', rows, (d, n) => { btn.textContent = `Đang lưu ${U.int(d)}/${U.int(n)}…`; });
-        if (loc && add.length) {
-          btn.textContent = 'Đang ghi vị trí…';
-          await DB.addMany('KIEM_TRA', add.map(x => ({ id: U.uid(), Kien: x, Ngay: U.isoOf(rec.Ngay) || U.today(), Vi_tri: loc, Tinh_trang: 'OK',
-            Nguoi_KT: App.user.name || App.user.email, RFI: '', Ghi_chu: 'Ghi khi ' + A.verb + ' (' + title + ')', Hinh_anh: '' })));
-        }
-        // Biên bản chưa có gói: các kiện đã chọn cùng 1 gói → gán gói đó (để cán bộ / nhà thầu của gói thấy biên bản)
-        const gs = new Set([...sel].map(x => (K(x) || {}).Goi_thau).filter(Boolean));
-        if (noGoi && gs.size === 1) {
-          btn.textContent = 'Đang gán gói thầu…';
-          // Kiện đã lưu xong; gán gói lỗi (vd gói đó đã có biên bản cùng số) thì chỉ báo, không coi cả lần lưu là hỏng
-          try { await DB.update(t, { [DB.keyField(t)]: rec.id, Goi_thau: [...gs][0] }); }
-          catch (e) { U.toast('Đã lưu kiện nhưng chưa gán được gói ' + [...gs][0] + ' cho biên bản: ' + e.message, 'err'); }
-        }
-        orig.clear(); sel.forEach(x => orig.add(x));   // đã lưu → không hỏi lại khi rời trang
-        U.toast(`Đã lưu: ${title} có ${U.int(sel.size)} kiện`, 'ok');
-        location.replace('#/r/' + t + '/' + enc(rec.id));
-      } catch (e) {
-        U.toast(e.message, 'err');
-        btn.disabled = false; btn.innerHTML = label;
-      }
+      // Lưu nền (outbox.js): dữ liệu trên máy đổi ngay, quay về trang biên bản; gửi máy chủ chạy ngầm (ô "Đang lưu…" góc dưới)
+      const rows = [...add.map(x => ({ id: x, [F]: rec.id })), ...del.map(x => ({ id: x, [F]: '' }))];
+      const checks = loc && add.length ? add.map(x => ({ id: U.uid(), Kien: x, Ngay: U.isoOf(rec.Ngay) || U.today(), Vi_tri: loc, Tinh_trang: 'OK',
+        Nguoi_KT: App.user.name || App.user.email, RFI: '', Ghi_chu: 'Ghi khi ' + A.verb + ' (' + title + ')', Hinh_anh: '' })) : [];
+      // Biên bản chưa có gói: các kiện đã chọn cùng 1 gói → gán gói đó (để cán bộ / nhà thầu của gói thấy biên bản);
+      // gán lỗi (vd gói đó đã có biên bản cùng số) thì chỉ báo, không coi cả lần lưu kiện là hỏng
+      const gs = new Set([...sel].map(x => (K(x) || {}).Goi_thau).filter(Boolean));
+      const goiOp = noGoi && gs.size === 1 ? [{ fn: 'update', t, rows: [{ [DB.keyField(t)]: rec.id, Goi_thau: [...gs][0] }], soft: true,
+        note: 'Đã lưu kiện nhưng chưa gán được gói ' + [...gs][0] + ' cho ' + title }] : [];
+      Outbox.push(`${title}: ${[add.length && '+' + U.int(add.length), del.length && '−' + U.int(del.length)].filter(Boolean).join(' ')} kiện`,
+        [{ fn: 'updateMany', t: 'KIEN', rows }, { fn: 'addMany', t: 'KIEM_TRA', rows: checks }, ...goiOp]);
+      orig.clear(); sel.forEach(x => orig.add(x));   // đã ghi → không hỏi lại khi rời trang
+      location.replace('#/r/' + t + '/' + enc(rec.id));
     };
     drawPkl(); draw();
   };

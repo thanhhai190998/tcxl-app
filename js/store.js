@@ -75,6 +75,15 @@
     // + thay đổi vừa ghi = bản sau → nhận luôn, lần làm mới tới máy chủ chỉ trả "không đổi" (khỏi tải lại cả 12.709 kiện).
     // Không khớp (có người khác vừa sửa) → bỏ phiên bản → lần làm mới tới tải lại cả bảng như cũ.
     gotVer(vs) { Object.keys(vs).forEach(t => { const x = vs[t]; if (x && this.ver[t] && this.ver[t] === x.v0) this.ver[t] = x.v; else delete this.ver[t]; }); },
+    // Lưu nền (outbox.js): gộp dòng (thêm mới / sửa) vào dữ liệu trên máy theo khoá, chưa gửi máy chủ.
+    // Bảng chưa tải lên máy thì bỏ qua (lấy từ máy chủ sau) — không tạo bảng chỉ có vài dòng.
+    localPut(t, rows) {
+      if (!this.data[t] || !rows || !rows.length) return;
+      const kf = this.keyField(t), by = new Map(rows.map(r => [String(r[kf]), r]));
+      const arr = this.data[t].map(r => { const k = String(r[kf]), n = by.get(k); if (!n) return r; by.delete(k); return { ...r, ...n }; });
+      this.data[t] = by.size ? arr.concat([...by.values()].map(r => ({ ...r }))) : arr;
+      this.persist(t, this.ver[t]);
+    },
 
     // Hẹn cập nhật ngầm (mỗi bảng 1 lần trong 1 phiên mở app)
     later(t) {
@@ -120,6 +129,7 @@
         // Máy chủ trả: mảng dòng (bản cũ / demo) · { rows, v } · { same: true, v } (không đổi) · { error }
         const x = res[t], same = x && x.same, rows = Array.isArray(x) ? x : x && Array.isArray(x.rows) ? x.rows : null, v = x && !Array.isArray(x) ? x.v : '';
         if (same && this.data[t]) { this.fresh.add(t); return; }
+        if (this.data[t] && window.Outbox && Outbox.busy(t)) return;   // còn thay đổi đang lưu nền → giữ dữ liệu trên máy
         if (!rows) { console.warn(t, x && x.error); if (!this.data[t]) this.data[t] = []; return; }
         const had = this.data[t];
         this.fresh.add(t);
@@ -221,14 +231,24 @@
       }
     },
 
+    // Ghi trực tiếp (xoá, nhập Excel, đồng bộ file Total…) phải đi SAU các thay đổi của bảng đó đang lưu nền (outbox.js),
+    // vd xoá biên bản vừa tạo khi lệnh tạo còn đang gửi. Hàng đợi đang lỗi → dừng, báo xử lý trước.
+    async afterOutbox(t) {
+      if (!window.Outbox || !Outbox.busy(t)) return;
+      U.toast('Đang chờ lưu xong các thay đổi trước…');
+      if (!(await Outbox.idle())) throw new Error('Còn thay đổi chưa lưu được lên máy chủ — bấm "Thử lại" hoặc "Bỏ thay đổi" ở góc dưới trước');
+    },
+
     // Luôn tạo mảng mới (không sửa tại chỗ) → chỉ mục / số liệu tính sẵn biết là dữ liệu đã đổi
     async add(t, row) {
+      await this.afterOutbox(t);
       const saved = await API.add(t, this.keyField(t), row);
       this.data[t] = [...(this.data[t] || []), saved];
       this.persist(t, this.ver[t]);   // giữ phiên bản: máy chủ vẫn so lại, khác thì tải mới (gotVer đã nhận bản sau khi ghi)
       return saved;
     },
     async update(t, row) {
+      await this.afterOutbox(t);
       const saved = await API.update(t, this.keyField(t), row);
       const arr = (this.data[t] || []).slice(), kf = this.keyField(t);
       const i = arr.findIndex(r => String(r[kf]) === String(saved[kf]));
@@ -240,6 +260,7 @@
     // Thêm / sửa nhiều dòng: gửi từng lô 1.000 dòng (Apps Script giới hạn thời gian mỗi lần gọi),
     // onStep(đã xong, tổng) để hiện tiến trình
     async addMany(t, list, onStep) {
+      await this.afterOutbox(t);
       const kf = this.keyField(t), saved = [];
       for (let i = 0; i < list.length; i += 1000) {
         saved.push(...await API.addMany(t, kf, list.slice(i, i + 1000)));
@@ -250,6 +271,7 @@
       return saved;
     },
     async updateMany(t, list, onStep) {
+      await this.afterOutbox(t);
       const kf = this.keyField(t), saved = [];
       for (let i = 0; i < list.length; i += 1000) {
         saved.push(...await API.updateMany(t, kf, list.slice(i, i + 1000)));
@@ -261,6 +283,7 @@
       return saved;
     },
     async removeMany(t, keys, onStep) {
+      await this.afterOutbox(t);
       const kf = this.keyField(t);
       for (let i = 0; i < keys.length; i += 1000) {
         await API.removeMany(t, kf, keys.slice(i, i + 1000));
@@ -271,6 +294,7 @@
       this.persist(t, this.ver[t]);   // giữ phiên bản: máy chủ vẫn so lại, khác thì tải mới (gotVer đã nhận bản sau khi ghi)
     },
     async remove(t, key) {
+      await this.afterOutbox(t);
       await API.remove(t, this.keyField(t), key);
       const kf = this.keyField(t);
       this.data[t] = (this.data[t] || []).filter(r => String(r[kf]) !== String(key));

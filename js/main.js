@@ -176,7 +176,10 @@
   // Nút ⟳: có bản app mới thì cập nhật app; không thì làm mới dữ liệu (không tải lại trang)
   App.pendingSW = null;
   App.refresh = async () => {
-    if (App.pendingSW) { App.pendingSW.postMessage('skip'); return; }
+    if (App.pendingSW) {
+      if (Outbox.pending()) return U.toast('Đang lưu thay đổi lên máy chủ — đợi lưu xong rồi bấm cập nhật app');
+      App.pendingSW.postMessage('skip'); return;
+    }
     const b = document.getElementById('update');
     if (b.classList.contains('busy')) return;
     b.classList.add('busy');
@@ -213,6 +216,8 @@
   }
   // Đăng xuất: xoá cả dữ liệu lưu tạm trên máy (bảng, ảnh, thông tin tài khoản)
   App.signOut = async () => {
+    if (Outbox.pending() && !(await U.confirm(`Còn ${Outbox.pending()} thay đổi chưa lưu lên máy chủ — đăng xuất bây giờ sẽ mất các thay đổi này. Vẫn đăng xuất?`))) return;
+    Outbox.clear();
     await DB.wipe();
     try { localStorage.removeItem(ME_KEY); localStorage.removeItem(VAULT_KEY); } catch (e) { /* bỏ qua */ }
     await API.signOut(); location.hash = '#/'; location.reload();
@@ -290,6 +295,7 @@
         failStart(e);
       });
     }
+    Outbox.resume();   // còn thay đổi lưu nền chưa gửi xong (tắt app giữa chừng) → gửi tiếp
     setTimeout(() => DB.prefetch(), 1200);   // tải ngầm các mục còn lại
     // Quay lại app sau hơn 5 phút (app để chạy nền trên điện thoại) → cập nhật ngầm trang đang xem
     let hiddenAt = 0;

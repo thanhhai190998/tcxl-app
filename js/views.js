@@ -485,7 +485,8 @@
   // Ô đầu dòng: ảnh → giá trị ngắn (vd mã gói) → chữ cái đầu → biểu tượng mục
   function leadHtml(t, r, meta, cls = '', noImg = false) {
     const def = TT()[t], L = def.list || {};
-    const leadVal = L.lead && r[L.lead] ? String(r[L.lead]).slice(0, 5) : '';
+    const lv0 = L.lead ? DB.val(t, r, L.lead) : '';   // DB.val: cột ảo cũng được (vd gói thầu của lần kiểm tra lấy theo kiện)
+    const leadVal = lv0 ? String(lv0).slice(0, 5) : '';
     if (!noImg && def.img && r[def.img]) return V.imgTag(t, r, def.img);
     if (leadVal) return `<span class="lead tx ${cls}" style="--gc:${toneOf(leadVal)}">${esc(leadVal)}</span>`;
     if (L.avatar === 'initials') return `<span class="lead av ${cls}" style="--gc:${meta.color}">${esc(initials(DB.title(t, r)))}</span>`;

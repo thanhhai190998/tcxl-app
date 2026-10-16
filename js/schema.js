@@ -141,6 +141,8 @@
     needs: ['KIEN'],
     fields: [
       { n: 'Kien', l: 'Kiện', t: 'ref', ref: 'KIEN', req: true },
+      // Cột ảo: gói thầu lấy theo kiện (lần kiểm tra không lưu gói riêng) → lọc / hiện gói ở danh sách
+      { n: 'Goi_thau', l: 'Gói thầu', t: 'ref', ref: 'GOI_THAU', v: (r, db) => { const k = db.get('KIEN', r.Kien); return k ? k.Goi_thau : ''; } },
       { n: 'Ngay', l: 'Ngày kiểm tra', s: 'Ngày', t: 'date', init: 'today', req: true },
       { n: 'Vi_tri', l: 'Vị trí lưu kho', t: 'enum', other: true, req: true, opts: ['Closed WH', 'Opened WH', 'Cold WH', 'Workshop', 'F5', 'F5-1A', 'F5-3', 'F5-4', 'F6',
         'Bãi Giáo', 'A4', 'A5', 'A7', 'Kho Than', 'FGD', 'Container', 'Installed'] },
@@ -152,7 +154,7 @@
       { n: 'RFI_link', l: 'Đường dẫn file RFI (từ file Total)', t: 'text' },
       { n: 'Hinh_anh', l: 'Hình ảnh', t: 'image' }
     ],
-    list: { hint: 'Tìm kiện, vị trí, người kiểm tra…', filter: 'Tinh_trang', sort: 'Ngay', desc: true, cols: ['Ngay', 'Nguoi_KT'], countUnit: 'lần kiểm tra', range: true, page: true },
+    list: { hint: 'Tìm kiện, vị trí, người kiểm tra…', filter: ['Goi_thau', 'Tinh_trang'], lead: 'Goi_thau', sort: 'Ngay', desc: true, cols: ['Ngay', 'Nguoi_KT'], countUnit: 'lần kiểm tra', range: true, page: true },
     detail: { stats: ['Ngay', 'Vi_tri', 'Tinh_trang'] },
     badge: r => !r.Tinh_trang || /^ok$/i.test(r.Tinh_trang) ? null : { text: r.Tinh_trang, cls: r.Tinh_trang === 'Không thấy' ? 'bad' : 'warn' }
   };

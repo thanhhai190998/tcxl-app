@@ -1,6 +1,6 @@
 // Service worker: cho phép cài app và mở được khi mạng yếu.
 // Khi phát hành bản mới, tăng số phiên bản dưới đây để máy người dùng tải lại.
-const CACHE = 'tcxl-v0.4.7';
+const CACHE = 'tcxl-v0.4.8';
 const FONT_CACHE = 'fonts-v1';   // font giữ qua các phiên bản, không tải lại
 const ASSETS = ['./', 'index.html', 'manifest.webmanifest', 'css/app.css',
   'js/config.js', 'js/util.js', 'js/icons.js', 'js/perm.js', 'js/vault.js', 'js/schema.js', 'js/api.js', 'js/mock.js',

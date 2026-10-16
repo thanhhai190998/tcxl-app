@@ -118,7 +118,7 @@
       { n: 'Dia_diem', l: 'Nơi kiểm đếm', t: 'enum', opts: ['Tại công trường', 'Tại cảng'], init: 'Tại công trường' },
       { n: 'Thanh_phan', l: 'Thành phần tham gia', t: 'text' },
       { n: 'File', l: 'Biên bản (PDF)', t: 'file' },
-      { n: 'Thu_muc', l: 'Thư mục hồ sơ trên Drive', t: 'url' },
+      { n: 'Thu_muc', l: 'Thư mục hồ sơ trên Drive', s: 'Thư mục Drive', t: 'url' },
       { n: 'Duong_dan', l: 'Đường dẫn thư mục biên bản (từ file Total)', t: 'text' },
       { n: 'Ghi_chu', l: 'Ghi chú', t: 'longtext' },
       { n: 'So_kien', l: 'Số kiện', t: 'number', v: (r, db) => countBy(db, 'MGMER').get(String(r.id)) || 0 }

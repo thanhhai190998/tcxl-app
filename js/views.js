@@ -8,7 +8,8 @@
   const canItem = it => App.user.admin || Perm.rank(quyen()[it.perm]) > 0;
   const tableLv = t => permTableLevel(App.user, t);
   const rowLv = (t, r) => permRowLevel(App.user, t, r, (pt, k) => DB.get(pt, k));
-  const fileName = p => String(p || '').split('/').pop().replace(/^[0-9a-f]{8}\./, '');
+  // File tải lên qua app lưu dạng "pwa:<mã Drive>" (không kèm tên) → trả '' để nơi gọi hiện nhãn dễ đọc thay cho dãy mã
+  const fileName = p => /^pwa:/.test(String(p || '')) ? '' : String(p || '').split('/').pop().replace(/^[0-9a-f]{8}\./, '');
 
   V.items = () => S().groupsWithAlbums(DB);
   V.findItem = key => {
@@ -583,7 +584,7 @@
           ${Vault.isEnc(raw) ? '' : '<span class="badge warn" title="Giá trị này đang lưu dạng chữ thường">chưa mã hoá</span>'}`;
       } else if (f.t === 'file') {
         if (!raw) return '';
-        v = `<button class="fchip" data-file="${esc(f.n)}">${Icon('file')}<span>${esc(fileName(raw))}</span>${Icon('open', 'sm')}</button>`;
+        v = `<button class="fchip" data-file="${esc(f.n)}">${Icon('file')}<span>${esc(fileName(raw) || 'Xem file')}</span>${Icon('open', 'sm')}</button>`;
       } else {
         v = DB.show(t, r, f.n);
         if (v === '' || v == null) return '';
@@ -591,6 +592,7 @@
         if (f.t === 'phone') v += ` <a class="ibtn3" href="tel:${esc(String(raw).replace(/\s/g, ''))}" title="Gọi">${Icon('phone')}</a>`;
         if (f.t === 'email') v += ` <a class="ibtn3" href="mailto:${esc(raw)}" title="Gửi email">${Icon('mail')}</a>`;
         stack = f.t === 'longtext' || String(DB.val(t, r, f.n)).length > 38;
+        if (f.t === 'ref') v += refFiles(f, raw);
       }
       return `<div class="frow ${stack ? 'stack' : ''}"><span class="fk">${esc(f.l)}</span><span class="fv">${v}</span></div>`;
     }).join('');
@@ -624,6 +626,7 @@
     App.main.querySelectorAll('section.rel').forEach(bindMore);
 
     App.main.querySelectorAll('[data-file]').forEach(b => b.onclick = () => Files.open(t, key, b.dataset.file));
+    App.main.querySelectorAll('[data-xfile]').forEach(b => b.onclick = () => Files.open(b.dataset.xt, b.dataset.xk, b.dataset.xfile));
     App.main.querySelectorAll('[data-reveal]').forEach(btn => btn.onclick = async () => {
       const n = btn.dataset.reveal, span = App.main.querySelector(`[data-enc="${CSS.escape(n)}"]`);
       if (btn.dataset.shown) { span.textContent = '••••••••'; btn.innerHTML = Icon('eye'); delete btn.dataset.shown; return; }
@@ -864,7 +867,7 @@
           <label class="upbox">${Icon('image')}<span data-upl="${esc(f.n)}">${v ? 'Đổi ảnh' : 'Chụp hoặc chọn ảnh'}</span><input type="file" accept="image/*" data-up="${esc(f.n)}" hidden></label></div>`;
         break;
       case 'file':
-        input = `<div class="up">${v ? `<span class="upcur"><span class="fchip">${Icon('file')}<span>${esc(fileName(v))}</span></span><label class="chk"><input type="checkbox" data-clear="${esc(f.n)}"> Xoá file</label></span>` : ''}
+        input = `<div class="up">${v ? `<span class="upcur"><span class="fchip">${Icon('file')}<span>${esc(fileName(v) || 'File đã tải lên')}</span></span><label class="chk"><input type="checkbox" data-clear="${esc(f.n)}"> Xoá file</label></span>` : ''}
           <label class="upbox">${Icon('file')}<span data-upl="${esc(f.n)}">${v ? 'Đổi file' : 'Chọn file'}</span><input type="file" data-up="${esc(f.n)}" hidden></label></div>`;
         break;
       default: {
@@ -881,6 +884,18 @@
       }
     }
     return `<div class="fld" data-f="${esc(f.n)}"><span class="lbl">${esc(f.l)}${f.req ? ' <b class="req">*</b>' : ''}</span>${input}</div>`;
+  }
+
+  // Dòng tham chiếu tới bản ghi có đính kèm (vd kiện → biên bản MGMER / GIR / OSD): nút mở file PDF và link thư mục
+  // của bản ghi đó ngay tại đây, khỏi phải mở biên bản. Chỉ hiện khi máy đã có bản ghi (= người dùng được xem bảng đó).
+  function refFiles(f, raw) {
+    const pr = raw && DB.get(f.ref, raw), pd = TT()[f.ref];
+    if (!pr || !pd) return '';
+    const name = DB.title(f.ref, pr);
+    return pd.fields.filter(x => !x.v && pr[x.n] && (x.t === 'file' || (x.t === 'url' && /^https?:\/\//i.test(String(pr[x.n]).trim()))))
+      .map(x => x.t === 'file'
+        ? `<button class="fchip sm" data-xt="${esc(f.ref)}" data-xk="${esc(String(raw))}" data-xfile="${esc(x.n)}" title="${esc(x.l + ' · ' + name)}">${Icon('file')}<span>${esc(x.s || x.l)}</span>${Icon('open', 'sm')}</button>`
+        : `<a class="fchip sm" href="${esc(String(pr[x.n]).trim())}" target="_blank" rel="noopener" title="${esc(x.l + ' · ' + name)}">${Icon('link')}<span>${esc(x.s || x.l)}</span>${Icon('open', 'sm')}</a>`).join('');
   }
 
   V.form = async (t, key, params) => {

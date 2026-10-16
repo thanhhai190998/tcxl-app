@@ -158,7 +158,7 @@
     async wipe() {
       this.clear();
       await IDB.clear();
-      try { await caches.delete('tcxl-img-v1'); } catch (e) { /* bỏ qua */ }
+      try { await caches.delete('tcxl-img-v1'); await caches.delete('tcxl-files-v1'); localStorage.removeItem('tcxl-files-lru'); } catch (e) { /* bỏ qua */ }
     },
     async diskUsage() {
       try { const e = await navigator.storage.estimate(); return e.usage || 0; } catch (e) { return 0; }
@@ -285,6 +285,41 @@
   async function diskGet(k) { try { const r = await (await caches.open(IMG)).match(k); return r ? await r.blob() : null; } catch (e) { return null; } }
   async function diskPut(k, b) { try { await (await caches.open(IMG)).put(k, new Response(b, { headers: { 'Content-Type': b.type } })); } catch (e) { /* đầy bộ nhớ → bỏ qua */ } }
 
+  // File gốc (biên bản PDF…) đã tải: lưu trên máy (Cache Storage 'tcxl-files-v1') → lần sau mở tức thì, không qua máy chủ.
+  // Giới hạn ~150 MB: vượt thì bỏ file lâu không mở nhất (thời điểm mở + dung lượng ghi ở localStorage 'tcxl-files-lru').
+  const FILES = 'tcxl-files-v1', FILES_MAX = 150 * 1048576, LRU = 'tcxl-files-lru';
+  const lruGet = () => { try { return JSON.parse(localStorage.getItem(LRU) || '{}'); } catch (e) { return {}; } };
+  const lruSet = m => { try { localStorage.setItem(LRU, JSON.stringify(m)); } catch (e) { /* bỏ qua */ } };
+  async function fileGet(k) {
+    try {
+      const r = await (await caches.open(FILES)).match(k); if (!r) return null;
+      const m = lruGet(); if (m[k]) { m[k].at = Date.now(); lruSet(m); }
+      return await r.blob();
+    } catch (e) { return null; }
+  }
+  async function filePut(k, b) {
+    try {
+      if (b.size > FILES_MAX / 3) return;   // file rất lớn: không giữ trên máy
+      const c = await caches.open(FILES), m = lruGet();
+      m[k] = { at: Date.now(), n: b.size };
+      let tot = Object.values(m).reduce((s, x) => s + (x.n || 0), 0);
+      for (const [ok] of Object.entries(m).sort((a, b2) => a[1].at - b2[1].at)) {
+        if (tot <= FILES_MAX || ok === k) continue;
+        tot -= m[ok].n || 0; delete m[ok]; c.delete(ok);
+      }
+      await c.put(k, new Response(b, { headers: { 'Content-Type': b.type } }));
+      lruSet(m);
+    } catch (e) { /* đầy bộ nhớ → bỏ qua */ }
+  }
+  // Tải trước khi mạng rẻ: máy tính (chuột) hoặc Wi-Fi, không bật tiết kiệm dữ liệu
+  const cheapNet = () => {
+    const c = navigator.connection;
+    if (c && c.saveData) return false;
+    if (c && c.type) return /wifi|ethernet/.test(c.type);
+    return !matchMedia('(pointer: coarse)').matches;
+  };
+  const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+
   let q = [], qt = null, noFiles = false;
   const one = g => API.file(g.t, DB.keyField(g.t), g.key, g.field, true).then(g.ok, g.no);
   function thumb(t, key, field) {
@@ -311,11 +346,12 @@
       const ck = keyOf(t, key, field, size);
       if (mem.has(ck)) return mem.get(ck);
       const p = (async () => {
-        if (size !== 'full') { const b = await diskGet(ck); if (b) return URL.createObjectURL(b); }
+        const hit = size === 'full' ? await fileGet(ck) : await diskGet(ck);
+        if (hit) return URL.createObjectURL(hit);
         const f = size === 'thumb' ? await thumb(t, key, field) : await API.file(t, DB.keyField(t), key, field, false, size);
         if (!f) return null;
         const b = U.b64ToBlob(f.data, f.mime);
-        if (size !== 'full') diskPut(ck, b);
+        if (size === 'full') filePut(ck, b); else diskPut(ck, b);
         return URL.createObjectURL(b);
       })();
       mem.set(ck, p);
@@ -325,14 +361,39 @@
     // Ảnh đã có sẵn (trong phiên) — dùng làm ảnh mờ tạm khi chờ ảnh lớn
     ready(t, key, field, size) { return mem.get(keyOf(t, key, field, size)) || null; },
     forget(t, key) { const p = ['img', t, key].map(encodeURIComponent).join('/') + '/'; [...mem.keys()].filter(k => k.startsWith(p)).forEach(k => mem.delete(k)); },
-    async open(t, key, field) {
+    // Tải trước file gốc (không mở) — gọi khi mở trang chi tiết / khi trỏ chuột, chạm vào nút file
+    prefetch(t, key, field, force) {
+      if (!force && !cheapNet()) return;
+      this.url(t, key, field, 'full').catch(() => {});
+    },
+    cheapNet,
+    // btn = nút vừa bấm: hiện "Đang tải… n giây" ngay trên nút, chặn bấm lặp
+    async open(t, key, field, btn) {
+      if (btn && btn.classList.contains('busy')) return;
+      const ck = keyOf(t, key, field, 'full');
+      let ready = mem.has(ck) && await Promise.race([mem.get(ck).then(() => true, () => false), new Promise(r => setTimeout(() => r(false), 30))]);
+      if (!ready) try { ready = !!(await (await caches.open(FILES)).match(ck)); } catch (e) { /* bỏ qua */ }   // đã lưu trên máy
+      // Chưa có sẵn → mở ngay 1 tab "Đang tải…" trong lúc bấm (trình duyệt chặn tab mở sau vài giây chờ, coi là popup),
+      // tải xong mới chuyển tab đó sang file. iPhone (app cài trên màn hình chính) không dùng được cách này → giữ cách cũ.
+      let w = null;
+      if (!ready && !isIOS) {
+        try {
+          w = window.open('', '_blank');
+          if (w) w.document.write('<!doctype html><meta charset="utf-8"><title>Đang tải file…</title><body style="font:16px system-ui,sans-serif;color:#555;display:grid;place-items:center;height:90vh;margin:0">Đang tải file…</body>');
+        } catch (e) { w = null; }
+      }
+      const lb = btn && btn.querySelector('span'), orig = lb && lb.textContent, t0 = Date.now();
+      let tick = null;
+      if (btn) { btn.classList.add('busy'); if (lb && !ready) { lb.textContent = 'Đang tải…'; tick = setInterval(() => { lb.textContent = 'Đang tải… ' + Math.round((Date.now() - t0) / 1000) + ' giây'; }, 1000); } }
+      else if (!ready) U.toast('Đang mở file…');
       try {
-        U.toast('Đang mở file…');
         const u = await this.url(t, key, field, 'full');
-        if (!u) return U.toast('Không tìm thấy file', 'err');
+        if (!u) { if (w) w.close(); return U.toast('Không tìm thấy file', 'err'); }
+        if (w && !w.closed) { w.location.href = u; return; }
         const a = document.createElement('a'); a.href = u; a.target = '_blank'; a.rel = 'noopener';
         document.body.appendChild(a); a.click(); a.remove();
-      } catch (e) { U.toast(e.message, 'err'); }
+      } catch (e) { if (w) w.close(); U.toast(e.message, 'err'); }
+      finally { clearInterval(tick); if (btn) { btn.classList.remove('busy'); if (lb) lb.textContent = orig; } }
     }
   };
 })();

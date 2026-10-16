@@ -633,8 +633,17 @@
     };
     App.main.querySelectorAll('section.rel').forEach(bindMore);
 
-    App.main.querySelectorAll('[data-file]').forEach(b => b.onclick = () => Files.open(t, key, b.dataset.file));
-    App.main.querySelectorAll('[data-xfile]').forEach(b => b.onclick = () => Files.open(b.dataset.xt, b.dataset.xk, b.dataset.xfile));
+    // Nút file: bấm mở; trỏ chuột / chạm vào là bắt đầu tải luôn (sớm hơn vài trăm ms); mạng rẻ (máy tính, Wi-Fi) thì
+    // tải trước 2 file đầu ngay khi mở trang → bấm là mở liền. File đã tải được giữ trên máy (Files, tcxl-files-v1).
+    const fileBtns = [...App.main.querySelectorAll('[data-file], [data-xfile]')].map(b => ({ b,
+      args: b.dataset.file ? [t, key, b.dataset.file] : [b.dataset.xt, b.dataset.xk, b.dataset.xfile] }));
+    fileBtns.forEach(({ b, args }) => {
+      b.onclick = () => Files.open(...args, b);
+      const early = () => Files.prefetch(...args, true);
+      b.addEventListener('pointerenter', early, { once: true });
+      b.addEventListener('pointerdown', early, { once: true });
+    });
+    if (fileBtns.length && Files.cheapNet()) setTimeout(() => { if (fileBtns[0].b.isConnected) fileBtns.slice(0, 2).forEach(({ args }) => Files.prefetch(...args)); }, 700);
     App.main.querySelectorAll('[data-reveal]').forEach(btn => btn.onclick = async () => {
       const n = btn.dataset.reveal, span = App.main.querySelector(`[data-enc="${CSS.escape(n)}"]`);
       if (btn.dataset.shown) { span.textContent = '••••••••'; btn.innerHTML = Icon('eye'); delete btn.dataset.shown; return; }

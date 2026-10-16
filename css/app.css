@@ -382,6 +382,8 @@ dd { margin: 0; word-break: break-word; display: flex; flex-wrap: wrap; align-it
 .fchip.sm { padding: 5px 10px; font-size: 13px; gap: 6px; }   /* file / link của biên bản hiện cạnh dòng tham chiếu (trang chi tiết kiện) */
 a.fchip { text-decoration: none; }
 .fchip .ico { flex: none; color: var(--pri); }
+.fchip.busy { cursor: progress; opacity: .85; }
+.fchip.busy .ico:first-child { animation: pulse 1s ease-in-out infinite; }
 
 /* ---- Chi tiết: bảng con ---- */
 .rel-h { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }

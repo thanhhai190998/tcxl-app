@@ -454,6 +454,9 @@ label.qd { display: inline-flex; align-items: center; gap: 6px; }
 .uppre img.th { outline: 2px solid var(--pri); outline-offset: 2px; }
 .fld.err input, .fld.err select, .fld.err textarea, .fld.err .segb, .fld.err .upbox { border-color: var(--bad); }
 .ferr { color: var(--bad); font-size: 12.5px; font-weight: 600; }
+.fld:not(.err) .ferr { display: none; }
+.fdup { font-size: 12.5px; font-weight: 600; color: var(--warn); line-height: 1.45; }
+.fdup.bad { color: var(--bad); }
 .fbar { position: sticky; bottom: 0; z-index: 8; display: flex; justify-content: flex-end; gap: 8px;
   padding: 10px 0 calc(10px + env(safe-area-inset-bottom)); background: linear-gradient(transparent, var(--bg) 30%); }
 .fbar .btn .ico { width: 18px; height: 18px; }

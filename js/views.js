@@ -463,6 +463,12 @@
     return String(a ?? '').localeCompare(String(b ?? ''), 'vi', { numeric: true });
   }
 
+  // Khoá so trùng số biên bản: bỏ dấu / hoa thường / dấu cách, bỏ tiền tố tên bảng ("MGMER 1010" = "1010"), số thuần bỏ số 0 đầu ("045" = "45")
+  function soKey(t, s) {
+    const k = U.norm(s).replace(/\s+/g, '').replace(new RegExp('^' + t.toLowerCase() + '[-_.:#]*(no\\.?)?(?=.)'), '');
+    return /^\d+$/.test(k) ? String(+k) : k;
+  }
+
   function groupValue(t, r, g) {
     const f = DB.field(t, g), v = DB.val(t, r, g);
     if (f && f.t === 'ref') { const rr = DB.get(f.ref, v); return rr ? DB.title(f.ref, rr) : (v || ''); }
@@ -986,9 +992,42 @@
     const markErr = (f, msg) => {
       const box = q(`.fld[data-f="${CSS.escape(f.n)}"]`); if (!box) return;
       box.classList.add('err');
-      if (!box.querySelector('.ferr')) box.insertAdjacentHTML('beforeend', `<small class="ferr">${esc(msg)}</small>`);
+      const fe = box.querySelector('.ferr');
+      if (fe) fe.textContent = msg; else box.insertAdjacentHTML('beforeend', `<small class="ferr">${esc(msg)}</small>`);
     };
     form.addEventListener('input', e => { const b = e.target.closest('.fld'); if (b) b.classList.remove('err'); });
+
+    // Số biên bản không được trùng (def.unique = { f: cột số, scope: cột phạm vi }): trùng trong cùng gói → không cho lưu,
+    // trùng với gói khác → chỉ cảnh báo (mỗi nhà thầu tự đánh số, vd MGMER "1" có ở cả EPC lẫn T12).
+    // Sửa biên bản cũ mà không đổi số thì không kiểm (dữ liệu file Total có vài số trùng khác ngày).
+    const UQ = def.unique;
+    const dupsOf = o => {
+      const k = soKey(t, o[UQ.f]);
+      if (!k || (!isNew && soKey(t, old[UQ.f]) === k)) return null;
+      const all = DB.rows(t).filter(x => String(DB.keyOf(t, x)) !== String(key) && soKey(t, x[UQ.f]) === k);
+      const sc = String(o[UQ.scope] || '');
+      return all.length ? { sc, same: all.filter(x => String(x[UQ.scope] || '') === sc), other: all.filter(x => String(x[UQ.scope] || '') !== sc) } : null;
+    };
+    const dupTxt = xs => xs.slice(0, 3).map(x => [DB.title(t, x), x[UQ.scope] ? 'gói ' + x[UQ.scope] : 'chưa có gói', x.Ngay && 'ngày ' + U.fmtDate(x.Ngay)].filter(Boolean).join(' · ')).join('; ') + (xs.length > 3 ? '…' : '');
+    // Giá trị đang nhập (đã qua beforeSave để biết gói sẽ được tự điền)
+    const snap = () => {
+      const o = { ...r };
+      fields.forEach(f => { const el = byName(f.n); if (el && f.t !== 'image' && f.t !== 'file') o[f.n] = String(el.value ?? '').trim(); });
+      if (def.beforeSave) def.beforeSave(o, { db: DB, user: App.user, isNew, old: r });
+      return o;
+    };
+    const showDup = d => {
+      const box = q(`.fld[data-f="${CSS.escape(UQ.f)}"]`); if (!box) return;
+      let el = box.querySelector('.fdup');
+      if (!el) { el = document.createElement('small'); el.className = 'fdup'; box.appendChild(el); }
+      el.hidden = !d; if (!d) return;
+      el.classList.toggle('bad', d.same.length > 0);
+      el.textContent = d.same.length ? `Số này đã có: ${dupTxt(d.same)} — không lưu được, hãy dùng số khác.`
+        : d.sc ? `Số này đã có ở gói khác: ${dupTxt(d.other)} — vẫn lưu được nếu đúng là biên bản khác.`
+        : `Số này đã có: ${dupTxt(d.other)} — nếu biên bản mới cùng gói đó thì là trùng số.`;
+    };
+    if (UQ) { let tm; const live = () => { clearTimeout(tm); tm = setTimeout(() => showDup(dupsOf(snap())), 200); };
+      ['input', 'change', 'click'].forEach(ev => form.addEventListener(ev, live)); live(); }
 
     form.onsubmit = async e => {
       e.preventDefault();
@@ -1027,6 +1066,13 @@
         q('.fld.err')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         return U.toast('Còn ' + missing.length + ' mục bắt buộc chưa nhập', 'err');
       }
+      const dd = UQ && dupsOf(out);
+      if (dd && dd.same.length) {
+        showDup(dd); q(`.fld[data-f="${CSS.escape(UQ.f)}"]`)?.classList.add('err');
+        q('.fld.err')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return U.toast('Số "' + out[UQ.f] + '" đã có — hãy dùng số khác', 'err');
+      }
+      if (dd && dd.other.length && !(await U.confirm(`Số "${out[UQ.f]}" đã có: ${dupTxt(dd.other)}. Vẫn lưu biên bản mới này?`))) return;
       const k = isNew ? (def.keyEditable ? out[def.key] : U.uid()) : key;
       out[def.key] = k;
 

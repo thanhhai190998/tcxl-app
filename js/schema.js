@@ -13,7 +13,8 @@
 //  Chi tiết (detail): stats = các mốc làm nổi bật ở đầu trang, hide = cột không hiện
 //  Thuộc tính khác: req (bắt buộc), init ('today' hoặc giá trị mặc định), v (cột ảo — hàm tính, không lưu vào Sheet),
 //    ph (chữ gợi ý trong ô ghi chú dài)
-//  Bảng: beforeSave(dòng, { db, user, isNew, old }) chạy trước khi lưu form — điền thêm cột, trả { f, msg } để chặn lưu
+//  Bảng: beforeSave(dòng, { db, user, isNew, old }) chạy trước khi lưu form — điền thêm cột, trả { f, msg } để chặn lưu;
+//    unique = { f: cột số, scope: cột phạm vi } — số trùng trong cùng phạm vi thì không cho lưu, khác phạm vi thì cảnh báo
 //
 //  3 PHASE CỦA VẬT TƯ (theo file "Goods delivered to Site"):
 //    Phase 1 — nhà thầu thông báo hàng (cột A–P)        → bảng KIEN
@@ -109,7 +110,7 @@
   };
 
   T.MGMER = {
-    label: 'Biên bản kiểm đếm (MGMER)', key: 'id',
+    label: 'Biên bản kiểm đếm (MGMER)', key: 'id', unique: { f: 'So', scope: 'Goi_thau' },
     title: r => 'MGMER ' + (r.So || '?'), sub: r => [r.Goi_thau, r.Dia_diem].filter(Boolean).join(' · '),
     needs: ['GOI_THAU', 'KIEN'],
     fields: [
@@ -161,7 +162,7 @@
   };
 
   T.GIR = {
-    label: 'Biên bản mở kiện (GIR)', key: 'id',
+    label: 'Biên bản mở kiện (GIR)', key: 'id', unique: { f: 'So', scope: 'Goi_thau' },
     title: r => 'GIR ' + (r.So || '?'), sub: (r, db) => { const m = db.get('MGMER', r.MGMER); return [r.Goi_thau, m && 'MGMER ' + m.So].filter(Boolean).join(' · '); },
     needs: ['GOI_THAU', 'MGMER', 'KIEN'],
     fields: [
@@ -185,7 +186,7 @@
   };
 
   T.OSD = {
-    label: 'Biên bản OSD', key: 'id',
+    label: 'Biên bản OSD', key: 'id', unique: { f: 'So', scope: 'Goi_thau' },
     // OSD chỉ là biên bản ghi nhận dư / thiếu / hỏng — không theo dõi Open/Closed nữa (user chốt 16/10/2026);
     // biện pháp xử lý ghi dần vào Ghi chú. Ghi chú dùng lại cột Noi_dung có sẵn trên Sheet (không phải đổi máy chủ);
     // cột Trang_thai / Ngay_dong cũ trên Sheet để nguyên, app không đọc / ghi nữa.

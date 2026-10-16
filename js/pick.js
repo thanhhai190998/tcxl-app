@@ -26,19 +26,21 @@
     const F = A.field, title = DB.title(t, rec), recId = String(rec.id);
     App.head('Chọn kiện · ' + title, { back: true });
 
-    // Kiện cùng gói thầu mà người dùng được sửa; đã thuộc biên bản này thì tick sẵn
-    const pool = DB.rows('KIEN').filter(k => k.Goi_thau === rec.Goi_thau && rowLv('KIEN', k) >= 2)
+    // Kiện cùng gói thầu mà người dùng được sửa; đã thuộc biên bản này thì tick sẵn.
+    // Biên bản chưa có gói (OSD không bắt buộc gói) → chọn trong mọi gói được sửa; lưu xong tự gán gói theo kiện.
+    const noGoi = !rec.Goi_thau, ofGoi = noGoi ? '' : ' của gói ' + rec.Goi_thau;
+    const pool = DB.rows('KIEN').filter(k => (noGoi || k.Goi_thau === rec.Goi_thau) && rowLv('KIEN', k) >= 2)
       .sort((a, b) => num(a.STT) - num(b.STT));
     const orig = new Set(pool.filter(k => String(k[F] || '') === recId).map(k => String(k.id)));
     const sel = new Set(orig);
-    const modes = A.modes.filter(m => !m.when || m.when(rec));
+    const modes = A.modes.filter(m => !m.when || m.when(rec)).map(m => noGoi ? { ...m, l: m.l.replace(/ của gói$/, '') } : m);
     const st = { mode: modes[0].id, pkl: '*', q: '', only: false, lim: PAGE };
     const dirty = () => sel.size !== orig.size || [...sel].some(x => !orig.has(x));
     App.guard = async () => !dirty() || U.confirm('Bỏ các kiện vừa chọn mà chưa lưu?');
 
     const modeF = () => modes.find(m => m.id === st.mode).f;
     const cands = () => pool.filter(k => sel.has(String(k.id)) || orig.has(String(k.id)) || modeF()(k, rec));
-    const text = k => [DB.title('KIEN', k), DB.sub('KIEN', k), k.Package_No, k.PKL_No, k.PSIC_No, k.Ban_ve, k.Nha_cung_cap, k.Hang_muc].join(' ');
+    const text = k => [noGoi ? k.Goi_thau : '', DB.title('KIEN', k), DB.sub('KIEN', k), k.Package_No, k.PKL_No, k.PSIC_No, k.Ban_ve, k.Nha_cung_cap, k.Hang_muc].join(' ');
     const shown = () => {
       let rs = cands();
       if (st.pkl !== '*') rs = rs.filter(k => String(k.PKL_No || '') === st.pkl);
@@ -105,7 +107,7 @@
       $('[data-save]').disabled = !dirty();
     };
     const rowHtml = k => {
-      const on = sel.has(String(k.id)), b = flag(k), sub = DB.sub('KIEN', k);
+      const on = sel.has(String(k.id)), b = flag(k), sub = [noGoi && k.Goi_thau, DB.sub('KIEN', k)].filter(Boolean).join(' · ');
       return `<label class="row prow ${on ? 'on' : ''}" data-id="${esc(k.id)}"><input type="checkbox" class="pchk" ${on ? 'checked' : ''} aria-label="Chọn kiện">
         <div class="row-main"><div class="row-title">${esc(DB.title('KIEN', k))}</div>${sub ? `<div class="row-sub">${esc(sub)}</div>` : ''}</div>
         ${b && b.text ? `<span class="badge ${esc(b.cls || '')}">${esc(b.text)}</span>` : ''}</label>`;
@@ -115,14 +117,15 @@
       cur = shown();
       const pool2 = cands().length;
       $('#psum').innerHTML = `${Icon('box', 'sm')}<span><b>${U.int(cur.length)}</b> kiện đang hiện
-        <span class="muted">· trong ${U.int(pool2)} kiện phù hợp của gói ${esc(rec.Goi_thau)}${st.pkl !== '*' ? ' · PKL ' + esc(st.pkl || '(trống)') : ''}${st.q ? ' · khớp "' + esc(st.q) + '"' : ''}</span>
+        <span class="muted">· trong ${U.int(pool2)} kiện phù hợp${esc(ofGoi)}${st.pkl !== '*' ? ' · PKL ' + esc(st.pkl || '(trống)') : ''}${st.q ? ' · khớp "' + esc(st.q) + '"' : ''}</span>
         <label class="chk ponly"><input type="checkbox" id="ponly" ${st.only ? 'checked' : ''}> Chỉ kiện đã chọn</label></span>`;
       $('#ponly').onchange = e => { st.only = e.target.checked; st.lim = PAGE; draw(); };
       const lim = Math.min(st.lim, cur.length);
       $('#plist').innerHTML = cur.length
         ? `<div class="rows">${cur.slice(0, lim).map(rowHtml).join('')}</div>`
           + (cur.length > lim ? `<button type="button" class="btn ghost lmore" data-more>${Icon('chevron', 'sm')} Hiện thêm · còn ${U.int(cur.length - lim)} kiện</button>` : '')
-        : `<div class="lempty"><span class="tic" style="--gc:var(--g2)">${Icon('box')}</span><div>${pool.length ? 'Không có kiện nào khớp — thử "Tất cả kiện của gói" hoặc bỏ bớt bộ lọc' : 'Gói ' + esc(rec.Goi_thau) + ' chưa có kiện nào (hoặc bạn không được sửa kiện của gói này)'}</div></div>`;
+        : `<div class="lempty"><span class="tic" style="--gc:var(--g2)">${Icon('box')}</span><div>${pool.length ? 'Không có kiện nào khớp — thử "Tất cả kiện' + esc(ofGoi ? ' của gói' : '') + '" hoặc bỏ bớt bộ lọc'
+          : noGoi ? 'Bạn chưa được sửa kiện nào' : 'Gói ' + esc(rec.Goi_thau) + ' chưa có kiện nào (hoặc bạn không được sửa kiện của gói này)'}</div></div>`;
       const more = $('[data-more]');
       if (more) more.onclick = () => { st.lim += PAGE; draw(); };
       drawBar(cur);
@@ -170,6 +173,9 @@
           await DB.addMany('KIEM_TRA', add.map(x => ({ id: U.uid(), Kien: x, Ngay: U.isoOf(rec.Ngay) || U.today(), Vi_tri: loc, Tinh_trang: 'OK',
             Nguoi_KT: App.user.name || App.user.email, RFI: '', Ghi_chu: 'Ghi khi ' + A.verb + ' (' + title + ')', Hinh_anh: '' })));
         }
+        // Biên bản chưa có gói: các kiện đã chọn cùng 1 gói → gán gói đó (để cán bộ / nhà thầu của gói thấy biên bản)
+        const gs = new Set([...sel].map(x => (K(x) || {}).Goi_thau).filter(Boolean));
+        if (noGoi && gs.size === 1) { btn.textContent = 'Đang gán gói thầu…'; await DB.update(t, { [DB.keyField(t)]: rec.id, Goi_thau: [...gs][0] }); }
         orig.clear(); sel.forEach(x => orig.add(x));   // đã lưu → không hỏi lại khi rời trang
         U.toast(`Đã lưu: ${title} có ${U.int(sel.size)} kiện`, 'ok');
         location.replace('#/r/' + t + '/' + enc(rec.id));

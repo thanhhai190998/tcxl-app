@@ -40,6 +40,8 @@
   U.int = v => new Intl.NumberFormat('vi-VN').format(U.num(v));
 
   U.norm = s => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase();
+  // Cột chọn nhiều giá trị (field multi) lưu dạng "A, B" → mảng ['A', 'B']
+  U.splitList = s => String(s ?? '').split(/\s*[,;]\s*/).map(x => x.trim()).filter(Boolean);
   // Tìm kiếm dễ dãi: không dấu, không phân biệt hoa/thường, bỏ qua dấu cách / gạch nối / chấm ("0441" khớp "T-0441",
   // "22" khớp "T22", "kc112" khớp "LPF-KC-112-007"); gõ nhiều từ thì mỗi từ phải có mặt, thứ tự nào cũng được.
   // dates = chữ ngày tháng của dòng (dd/mm/yyyy): chỉ từ có "/" hoặc ":" mới so với ngày — gõ số trần như "202"

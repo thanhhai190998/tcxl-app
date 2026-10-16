@@ -306,15 +306,17 @@
       return (!a || v >= a) && (!b || v <= b);
     };
     // Lọc theo các nút đang chọn (trừ cột `skip` — để đếm số trên chính hàng nút đó)
-    const byChips = (rows, skip) => chipFields.reduce((rs, f) => f === skip || st.fs[f] == null ? rs : rs.filter(r => groupValue(t, r, f) === st.fs[f]), rows);
+    // Cột chọn nhiều (vd Loại OSD "Thiếu, Hư hỏng"): 1 dòng thuộc mọi giá trị nó có
+    const valsOf = (r, f) => { const fl = DB.field(t, f); if (!fl || !fl.multi) return [groupValue(t, r, f)]; const a = U.splitList(DB.val(t, r, f)); return a.length ? a : ['']; };
+    const byChips = (rows, skip) => chipFields.reduce((rs, f) => f === skip || st.fs[f] == null ? rs : rs.filter(r => valsOf(r, f).includes(st.fs[f])), rows);
     // Bộ lọc thêm theo cột không có nút (mở từ dashboard, vd Hệ thống = Boiler) — hiện ở dòng tổng, có nút bỏ lọc
-    const byExtra = rows => Object.keys(st.xf).reduce((rs, f) => rs.filter(r => groupValue(t, r, f) === st.xf[f]), rows);
+    const byExtra = rows => Object.keys(st.xf).reduce((rs, f) => rs.filter(r => valsOf(r, f).includes(st.xf[f])), rows);
     const base = () => byExtra(V.filterRows(it, '').filter(inRange));
     const drawChips = () => {
       const box = document.getElementById('chips'), all = base();
       box.innerHTML = chipFields.map(f => {
         const rows = byChips(all, f), groups = new Map(), cur = st.fs[f];
-        rows.forEach(r => { const g = groupValue(t, r, f); if (!groups.has(g)) groups.set(g, []); groups.get(g).push(r); });
+        rows.forEach(r => valsOf(r, f).forEach(g => { if (!groups.has(g)) groups.set(g, []); groups.get(g).push(r); }));
         if (groups.size < 2 && cur == null) return '';
         const n = rs => esc(L.sum ? V.fmtSum(t, V.sumOf(t, rs), true) : U.int(rs.length));   // có cột cộng → nút lọc hiện tổng (vd tổng kiện)
         const keys = V.orderGroups(t, f, [...groups.keys()]);
@@ -821,8 +823,9 @@
     const v = r[f.n] ?? '';
     const nm = `name="${esc(f.n)}"`;
     const ro = def.keyEditable && f.n === def.key && !isNew ? 'readonly' : '';
-    const seg = (opts, cur) => `<div class="seg" data-seg="${esc(f.n)}" ${f.req ? 'data-req="1"' : ''}><input type="hidden" ${nm} value="${esc(cur)}">
-      ${opts.map(o => { const on = String(o.v) === String(cur);
+    // multi = chọn nhiều nút cùng lúc (field multi), giá trị lưu "A, B"
+    const seg = (opts, cur, multi) => `<div class="seg" data-seg="${esc(f.n)}" ${f.req ? 'data-req="1"' : ''} ${multi ? 'data-multi="1"' : ''}><input type="hidden" ${nm} value="${esc(cur)}">
+      ${opts.map(o => { const on = multi ? U.splitList(cur).includes(String(o.v)) : String(o.v) === String(cur);
         return `<button type="button" class="segb ${on ? 'on' : ''}" aria-pressed="${on}" ${on && !f.req ? 'title="Đang chọn — bấm lần nữa để bỏ chọn"' : ''} data-v="${esc(o.v)}">${esc(o.l)}</button>`; }).join('')}</div>`;
     let input;
     switch (f.t) {
@@ -847,6 +850,7 @@
         if (f.other) input = `<div class="cbx" data-opts="${esc(JSON.stringify(V.enumOpts(t, f)))}">
           <input ${nm} value="${esc(v)}" placeholder="Chọn hoặc gõ để thêm mới" autocomplete="off" role="combobox" aria-expanded="false" ${f.req ? 'required' : ''}>
           <button type="button" class="cbx-tg" tabindex="-1" aria-label="Mở danh sách">${Icon('chevron')}</button><div class="cbx-pop" role="listbox" hidden></div></div>`;
+        else if (f.multi) { const cur = U.splitList(v); input = seg([...f.opts, ...cur.filter(x => !f.opts.includes(x))].map(o => ({ v: o, l: o })), v, true); }
         else if (f.opts.length <= SEG_MAX) input = seg([...f.opts, ...(v && !f.opts.includes(v) ? [v] : [])].map(o => ({ v: o, l: o })), v);
         else input = V.pickInput(nm, v, [...f.opts, ...(v && !f.opts.includes(v) ? [v] : [])].map(o => ({ v: o, l: o })));
         break;
@@ -883,7 +887,7 @@
         }
       }
     }
-    return `<div class="fld" data-f="${esc(f.n)}"><span class="lbl">${esc(f.l)}${f.req ? ' <b class="req">*</b>' : ''}</span>${input}</div>`;
+    return `<div class="fld" data-f="${esc(f.n)}"><span class="lbl">${esc(f.l)}${f.req ? ' <b class="req">*</b>' : ''}${f.multi ? ' <small class="lhint">· chọn được nhiều</small>' : ''}</span>${input}</div>`;
   }
 
   // Dòng tham chiếu tới bản ghi có đính kèm (vd kiện → biên bản MGMER / GIR / OSD): nút mở file PDF và link thư mục
@@ -942,6 +946,11 @@
     form.querySelectorAll('.seg').forEach(s => s.addEventListener('click', e => {
       const b = e.target.closest('.segb'); if (!b) return;
       const hid = s.querySelector('input[type=hidden]'), on = b.classList.contains('on');
+      if (s.dataset.multi) {   // chọn nhiều: bật / tắt riêng nút này
+        b.classList.toggle('on', !on); b.setAttribute('aria-pressed', String(!on));
+        hid.value = [...s.querySelectorAll('.segb.on')].map(x => x.dataset.v).join(', ');
+        dirty = true; s.closest('.fld').classList.remove('err'); return;
+      }
       if (on && s.dataset.req) return;
       s.querySelectorAll('.segb').forEach(x => { x.classList.remove('on'); x.setAttribute('aria-pressed', 'false'); x.removeAttribute('title'); });
       if (!on) { b.classList.add('on'); b.setAttribute('aria-pressed', 'true'); if (!s.dataset.req) b.title = 'Đang chọn — bấm lần nữa để bỏ chọn'; }
@@ -1006,6 +1015,8 @@
         if (f.req && (val === '' || val == null)) missing.push(f);
         out[f.n] = val;
       }
+      const bs = def.beforeSave && def.beforeSave(out, { db: DB, user: App.user, isNew, old: r });
+      if (bs) { markErr({ n: bs.f }, bs.msg); q('.fld.err')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); return U.toast(bs.msg, 'err'); }
       if (badDate.length) {
         badDate.forEach(f => markErr(f, 'Ngày chưa đúng — nhập theo dd/mm/yyyy' + (f.t === 'datetime' ? ' hh:mm' : '')));
         q('.fld.err')?.scrollIntoView({ behavior: 'smooth', block: 'center' });

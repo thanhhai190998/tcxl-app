@@ -3,7 +3,7 @@
 //
 //  Cột (field):  n = tên cột trong Sheet, l = nhãn hiển thị, t = kiểu:
 //    text | longtext | number | price | date | datetime | expiry
-//    enum (opts, other=true cho phép gõ giá trị khác) | ref (ref = bảng tham chiếu)
+//    enum (opts, other=true cho phép gõ giá trị khác, multi=true chọn nhiều — lưu "A, B") | ref (ref = bảng tham chiếu)
 //    image | file | email | url | phone
 //  Danh sách (list): group = nhóm theo cột, filter = cột (hoặc mảng cột) làm nút lọc nhanh,
 //    sort/desc = sắp xếp mặc định, cols = cột hiện thêm trong mỗi dòng, avatar: 'initials' = chữ cái đầu,
@@ -11,7 +11,9 @@
 //    range = bộ lọc thời gian theo cột sort, page = hiện từng trang (danh sách dài), hint = chữ gợi ý ô tìm,
 //    excel = mẫu Excel mở từ nút "Excel" trên danh sách (js/excel.js)
 //  Chi tiết (detail): stats = các mốc làm nổi bật ở đầu trang, hide = cột không hiện
-//  Thuộc tính khác: req (bắt buộc), init ('today' hoặc giá trị mặc định), v (cột ảo — hàm tính, không lưu vào Sheet)
+//  Thuộc tính khác: req (bắt buộc), init ('today' hoặc giá trị mặc định), v (cột ảo — hàm tính, không lưu vào Sheet),
+//    ph (chữ gợi ý trong ô ghi chú dài)
+//  Bảng: beforeSave(dòng, { db, user, isNew, old }) chạy trước khi lưu form — điền thêm cột, trả { f, msg } để chặn lưu
 //
 //  3 PHASE CỦA VẬT TƯ (theo file "Goods delivered to Site"):
 //    Phase 1 — nhà thầu thông báo hàng (cột A–P)        → bảng KIEN
@@ -193,15 +195,26 @@
     fields: [
       { n: 'So', l: 'Số OSD', t: 'text', req: true },
       { n: 'Ngay', l: 'Ngày lập', t: 'date', init: 'today', req: true },
-      { n: 'Goi_thau', l: 'Gói thầu', t: 'ref', ref: 'GOI_THAU', req: true },
+      // Gói không bắt buộc (kiện gắn vào OSD đã mang gói) — app tự điền khi biết: theo lần mở kiện, theo gói duy nhất
+      // của người lập (beforeSave), hoặc theo các kiện được chọn (pick.js). Vẫn cần gói để phân quyền cán bộ / nhà thầu theo gói.
+      { n: 'Goi_thau', l: 'Gói thầu', t: 'ref', ref: 'GOI_THAU' },
       { n: 'GIR', l: 'Phát sinh từ lần mở kiện', t: 'ref', ref: 'GIR' },
-      { n: 'Loai', l: 'Loại', t: 'enum', opts: ['Thiếu (Shortage)', 'Hư hỏng (Damage)', 'Dư (Overage)', 'Khác'] },
+      // multi: 1 kiện có thể vừa thiếu vừa hỏng → chọn nhiều, lưu "A, B" trong cùng cột
+      { n: 'Loai', l: 'Loại', t: 'enum', multi: true, opts: ['Thiếu (Shortage)', 'Hư hỏng (Damage)', 'Dư (Overage)', 'Khác'] },
       { n: 'Noi_dung', l: 'Ghi chú', t: 'longtext', ph: 'Dư / thiếu / hỏng gì, biện pháp xử lý (bù hàng, thay thế, chấp nhận, bảo hiểm…) — cập nhật dần' },
       { n: 'File', l: 'Biên bản (PDF)', t: 'file' },
       { n: 'So_kien', l: 'Số kiện', t: 'number', v: (r, db) => countBy(db, 'OSD').get(String(r.id)) || 0 }
     ],
     list: { hint: 'Tìm số OSD, ghi chú…', filter: ['Goi_thau', 'Loai'], lead: 'Goi_thau', sort: 'Ngay', desc: true, cols: ['Ngay', 'So_kien'], sum: 'So_kien', unit: 'kiện', countUnit: 'biên bản', range: true },
     detail: { stats: ['Ngay', 'Loai', 'So_kien'], hide: [] },
+    // Trước khi lưu form: điền gói còn trống; trả { f, msg } nếu không lưu được
+    beforeSave: (o, { db, user }) => {
+      if (!o.Goi_thau && o.GIR) { const g = db.get('GIR', o.GIR); if (g && g.Goi_thau) o.Goi_thau = g.Goi_thau; }
+      const goi = !user.admin && user.goi && user.goi.length ? user.goi : null;   // người chỉ được làm một số gói
+      if (!o.Goi_thau && goi && goi.length === 1) o.Goi_thau = goi[0];
+      if (!o.Goi_thau && goi) return { f: 'Goi_thau', msg: 'Bạn phụ trách nhiều gói — chọn gói thầu hoặc lần mở kiện để app biết OSD thuộc gói nào' };
+      return null;
+    },
     related: [{ t: 'KIEN', fk: 'OSD', l: 'Các kiện liên quan', pick: true }],
     assign: { field: 'OSD', verb: 'lập OSD', modes: [
       { id: 'gir', l: 'Thuộc lần mở kiện phát sinh OSD', when: rec => rec.GIR, f: (k, rec) => k.GIR === rec.GIR },

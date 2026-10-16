@@ -470,6 +470,7 @@ label.qd { display: inline-flex; align-items: center; gap: 6px; }
 .form > *, .fld > * { min-width: 0; }
 .fld { display: grid; gap: 4px; min-width: 0; }
 .lbl { font-size: 13.5px; color: var(--muted); font-weight: 500; }
+.lbl .lhint { font-size: 12px; font-weight: 400; color: var(--muted); opacity: .85; }
 .req { color: var(--bad); }
 input, select, textarea { font: inherit; color: var(--text); background: var(--card); border: 1px solid var(--line); border-radius: 9px; padding: 9px 11px; width: 100%; min-height: 42px; }
 input:focus, select:focus, textarea:focus { border-color: var(--pri); }

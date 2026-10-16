@@ -99,12 +99,13 @@
         { k: 'gir_so', h: 'Số GIR', w: 12, note: 'Cùng 1 số = cùng 1 biên bản mở kiện. Số đã có trong app thì dùng lại.' },
         { k: 'gir_ngay', h: 'Ngày mở kiện', w: 13, type: 'date', note: 'dd/mm/yyyy — bắt buộc khi là biên bản mới' },
         { k: 'osd_so', h: 'Số OSD (nếu có)', w: 18, note: 'Chỉ điền khi kiện dư / thiếu / hư hỏng' },
-        { k: 'osd_loai', h: 'Loại OSD', w: 16, list: DB.field('OSD', 'Loai').opts },
+        { k: 'osd_loai', h: 'Loại OSD', w: 22, list: DB.field('OSD', 'Loai').opts, other: true },   // other: gõ được nhiều loại "Thiếu, Hư hỏng"
         { k: 'osd_nd', h: 'Ghi chú OSD', alt: ['Nội dung OSD'], w: 30 }],
       fill: k => { const m = docOf('MGMER', k.MGMER), g = docOf('GIR', k.GIR), o = docOf('OSD', k.OSD);
         return { ...k, mg_now: m ? m.So : '', gir_so: g ? g.So : '', gir_ngay: g ? g.Ngay : '', osd_so: o ? o.So : '', osd_loai: o ? o.Loai : '', osd_nd: o ? o.Noi_dung : '' }; },
       guide: ['Mỗi dòng là 1 kiện có sẵn trong app (cột xám chỉ để xem, không sửa).', 'Điền "Số GIR" và "Ngày mở kiện" cho kiện đã mở. Nhiều kiện cùng số = cùng 1 biên bản.',
         'Kiện dư / thiếu / hư hỏng: điền thêm "Số OSD", loại và ghi chú — app tạo biên bản OSD gắn với lần mở kiện.',
+        '"Loại OSD" chọn trong danh sách; vừa thiếu vừa hỏng thì gõ nhiều loại cách nhau dấu phẩy, vd: Thiếu, Hư hỏng.',
         'Để trống = không đổi.']
     }
   };
@@ -345,8 +346,12 @@
         const so = asText(r.gir_so), ng = asDate(r.gir_ngay), oso = asText(r.osd_so);
         if (ng === null) x.msgs.push('"Ngày mở kiện" chưa đúng dạng dd/mm/yyyy: ' + asText(r.gir_ngay));
         if (!so && ng) x.msgs.push('Có ngày mở kiện nhưng thiếu số GIR');
-        const osdTypes = DB.field('OSD', 'Loai').opts, loai = asText(r.osd_loai) && canon(osdTypes, r.osd_loai);
-        if (loai && !osdTypes.includes(loai)) x.msgs.push('"Loại OSD" phải là một trong: ' + osdTypes.join(', '));
+        // Loại OSD chọn được nhiều: "Thiếu, Hư hỏng" / "Shortage; Damage" → "Thiếu (Shortage), Hư hỏng (Damage)"
+        const osdTypes = DB.field('OSD', 'Loai').opts;
+        const typeOf = p => { const n = norm(p); return osdTypes.find(o => norm(o) === n || norm(o).startsWith(n + ' (') || norm(o).includes('(' + n + ')')) || p; };
+        const lp = U.splitList(asText(r.osd_loai)).map(typeOf), badT = lp.filter(p => !osdTypes.includes(p));
+        if (badT.length) x.msgs.push(`"Loại OSD" không nhận ra: ${badT.join(', ')} — dùng: ${osdTypes.join(', ')} (nhiều loại cách nhau dấu phẩy)`);
+        const loai = [...new Set(lp)].filter(p => osdTypes.includes(p)).join(', ');
         if (!oso && (loai || asText(r.osd_nd))) x.msgs.push('Có loại / ghi chú OSD nhưng thiếu số OSD');
         let d = null;
         if (so && !x.msgs.length) d = doc('GIR', so, ng, x, {});

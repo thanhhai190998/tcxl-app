@@ -65,7 +65,7 @@
     needs: ['GOI_THAU', 'MGMER', 'GIR', 'OSD', 'KIEM_TRA'],
     fields: [
       // Phase 1 — thông tin nhà thầu thông báo (cột A–P, W)
-      { n: 'STT', l: 'STT (No.)', t: 'number' },
+      { n: 'STT', l: 'STT (No.)', t: 'number', auto: true },   // auto: ẩn khi thêm mới — máy chủ tự cấp số tiếp theo
       { n: 'Goi_thau', l: 'Gói thầu (Restart Phase)', t: 'ref', ref: 'GOI_THAU', req: true },
       { n: 'To_may', l: 'Tổ máy (Unit)', t: 'enum', opts: ['1', '2', 'C'] },
       { n: 'He_thong', l: 'Hệ thống (System)', t: 'enum', other: true, opts: ['Boiler', 'Boiler Auxiliaries', 'ESP', 'FGD', 'RAPH & SCR', 'PH Building', 'Hoist & Crane',

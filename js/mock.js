@@ -218,6 +218,14 @@
   };
   const level = (u, t, r) => permRowLevel(u, t, r, parentGetter);
   const findIdx = (t, kf, key) => rows(t).findIndex(r => String(r[kf]) === String(key));
+  // Giống máy chủ (Code.gs autoStt_): kiện mới chưa có STT → số tiếp theo sau số lớn nhất của cả bảng
+  const autoStt = (t, list) => {
+    if (t !== 'KIEN') return;
+    let max = 0;
+    for (const r of [...rows(t), ...list]) { const n = parseFloat(r.STT); if (n > max) max = n; }
+    max = Math.floor(max);
+    list.forEach(r => { if (r.STT == null || String(r.STT).trim() === '') r.STT = ++max; });
+  };
 
   window.MockAPI = {
     async me() { await wait(); return me(); },
@@ -242,6 +250,7 @@
       if (level(u, t, row) < 2) throw new Error('Bạn không có quyền thêm vào mục này');
       if (!row[kf]) throw new Error('Thiếu khoá ' + kf);
       if (findIdx(t, kf, row[kf]) >= 0) throw new Error('Khoá đã tồn tại: ' + row[kf]);
+      row = clone(row); autoStt(t, [row]);
       rows(t).push(clone(row)); await persist(); return clone(row);
     },
     async update(t, kf, row) {
@@ -261,6 +270,7 @@
         if (level(u, t, row) < 2) throw new Error('Bạn không có quyền thêm vào mục này');
         have.add(String(row[kf]));
       });
+      list = clone(list); autoStt(t, list);
       list.forEach(row => all.push(clone(row))); await persist(); return clone(list);
     },
     async updateMany(t, kf, list) {

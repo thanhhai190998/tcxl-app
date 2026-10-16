@@ -893,7 +893,7 @@
     const old = isNew ? null : DB.get(t, key);
     if (!isNew && !old) { App.main.innerHTML = '<div class="empty">Không tìm thấy bản ghi.</div>'; return; }
     const r = old ? { ...old } : {};
-    const fields = def.fields.filter(f => !f.v);
+    const fields = def.fields.filter(f => !f.v && !(isNew && f.auto));   // f.auto: số do máy chủ cấp khi thêm mới (vd STT kiện)
     if (isNew) fields.forEach(f => {
       if (params.has(f.n)) r[f.n] = params.get(f.n);
       else if (f.init === 'today') r[f.n] = U.today();

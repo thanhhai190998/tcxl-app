@@ -44,8 +44,7 @@
       scopes: [{ v: 'empty', l: 'Mẫu trống (thêm kiện mới)' }, { v: 'all', l: 'Kèm kiện hiện có (để sửa)' }],
       pick: (k, sc) => sc === 'all',
       cols: () => [
-        { ...ID, info: false, w: 12 },
-        { k: 'STT', h: 'STT (No.)', w: 8, type: 'number' },
+        { ...ID, info: false, w: 12 },   // không có cột STT (No.): kiện mới được app tự cấp số tiếp theo khi nạp
         { k: 'To_may', h: 'Tổ máy (Unit)', w: 9, list: DB.field('KIEN', 'To_may').opts },
         { k: 'He_thong', h: 'Hệ thống (System)', w: 20, list: enumOpts('KIEN', 'He_thong'), other: true },
         { k: 'Goi_PM', h: 'Gói chia theo PM', w: 22 },
@@ -65,6 +64,7 @@
       fill: k => ({ ...k }),
       guide: ['Mỗi dòng là 1 kiện của gói ghi ở sheet Hướng dẫn.', 'Cột "Mã kiện": để trống khi thêm kiện mới; dòng đã có mã là kiện có sẵn — sửa các cột khác rồi tải lên để cập nhật.',
         'Cột có dấu * là bắt buộc. Cột có mũi tên chọn: chọn trong danh sách (Hệ thống, Nhà cung cấp, Đơn vị được gõ giá trị khác).',
+        'Không cần đánh số thứ tự (STT / No.): kiện mới được app tự cấp số tiếp theo sau số lớn nhất đang có.',
         'Có thể dán thẳng từ packing list của nhà thầu vào đúng cột.']
     },
     MGMER: {

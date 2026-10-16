@@ -234,7 +234,14 @@
 
     // Hàng về / mở kiện theo thời gian: dữ liệu trải dài nhiều năm → theo năm, ngắn → theo tháng
     const dDem = r => U.isoOf(DB.val('KIEN', r, 'Ngay_dem')), dMo = r => U.isoOf(DB.val('KIEN', r, 'Ngay_mo'));
-    const dates = rows.flatMap(r => [dDem(r), dMo(r)]).filter(Boolean).sort();
+    // Ngày vô lý (ở tương lai, vd gõ nhầm 31/08/2108; hoặc trước năm 2000) không đưa vào biểu đồ — nếu không trục năm
+    // kéo dài cả trăm năm. Ngày nằm ở biên bản MGMER/GIR → liệt kê biên bản để sửa.
+    const maxD = U.iso(U.addDays(U.today(), 31)), okD = d => !!d && d >= '2000-01-01' && d <= maxD;
+    const badDocs = ['MGMER', 'GIR'].flatMap(t => DB.rows(t).filter(d => inG(d) && d.Ngay && !okD(U.isoOf(d.Ngay))).map(d => [t, d]));
+    const badN = rows.filter(r => [dDem(r), dMo(r)].some(d => d && !okD(d))).length;
+    const badNote = badDocs.length || badN ? `<div class="dnote dbad">⚠️ <b>${U.int(badN)} kiện</b> mang ngày bất thường nên không đưa vào biểu đồ — sửa ngày ở biên bản:
+        ${badDocs.slice(0, 8).map(([t, d]) => `<a href="#/r/${t}/${encodeURIComponent(DB.keyOf(t, d))}">${t} ${esc(d.So || '?')} (${esc(U.fmtDate(d.Ngay))})</a>`).join(', ')}${badDocs.length > 8 ? '…' : ''}</div>` : '';
+    const dates = rows.flatMap(r => [dDem(r), dMo(r)]).filter(okD).sort();
     if (dates.length) {
       const yearly = U.daysBetween(dates[0], dates[dates.length - 1]) > 730;
       const keyOf = d => yearly ? d.slice(0, 4) : d.slice(0, 7);
@@ -247,7 +254,7 @@
         labels: yearly ? labels : labels.map(mLabel), titles: yearly ? labels.map(y => 'Năm ' + y) : labels.map(m => 'Tháng ' + m.slice(5) + '/' + m.slice(0, 4)),
         series: [{ name: 'Kiểm đếm (về công trường)', cls: 's1', values: cnt(dDem) }, { name: 'Mở kiện', cls: 's2', values: cnt(dMo) }],
         fmt: v => nf(v, 0), full: v => U.int(v) + ' kiện' };
-      h += card('Hàng về và mở kiện theo ' + (yearly ? 'năm' : 'tháng'), 'chart', 'var(--g2)', columns(cfg), '<button class="dtbl" type="button">Bảng</button>');
+      h += card('Hàng về và mở kiện theo ' + (yearly ? 'năm' : 'tháng'), 'chart', 'var(--g2)', badNote + columns(cfg), '<button class="dtbl" type="button">Bảng</button>');
     }
 
     // Vị trí lưu kho theo lần kiểm tra mới nhất của từng kiện

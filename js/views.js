@@ -262,31 +262,28 @@
     App.head(it.label, { back: true });
     App.loading();
     await DB.loadDeps(t);
-    const sorts = V.sortOptions(t);
-    const st = (V.state[key] = V.state[key] || { q: '', fs: {}, s: sorts[0].id });
-    st.fs = st.fs || {}; st.xf = st.xf || {};
+    const st = (V.state[key] = V.state[key] || { q: '', flt: {} });
     const canAdd = App.user.admin || tableLv(t) === 2;
     const addHref = `#/f/${t}/new`;
-    // Nút lọc nhanh: 1 hoặc nhiều cột (vd Gói thầu + Giai đoạn) — mỗi cột một hàng nút
-    const chipFields = L.type === 'gallery' || L.type === 'calendar' ? [] : [].concat(L.filter || L.group || []).filter(Boolean);
+    // Danh sách dạng BẢNG kiểu Access (js/grid.js): cột chọn được, sắp xếp + lọc tự do theo từng cột, chỉ vẽ dòng đang thấy
     const dateF = L.range && L.sort && DB.field(t, L.sort);
-    const size = L.page ? (window.APP_CONFIG.listPage || 100) : 0;
     st.rg = st.rg || { p: 'all', from: '', to: '' };
-    // Mở từ dashboard kèm bộ lọc (#/i/KIEN?Goi_thau=T12&Phase=…) → áp bộ lọc rồi bỏ khỏi địa chỉ (vẽ lại ngầm không ghi đè lựa chọn mới)
+    st.flt = st.flt || {};
+    if (st.sort === undefined) st.sort = L.group ? { n: L.group, dir: 1 } : L.sort ? { n: L.sort, dir: L.desc ? -1 : 1 } : null;
+    // Mở từ dashboard kèm bộ lọc (#/i/KIEN?Goi_thau=T12&Phase=…) → thành bộ lọc cột, rồi bỏ khỏi địa chỉ (vẽ lại ngầm không ghi đè lựa chọn mới)
     const qs = new URLSearchParams(location.hash.split('?')[1] || '');
     if ([...qs.keys()].length) {
-      st.fs = {}; st.xf = {};
-      qs.forEach((v, k) => { if (chipFields.includes(k)) st.fs[k] = v; else if (DB.field(t, k)) st.xf[k] = v; });   // cột khác (vd Hệ thống) = bộ lọc thêm
+      st.flt = {}; st.top = 0;
+      qs.forEach((v, k) => { if (DB.field(t, k)) st.flt[k] = { vals: [v === '' || v === '(trống)' ? Grid.EMPTY : v] }; });
       st.q = qs.get('q') || '';
       history.replaceState(null, '', '#/i/' + enc(key));
     }
-    st.lim = st.lim || size;
 
     App.main.innerHTML = `<div class="lbar">
         <label class="lsearch">${Icon('search')}<input type="search" placeholder="${esc(L.hint || 'Tìm trong ' + it.label.toLowerCase() + '…')}" value="${esc(st.q)}"></label>
-        ${sorts.length > 1 ? `<select class="lsort" title="Sắp xếp">${sorts.map(s => `<option value="${s.id}" ${s.id === st.s ? 'selected' : ''}>${esc(s.l)}</option>`).join('')}</select>` : ''}
-        ${L.excel && canItem(V.findItem('EXCEL') || {}) ? `<a class="btn ghost ladd" href="#/i/EXCEL?m=${L.excel}" title="Nhập / xuất Excel">${Icon('upload')}Excel</a>` : ''}
-        ${canAdd ? `<a class="btn ladd" href="${addHref}">${Icon('plus')}Thêm</a>` : ''}
+        <button type="button" class="btn ghost ladd" data-cols title="Chọn cột hiển thị, đổi thứ tự cột">${Icon('cols')}<span>Cột</span></button>
+        ${L.excel && canItem(V.findItem('EXCEL') || {}) ? `<a class="btn ghost ladd" href="#/i/EXCEL?m=${L.excel}" title="Nhập / xuất Excel">${Icon('upload')}<span>Excel</span></a>` : ''}
+        ${canAdd ? `<a class="btn ladd" href="${addHref}">${Icon('plus')}<span>Thêm</span></a>` : ''}
       </div>
       ${dateF ? `<div class="lfil">
         <label class="tsel" title="Lọc theo ${esc(dateF.l.toLowerCase())}">${Icon('calendar')}<select id="tsel" aria-label="Khoảng thời gian">
@@ -294,7 +291,8 @@
         <span class="trng" id="trng" ${st.rg.p === 'custom' ? '' : 'hidden'}>
           ${V.dateInput('id="tfrom"', st.rg.from, { label: 'Từ ngày' })}<span>→</span>${V.dateInput('id="tto"', st.rg.to, { label: 'Đến ngày' })}</span>
       </div>` : ''}
-      <div id="chips"></div><div class="lsum" id="lsum" hidden></div><div id="lst"></div>
+      <div class="lsum" id="lsum"></div><div class="gfbar" id="gfbar" hidden></div>
+      <div class="gwrap" id="grid"></div>
       ${canAdd ? `<a class="fab" href="${addHref}" title="Thêm mới" style="--gc:${it.color || 'var(--pri)'}">${Icon('plus')}</a>` : ''}`;
     App.main.classList.toggle('has-fab', canAdd);
 
@@ -305,87 +303,55 @@
       const v = U.isoOf(DB.val(t, r, L.sort)); if (!v) return false;
       return (!a || v >= a) && (!b || v <= b);
     };
-    // Lọc theo các nút đang chọn (trừ cột `skip` — để đếm số trên chính hàng nút đó)
-    // Cột chọn nhiều (vd Loại OSD "Thiếu, Hư hỏng"): 1 dòng thuộc mọi giá trị nó có
-    const valsOf = (r, f) => { const fl = DB.field(t, f); if (!fl || !fl.multi) return [groupValue(t, r, f)]; const a = U.splitList(DB.val(t, r, f)); return a.length ? a : ['']; };
-    const byChips = (rows, skip) => chipFields.reduce((rs, f) => f === skip || st.fs[f] == null ? rs : rs.filter(r => valsOf(r, f).includes(st.fs[f])), rows);
-    // Bộ lọc thêm theo cột không có nút (mở từ dashboard, vd Hệ thống = Boiler) — hiện ở dòng tổng, có nút bỏ lọc
-    const byExtra = rows => Object.keys(st.xf).reduce((rs, f) => rs.filter(r => valsOf(r, f).includes(st.xf[f])), rows);
-    const base = () => byExtra(V.filterRows(it, '').filter(inRange));
-    const drawChips = () => {
-      const box = document.getElementById('chips'), all = base();
-      box.innerHTML = chipFields.map(f => {
-        const rows = byChips(all, f), groups = new Map(), cur = st.fs[f];
-        rows.forEach(r => valsOf(r, f).forEach(g => { if (!groups.has(g)) groups.set(g, []); groups.get(g).push(r); }));
-        if (groups.size < 2 && cur == null) return '';
-        const n = rs => esc(L.sum ? V.fmtSum(t, V.sumOf(t, rs), true) : U.int(rs.length));   // có cột cộng → nút lọc hiện tổng (vd tổng kiện)
-        const keys = V.orderGroups(t, f, [...groups.keys()]);
-        if (cur != null && !groups.has(cur)) keys.push(cur);
-        const fl = DB.field(t, f), many = chipFields.length > 1 && fl;
-        return `<div class="chips-row" data-cf="${esc(f)}" ${many ? `aria-label="${esc(fl.l)}"` : ''}>
-          <button class="chip2 ${cur == null ? 'on' : ''}" data-f="">${many ? esc(fl.l.replace(/\s*\(.*\)$/, '')) + ': tất cả' : 'Tất cả'} <b>${n(rows)}</b></button>
-          ${keys.map(k => `<button class="chip2 ${cur === k ? 'on' : ''}" data-f="${esc(k)}">${esc(k || '(trống)')} <b>${n(groups.get(k) || [])}</b></button>`).join('')}</div>`;
-      }).join('');
-      box.querySelectorAll('.chips-row').forEach(row => row.querySelectorAll('[data-f]').forEach(b => b.onclick = () => {
-        const f = row.dataset.cf;
-        if (b.dataset.f === '') delete st.fs[f]; else st.fs[f] = b.dataset.f;
-        drawChips(); draw(true);
-      }));
-    };
-    // Dòng tổng: số dòng + tổng cột cộng + khoảng thời gian / bộ lọc đang chọn
+    // Dòng tổng: số dòng + tổng cột cộng + khoảng thời gian đang chọn
     const drawSum = rows => {
       const box = document.getElementById('lsum'), [a, b] = V.rangeOf(st.rg), on = a || b;
-      const xf = Object.keys(st.xf);
-      box.hidden = !(L.sum || on || size || xf.length);
-      if (box.hidden) return;
-      const span = on ? (a && b ? `${U.fmtDate(a)} → ${U.fmtDate(b)}` : a ? 'từ ' + U.fmtDate(a) : 'đến ' + U.fmtDate(b)) : (dateF ? 'mọi thời gian' : '');
+      const span = on ? (a && b ? `${U.fmtDate(a)} → ${U.fmtDate(b)}` : a ? 'từ ' + U.fmtDate(a) : 'đến ' + U.fmtDate(b)) : '';
       const tot = L.sum ? ` · tổng <b>${esc(V.fmtSum(t, V.sumOf(t, rows)))}</b>` : '';
-      const fil = chipFields.filter(f => st.fs[f] != null).map(f => st.fs[f] || '(trống)');
-      const notes = [span, ...fil, st.q ? 'khớp "' + st.q + '"' : ''].filter(Boolean);
-      box.innerHTML = `${Icon('chart', 'sm')}<span><b>${U.int(rows.length)}</b> ${esc(L.countUnit || 'mục')}${tot}
-        ${notes.length ? `<span class="muted">· ${notes.map(esc).join(' · ')}</span>` : ''}
-        ${xf.map(f => `<button type="button" class="xchip" data-xf="${esc(f)}" title="Bỏ lọc">${esc(DB.field(t, f).l.replace(/\s*\(.*\)$/, ''))}: <b>${esc(st.xf[f] || '(trống)')}</b> ${Icon('x', 'sm')}</button>`).join('')}</span>`;
-      box.querySelectorAll('[data-xf]').forEach(b => b.onclick = () => { delete st.xf[b.dataset.xf]; drawChips(); draw(true); });
+      const all = DB.rows(t).length, notes = [span, st.q ? 'khớp "' + st.q + '"' : '', rows.length < all ? 'trong ' + U.int(all) : ''].filter(Boolean);
+      box.innerHTML = `${Icon('table', 'sm')}<span><b>${U.int(rows.length)}</b> ${esc(L.countUnit || 'mục')}${tot}
+        ${notes.length ? `<span class="muted">· ${notes.map(esc).join(' · ')}</span>` : ''}</span>`;
     };
-    // reset = đổi bộ lọc / từ khoá → quay về trang đầu của danh sách dài
-    const draw = reset => {
-      if (reset && size) st.lim = size;
-      const rows = byChips(byExtra(V.filterRows(it, st.q).filter(inRange)));
-      drawSum(rows);
-      const flat = chipFields.includes(L.group) && st.fs[L.group] != null;
-      const box = document.getElementById('lst');
-      box.innerHTML = rows.length
-        ? V.renderRows(t, rows, { flat, sortBy: st.s, item: it, limit: size ? st.lim : 0 })
-        : `<div class="lempty"><span class="tic" style="--gc:${it.color || 'var(--g7)'}">${Icon(it.ic || 'folder')}</span>
-            <div>${st.q || Object.keys(st.fs).length || Object.keys(st.xf).length ? 'Không có mục nào khớp' : 'Chưa có dữ liệu'}</div>
-            ${canAdd && !st.q ? `<a class="btn" href="${addHref}">${Icon('plus')}Thêm mới</a>` : ''}</div>`;
-      const more = box.querySelector('[data-more]');
-      if (more) more.onclick = () => { st.lim += size; draw(); };
-      V.hydrate(App.main);
+    // Các bộ lọc cột đang dùng: mỗi cái 1 nhãn (bấm để bỏ) + Xoá tất cả
+    const drawFbar = () => {
+      const box = document.getElementById('gfbar'), act = Grid.active(st.flt);
+      box.hidden = !act.length;
+      box.innerHTML = `${Icon('filter', 'sm')}${act.map(n => `<button type="button" class="xchip" data-xf="${esc(n)}" title="Bỏ lọc cột này">${esc(n === '_badge' ? 'Trạng thái' : Grid.short(DB.field(t, n).l))}: <b>${esc(Grid.summary(t, n, st.flt[n]))}</b> ${Icon('x', 'sm')}</button>`).join('')}
+        ${act.length > 1 ? '<button type="button" class="linkbtn" data-xall>Xoá tất cả lọc</button>' : ''}`;
+      box.querySelectorAll('[data-xf]').forEach(b => b.onclick = () => { delete st.flt[b.dataset.xf]; st.top = 0; draw(); });
+      const xa = box.querySelector('[data-xall]'); if (xa) xa.onclick = () => { st.flt = {}; st.top = 0; draw(); };
+    };
+    const draw = () => {
+      const empty = st.q || Grid.active(st.flt).length || (dateF && st.rg.p !== 'all') ? 'Không có dòng nào khớp — bỏ bớt bộ lọc'
+        : `Chưa có dữ liệu${canAdd ? ` · <a href="${addHref}">Thêm mới</a>` : ''}`;
+      drawFbar();
+      const grid = document.getElementById('grid');
+      const shown = Grid.mount(grid, { t, st, rows: V.filterRows(it, st.q).filter(inRange), onFilter: draw, empty });
+      drawSum(shown);
+      Grid.fit(grid); grid.dispatchEvent(new Event('scroll'));   // dòng tổng vừa vẽ đẩy bảng xuống → tính lại chiều cao
     };
     // Danh sách dài: chờ ngừng gõ một chút mới lọc (không giật khi gõ)
     let qt = null;
     App.main.querySelector('.lsearch input').oninput = e => {
-      st.q = e.target.value; clearTimeout(qt);
-      qt = setTimeout(() => draw(true), DB.rows(t).length > 2000 ? 220 : 0);
+      st.q = e.target.value; st.top = 0; clearTimeout(qt);
+      qt = setTimeout(draw, DB.rows(t).length > 2000 ? 220 : 0);
     };
-    const ss = App.main.querySelector('.lsort');
-    if (ss) ss.onchange = () => { st.s = ss.value; draw(true); };
+    App.main.querySelector('[data-cols]').onclick = () => Grid.chooser(t, draw);
     if (dateF) {
       V.dates(App.main);
       const sel = document.getElementById('tsel'), rng = document.getElementById('trng'), fr = document.getElementById('tfrom'), to = document.getElementById('tto');
       sel.onchange = () => {
-        st.rg.p = sel.value;
+        st.rg.p = sel.value; st.top = 0;
         if (sel.value === 'custom' && !st.rg.from && !st.rg.to) {   // gợi ý sẵn: đầu tháng này → hôm nay
           const d = new Date(); st.rg.from = fr.value = U.iso(new Date(d.getFullYear(), d.getMonth(), 1)); st.rg.to = to.value = U.today();
           fr._sync(); to._sync();
         }
         rng.hidden = sel.value !== 'custom';
-        drawChips(); draw(true);
+        draw();
       };
-      fr.onchange = to.onchange = () => { st.rg.from = fr.value; st.rg.to = to.value; drawChips(); draw(true); };
+      fr.onchange = to.onchange = () => { st.rg.from = fr.value; st.rg.to = to.value; st.top = 0; draw(); };
     }
-    drawChips(); draw();
+    draw();
   };
 
   // Tổng cột số (list.sum) của các dòng; tiền → "1.200.000 ₫", số → "308 kiện"
@@ -619,7 +585,7 @@
         <h3>${esc(rel.l)}</h3><span class="cnt">${U.int(rows.length)}</span>
         ${rel.pick ? (lv >= 2 && tableLv(rel.t) === 2 ? `<a class="btn sm" href="#/pick/${t}/${enc(key)}">${Icon('check', 'sm')} Chọn kiện</a>` : '')
           : tableLv(rel.t) === 2 ? `<a class="btn sm" href="#/f/${rel.t}/new?${enc(rel.fk)}=${enc(key)}${inherit(rel.t)}">${Icon('plus', 'sm')} Thêm</a>` : ''}</div>
-        <div class="rel-body">${rows.length ? V.renderRows(rel.t, rows, { flat: true, skip: rel.fk, limit: REL_PAGE }) : '<div class="muted small rel-empty">Chưa có</div>'}</div></section>`;
+        <div class="rel-body">${rows.length ? Grid.mini(rel.t, rows, { skip: rel.fk, limit: REL_PAGE }) : '<div class="muted small rel-empty">Chưa có</div>'}</div></section>`;
     }
     App.main.innerHTML = html;
     V.hydrate(App.main);
@@ -627,7 +593,7 @@
       const b = sec.querySelector('[data-more]'); if (!b) return;
       b.onclick = () => {
         const x = relRows[+sec.dataset.rel]; x.lim += REL_PAGE * 4;
-        sec.querySelector('.rel-body').innerHTML = V.renderRows(x.rel.t, x.rows, { flat: true, skip: x.rel.fk, limit: x.lim });
+        sec.querySelector('.rel-body').innerHTML = Grid.mini(x.rel.t, x.rows, { skip: x.rel.fk, limit: x.lim });
         V.hydrate(sec); bindMore(sec);
       };
     };

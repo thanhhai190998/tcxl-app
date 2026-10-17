@@ -96,9 +96,9 @@
       { n: 'KL_tinh', l: 'Khối lượng tịnh (Net Weight)', t: 'number' },
       { n: 'Ghi_chu', l: 'Ghi chú (Remarks)', t: 'longtext' },
       // Phase 2 / 3 — biên bản (mỗi biên bản nhập 1 lần, kiện chỉ trỏ tới)
-      { n: 'MGMER', l: 'Biên bản kiểm đếm (MGMER)', t: 'ref', ref: 'MGMER' },
-      { n: 'GIR', l: 'Biên bản mở kiện (GIR)', t: 'ref', ref: 'GIR' },
-      { n: 'OSD', l: 'Biên bản dư/thiếu/hỏng (OSD)', t: 'ref', ref: 'OSD' },
+      { n: 'MGMER', l: 'Biên bản kiểm đếm (MGMER)', s: 'MGMER', t: 'ref', ref: 'MGMER' },
+      { n: 'GIR', l: 'Biên bản mở kiện (GIR)', s: 'GIR', t: 'ref', ref: 'GIR' },
+      { n: 'OSD', l: 'Biên bản dư/thiếu/hỏng (OSD)', s: 'OSD', t: 'ref', ref: 'OSD' },
       // Cột ảo — tính từ biên bản và lần kiểm tra mới nhất
       { n: 'Phase', l: 'Giai đoạn', t: 'text', opts: PHASES, v: phaseOf },
       { n: 'Ngay_dem', l: 'Ngày kiểm đếm (MGMER Date)', s: 'Về ngày', t: 'date', v: (r, db) => docDate(db, 'MGMER', r.MGMER) },
@@ -309,6 +309,26 @@
     ],
     list: { group: 'Nhom', sort: 'Thu_tu', countUnit: 'liên kết' }
   };
+
+  // ---------------- DẠNG BẢNG (js/grid.js) ----------------
+  // Cột hiện mặc định — người dùng tự đổi bằng nút "Cột" (lưu theo từng máy); _badge = cột Trạng thái (nhãn màu)
+  const TCOLS = {
+    KIEN: ['STT', 'Goi_thau', 'He_thong', 'Mo_ta', 'PKL_No', 'Package_No', 'Nha_cung_cap', 'KL_tinh', 'Phase', 'Ngay_dem', 'Ngay_mo', 'Vi_tri', 'OSD'],
+    MGMER: ['So', 'Ngay', 'Goi_thau', 'Dia_diem', 'So_kien', 'Thanh_phan', 'Ghi_chu'],
+    KIEM_TRA: ['Ngay', 'Kien', 'Goi_thau', 'Vi_tri', 'Tinh_trang', 'Nguoi_KT', 'RFI', 'Ghi_chu'],
+    GIR: ['So', 'Ngay', 'Goi_thau', 'MGMER', 'So_kien', 'Thanh_phan', 'Ghi_chu'],
+    OSD: ['So', 'Ngay', 'Goi_thau', 'GIR', 'Loai', 'So_kien', 'Noi_dung'],
+    GOI_THAU: ['MaGoi', 'TenGoi', 'Nha_thau', 'Tinh_trang', 'Ngay_ky', 'Can_bo', 'So_kien'],
+    NHAN_SU: ['Ho_ten', 'Nhom', 'Chuc_vu', 'Don_vi', 'Goi_thau', 'Dien_thoai', 'Email'],
+    LINK: ['Ten', 'Nhom', 'Link', 'Mo_ta'],
+    NHAP_EXCEL: ['Thoi_gian', 'Nguoi', 'Mau', 'Goi_thau', 'Ten_file', 'So_moi', 'So_cap_nhat', 'Trang_thai']
+  };
+  Object.keys(TCOLS).forEach(t => { T[t].list = Object.assign(T[t].list || {}, { tcols: TCOLS[t] }); });
+  // Độ rộng gợi ý (px) cho cột chữ dài; cột khác theo kiểu (ngày, số, danh sách…)
+  const COLW = { 'KIEN.Mo_ta': 260, 'KIEN.Phase': 150, 'KIEN.He_thong': 150, 'KIEM_TRA.Kien': 240, 'OSD.Noi_dung': 300, 'OSD.Loai': 170,
+    'GOI_THAU.TenGoi': 280, 'NHAN_SU.Ho_ten': 180, 'LINK.Ten': 220, 'MGMER.Thanh_phan': 200, 'GIR.Thanh_phan': 200 };
+  Object.keys(COLW).forEach(k => { const [t, n] = k.split('.'), f = T[t].fields.find(x => x.n === n); if (f) f.w = COLW[k]; });
+  T.KIEN.fields.find(f => f.n === 'STT').plain = true;   // số thứ tự: hiện "1112", không "1.112"
 
   // ---------------- MENU: NHÓM → MỤC ----------------
   // Mỗi mục có khoá quyền (perm). Mục bảng: perm = tên bảng. ic = biểu tượng (js/icons.js), desc = mô tả ngắn, color = màu nhóm

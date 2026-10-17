@@ -268,23 +268,39 @@
   // ---------- Chọn cột ----------
   G.chooser = (t, onDone, view) => {
     const all = G.allCols(t);
-    let vis = G.visible(t, view);
+    // ord = thứ tự mọi cột (cột đang hiện trước); on = cột được tick. Tick / bỏ tick không làm cột nhảy chỗ;
+    // mũi tên đổi chỗ với cột đang hiện liền trên / dưới. Lưu: các cột được tick theo thứ tự ord.
+    const vis0 = G.visible(t, view);
+    let ord = [...vis0, ...all.map(c => c.n).filter(n => !vis0.includes(n))], on = new Set(vis0);
     const wrap = document.createElement('div'); wrap.className = 'modal-bg';
     const paint = () => {
-      const order = [...vis, ...all.map(c => c.n).filter(n => !vis.includes(n))];
+      const keep = wrap.querySelector('.gc-list'), top = keep ? keep.scrollTop : 0;   // vẽ lại mà không nhảy về đầu danh sách
+      const shown = ord.filter(n => on.has(n));
       wrap.innerHTML = `<div class="modal gcols"><h3>${Icon('cols')} Chọn cột hiển thị</h3>
         <p class="muted small">Tick để hiện cột, dùng mũi tên để đổi thứ tự. Lưu trên máy này.</p>
-        <div class="gc-list">${order.map(n => { const c = all.find(x => x.n === n), on = vis.includes(n), i = vis.indexOf(n);
-          return `<div class="gc-it ${on ? 'on' : ''}"><label><input type="checkbox" data-c="${esc(n)}" ${on ? 'checked' : ''}><span>${esc(c.f.l || c.l)}</span></label>
-            ${on ? `<button type="button" class="ibtn3" data-up="${esc(n)}" ${i === 0 ? 'disabled' : ''} aria-label="Lên">${Icon('sortup', 'sm')}</button>
-              <button type="button" class="ibtn3" data-dn="${esc(n)}" ${i === vis.length - 1 ? 'disabled' : ''} aria-label="Xuống">${Icon('sortdown', 'sm')}</button>` : ''}</div>`; }).join('')}</div>
+        <div class="gc-list">${ord.map(n => { const c = all.find(x => x.n === n), ck = on.has(n), i = shown.indexOf(n);
+          return `<div class="gc-it ${ck ? 'on' : ''}"><label><input type="checkbox" data-c="${esc(n)}" ${ck ? 'checked' : ''}><span>${esc(c.f.l || c.l)}</span></label>
+            ${ck ? `<button type="button" class="ibtn3" data-up="${esc(n)}" ${i === 0 ? 'disabled' : ''} aria-label="Lên">${Icon('sortup', 'sm')}</button>
+              <button type="button" class="ibtn3" data-dn="${esc(n)}" ${i === shown.length - 1 ? 'disabled' : ''} aria-label="Xuống">${Icon('sortdown', 'sm')}</button>` : ''}</div>`; }).join('')}</div>
         <div class="row-end"><button type="button" class="btn ghost" data-def>Mặc định</button><button type="button" class="btn" data-ok>${Icon('check', 'sm')}Xong</button></div></div>`;
-      wrap.querySelectorAll('[data-c]').forEach(c => c.onchange = () => { const n = c.dataset.c; vis = c.checked ? [...vis, n] : vis.filter(x => x !== n); if (!vis.length) vis = [n]; paint(); });
-      const mv = (n, d) => { const i = vis.indexOf(n), j = i + d; if (j < 0 || j >= vis.length) return; [vis[i], vis[j]] = [vis[j], vis[i]]; paint(); };
+      wrap.querySelector('.gc-list').scrollTop = top;
+      wrap.querySelectorAll('[data-c]').forEach(c => c.onchange = () => {
+        const n = c.dataset.c;
+        if (c.checked) on.add(n); else if (on.size > 1) on.delete(n);   // luôn còn ít nhất 1 cột
+        paint();
+      });
+      // Đổi chỗ với cột đang hiện liền trên / dưới (bỏ qua cột ẩn ở giữa)
+      const mv = (n, d) => {
+        const s = ord.filter(x => on.has(x)), i = s.indexOf(n), m = s[i + d]; if (!m) return;
+        const a = ord.indexOf(n), b = ord.indexOf(m); [ord[a], ord[b]] = [ord[b], ord[a]]; paint();
+      };
       wrap.querySelectorAll('[data-up]').forEach(b => b.onclick = () => mv(b.dataset.up, -1));
       wrap.querySelectorAll('[data-dn]').forEach(b => b.onclick = () => mv(b.dataset.dn, 1));
-      wrap.querySelector('[data-def]').onclick = () => { vis = G.defaults(t, view); ls.set('tcxl-colw|' + vk(t, view), null); paint(); };
-      wrap.querySelector('[data-ok]').onclick = () => { ls.set('tcxl-cols|' + vk(t, view), vis); wrap.remove(); onDone(); };
+      wrap.querySelector('[data-def]').onclick = () => {
+        const d = G.defaults(t, view); ord = [...d, ...all.map(c => c.n).filter(n => !d.includes(n))]; on = new Set(d);
+        ls.set('tcxl-colw|' + vk(t, view), null); paint();
+      };
+      wrap.querySelector('[data-ok]').onclick = () => { ls.set('tcxl-cols|' + vk(t, view), ord.filter(n => on.has(n))); wrap.remove(); onDone(); };
     };
     wrap.onclick = e => { if (e.target === wrap) wrap.remove(); };
     paint(); document.body.appendChild(wrap);

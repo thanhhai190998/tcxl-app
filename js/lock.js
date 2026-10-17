@@ -39,20 +39,25 @@
       catch (e) { return false; }
     },
     bioOn() { return !!(rec() && rec().bio); },
+    // Mã người dùng cố định theo app + email (app DTH cùng tên miền github.io dùng tiền tố 'dth-app|') → đăng ký lại sẽ THAY
+    // passkey cũ trên máy thay vì đẻ thêm passkey mới mỗi lần
     async bioEnable() {
-      const u = App.user, cred = await navigator.credentials.create({ publicKey: {
+      const u = App.user;
+      const uid = new Uint8Array(await crypto.subtle.digest('SHA-256', enc.encode('tcxl-app|' + C().mode + '|' + u.email))).slice(0, 16);
+      const cred = await navigator.credentials.create({ publicKey: {
         challenge: crypto.getRandomValues(new Uint8Array(32)), rp: { name: C().appName },
-        user: { id: crypto.getRandomValues(new Uint8Array(16)), name: u.email, displayName: u.name || u.email },
+        user: { id: uid, name: u.email, displayName: 'Phòng TCXL · ' + (u.name || u.email) },
         pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
         authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'discouraged' },
-        timeout: 60000, attestation: 'none' } });
+        hints: ['client-device'], timeout: 60000, attestation: 'none' } });
       ls.set(key(), { ...rec(), bio: b64(cred.rawId) });
     },
     bioDisable() { const r = rec(); if (r) { delete r.bio; ls.set(key(), r); } },
     async bioCheck() {
       const r = rec(); if (!r || !r.bio) return false;
       await navigator.credentials.get({ publicKey: { challenge: crypto.getRandomValues(new Uint8Array(32)),
-        allowCredentials: [{ type: 'public-key', id: ub64(r.bio), transports: ['internal', 'hybrid'] }], userVerification: 'required', timeout: 60000 } });
+        allowCredentials: [{ type: 'public-key', id: ub64(r.bio), transports: ['internal'] }], userVerification: 'required',
+        hints: ['client-device'], timeout: 60000 } });
       return true;
     },
 
@@ -186,9 +191,20 @@
   async function pinScreen() {
     const box = el();
     const bioOk = L.bioOn() && await L.bioAvailable();
+    let bioFailed = false;
     const tryBio = async () => {
       try { if (await L.bioCheck()) { const r = rec(); ls.set(key(), { ...r, fails: 0, until: 0 }); L.unlock(); } }
-      catch (e) { box._msg && box._msg('Chưa xác thực được — dùng mã PIN', true); }
+      catch (e) {
+        bioFailed = true;
+        box._msg && box._msg('Windows Hello / vân tay chưa mở được khoá' + (e && e.name ? ' (' + e.name + ')' : '') + ' — nhập mã PIN, app sẽ hỏi đăng ký lại', true);
+      }
+    };
+    // Passkey trên máy hỏng / bị xoá (Windows báo "There was a problem signing in with your passkey"…) →
+    // mở bằng PIN xong thì đề nghị đăng ký lại (thay passkey cũ)
+    const offerReBio = async () => {
+      if (!(await U.confirm('Mở khoá bằng Windows Hello / vân tay vừa bị lỗi. Đăng ký lại cho app trên máy này?'))) return;
+      try { await L.bioEnable(); U.toast('Đã đăng ký lại — lần khoá sau bấm 🔑 để mở', 'ok'); }
+      catch (e) { U.toast('Chưa đăng ký lại được (' + (e.name || e.message) + ') — vẫn dùng mã PIN; có thể tắt mục này trong Cài đặt → Khoá ứng dụng', 'err'); }
     };
     pad(box, {
       title: 'Nhập mã PIN', sub: 'App đang khoá', bio: bioOk ? tryBio : null,
@@ -196,7 +212,7 @@
       onDone: async pin => {
         const r = rec(); if (!r) { L.unlock(); return true; }
         if (r.until && Date.now() < r.until) { box._msg('Thử lại sau ' + Math.ceil((r.until - Date.now()) / 1000) + ' giây', true); return false; }
-        if (await L.check(pin)) { ls.set(key(), { ...rec(), fails: 0, until: 0 }); L.unlock(); return true; }
+        if (await L.check(pin)) { ls.set(key(), { ...rec(), fails: 0, until: 0 }); L.unlock(); if (bioFailed) offerReBio(); return true; }
         const fails = (r.fails || 0) + 1;
         if (fails >= MAX_HARD) { L.forget(); box._msg('Sai quá nhiều lần — đang đăng xuất…', true); setTimeout(() => App.signOut(), 1200); return false; }
         const until = fails >= MAX_SOFT ? Date.now() + WAIT_MS : 0;

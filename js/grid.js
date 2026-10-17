@@ -190,6 +190,8 @@
     const tbl = wrap.querySelector('table'), emp = wrap.querySelector('.gempty');
     const want = (tbl ? tbl.offsetHeight : 0) + (emp ? emp.offsetHeight : 0) + (wrap.offsetHeight - wrap.clientHeight) + 2;
     wrap.style.height = (full ? avail : Math.max(Math.min(want, avail), Math.min(avail, 160))) + 'px';
+    // Máy tính: trang vẫn dài hơn màn hình (lề / chân trang tính thiếu) → bớt đúng phần lố để không phải cuộn trang
+    if (!full && !bh) { const over = document.documentElement.scrollHeight - window.innerHeight; if (over > 0) wrap.style.height = Math.max(160, wrap.offsetHeight - over) + 'px'; }
   };
   let rzT = null;
   window.addEventListener('resize', () => { clearTimeout(rzT); rzT = setTimeout(() => document.querySelectorAll('.gwrap').forEach(w => { G.fit(w); w.dispatchEvent(new Event('scroll')); }), 120); });

@@ -935,7 +935,8 @@ a.hb:hover { background: var(--hover); }
 .gfbar .xchip { margin: 0; }
 /* Trang có bảng: dùng hết chiều rộng màn hình (bỏ khung 1040px căn giữa); khung đếm không chui dưới thanh tìm kiếm */
 body:has(#view .gwrap) main, body:has(#view .gwrap) .foot { max-width: none; }
-body:has(#view .gwrap) main { padding-left: 16px; padding-right: 16px; }
+body:has(#view .gwrap) main { padding-left: 16px; padding-right: 16px; padding-bottom: 8px; min-height: 0; }   /* bảng tự tính chiều cao (Grid.fit) → đáy bảng sát vạch chân trang */
+body:has(#view .gwrap) .foot { margin-top: 0; }
 @media (min-width: 1100px) { .has-drawer:has(#view .gwrap) main, .has-drawer:has(#view .gwrap) .foot { margin-left: 264px; margin-right: 0; } }
 #view .lsum { margin-top: 4px; }
 @media (max-width: 759px) { .lbar .ladd[data-cols] { display: inline-flex; padding: 0 12px; } .lbar .ladd[data-cols] span { display: none; } .dt { font-size: 13px; } }

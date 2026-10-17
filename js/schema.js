@@ -342,19 +342,22 @@
   const GROUPS = [
     { key: 'g0', label: 'Quản lý vật tư', ic: 'box', color: 'var(--g2)', items: [
       // Khoá quyền giữ DASH_VATTU (người dùng cũ đã được cấp "Thống kê tổng") — nay là trang Tổng quan: Bảng + Biểu đồ
-      { key: 'DASH_VATTU', label: 'Tổng quan', ic: 'table', desc: 'Bảng tổng hợp P1–P3, biểu đồ tiến độ', type: 'overview' },
+      { key: 'DASH_VATTU', label: 'Tổng quan', ic: 'table', desc: 'Bảng tổng hợp P1–P3, biểu đồ tiến độ', type: 'overview', pd: 'Bảng tổng hợp + biểu đồ (chỉ có mức Xem)' },
       // 3 trang Phase (js/hub.js): các nút thao tác — tạo biên bản, danh sách, tải form, tải file lên. Không có khoá quyền riêng:
       // hiện khi người dùng được xem ít nhất 1 bảng trong đó (tables)
       { key: 'P1', label: 'Phase 1 · Nhập vật tư', ic: 'box', desc: 'Kiện nhà thầu thông báo: thêm tay, nhập file', type: 'hub', tables: ['KIEN'] },
       { key: 'P2', label: 'Phase 2 · Kiểm đếm & vị trí', ic: 'inspect', desc: 'Biên bản MGMER, chọn kiện, vị trí lưu kho', type: 'hub', tables: ['MGMER', 'KIEM_TRA'] },
       { key: 'P3', label: 'Phase 3 · Mở kiện & OSD', ic: 'open', desc: 'Biên bản GIR, OSD, chọn kiện', type: 'hub', tables: ['GIR', 'OSD'] },
       // Các mục bảng: không hiện trên menu (vào qua trang Phase), giữ để phân quyền theo từng bảng; ph = hiện ở trang Phân quyền
-      { key: 'KIEN', label: 'Danh sách kiện', ph: 'P1', ic: 'box', desc: 'Danh sách kiện nhà thầu thông báo', hidden: true },
-      { key: 'MGMER', label: 'Danh sách MGMER', ph: 'P2', ic: 'inspect', desc: 'Biên bản kiểm đếm (MGMER)', hidden: true },
-      { key: 'KIEM_TRA', label: 'Vị trí & tình trạng', ph: 'P2', ic: 'pin', desc: 'Kiện để ở đâu, còn tốt không', hidden: true },
-      { key: 'GIR', label: 'Danh sách GIR', ph: 'P3', ic: 'open', desc: 'Biên bản mở kiện (GIR)', hidden: true },
-      { key: 'OSD', label: 'Danh sách OSD', ph: 'P3', ic: 'alert', desc: 'Biên bản dư, thiếu, hư hỏng', hidden: true },
-      { key: 'EXCEL', label: 'Nhập / xuất Excel', ph: 'P1–P3', ic: 'upload', desc: 'Tải mẫu, điền, tải lên cả loạt', type: 'excel', hidden: true }
+      // pd = giải thích quyền ở trang Phân quyền
+      { key: 'KIEN', label: 'Danh sách kiện', ph: 'P1', ic: 'box', desc: 'Danh sách kiện nhà thầu thông báo', hidden: true,
+        pd: 'Sửa = thêm / sửa / xoá kiện; cũng cần để gắn kiện vào biên bản MGMER, GIR, OSD' },
+      { key: 'MGMER', label: 'Biên bản kiểm đếm (MGMER)', ph: 'P2', ic: 'inspect', desc: 'Biên bản kiểm đếm (MGMER)', hidden: true, pd: 'Sửa = tạo / sửa biên bản, chọn kiện' },
+      { key: 'KIEM_TRA', label: 'Vị trí & tình trạng kiện', ph: 'P2', ic: 'pin', desc: 'Kiện để ở đâu, còn tốt không', hidden: true, pd: 'Sửa = ghi vị trí, tình trạng (kiểm tra kho)' },
+      { key: 'GIR', label: 'Biên bản mở kiện (GIR)', ph: 'P3', ic: 'open', desc: 'Biên bản mở kiện (GIR)', hidden: true, pd: 'Sửa = tạo / sửa biên bản, chọn kiện' },
+      { key: 'OSD', label: 'Biên bản OSD', ph: 'P3', ic: 'alert', desc: 'Biên bản dư, thiếu, hư hỏng', hidden: true, pd: 'Sửa = tạo / sửa biên bản, ghi chú xử lý, chọn kiện' },
+      { key: 'EXCEL', label: 'Nhập / xuất Excel (cả 3 Phase)', ph: 'P1–P3', ic: 'upload', desc: 'Tải mẫu, điền, tải lên cả loạt', type: 'excel', hidden: true,
+        pd: 'Xem = tải form mẫu; Sửa = tải file lên, hoàn tác lần nhập' }
     ] },
     { key: 'g1', label: 'Gói thầu & nhân sự', ic: 'folder', color: 'var(--g0)', items: [
       { key: 'GOI_THAU', ic: 'folder', desc: 'Nhà thầu, hợp đồng, phụ trách' },

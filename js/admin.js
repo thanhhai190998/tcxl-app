@@ -46,6 +46,16 @@
     const goiSel = (u.Goi_thau || '').split(',').map(s => s.trim()).filter(Boolean);
     // Phân quyền theo từng bảng / mục; trang Phase (hub) không có quyền riêng nên không liệt kê
     const groups = Views.items().map(g => ({ ...g, items: g.items.filter(it => it.type !== 'hub') })).filter(g => g.items.length);
+    // Bố cục theo menu mới: Tổng quan · Phase 1/2/3 (dòng nhóm con, nút áp cho cả Phase; các mục bảng thụt vào bên dưới) · Excel.
+    // Quyền vẫn lưu theo từng bảng (KIEN, MGMER…) như cũ → đổi bố cục không làm đổi / mất quyền đã cấp.
+    const rowsOf = g => {
+      const all = Views.items().find(x => x.key === g.key).items, inHub = new Set(all.filter(x => x.type === 'hub').flatMap(h => h.tables)), out = [];
+      all.forEach(it => {
+        if (it.type === 'hub') { out.push({ hub: it }); it.tables.forEach(k => { const c = all.find(x => x.key === k); if (c) out.push({ it: c, child: it.key }); }); }
+        else if (!inHub.has(it.key)) out.push({ it });
+      });
+      return out;
+    };
 
     App.main.innerHTML = `<form class="fwrap" id="uf" novalidate>
       <div class="card form">
@@ -70,10 +80,14 @@
             <div class="pg-h"><button type="button" class="pg-tog" aria-label="Mở/thu gọn">${Icon('chevron')}</button>
               <span class="gic">${Icon(g.ic)}</span><span class="pg-n"><b>${esc(g.label)}</b><small class="pg-sum"></small></span>
               ${tri(`data-g="${g.key}"`, null, g.items.every(isDash))}</div>
-            <div class="pg-items">${g.items.map(it => `<div class="pi-row"><span class="pic" style="color:${g.color}">${Icon(it.ic, 'sm')}</span>
-              <span class="pi-l">${esc((it.ph ? it.ph + ' · ' : '') + it.label)}</span>${tri(`data-k="${esc(it.perm)}" data-gg="${g.key}"`, q[it.perm] || '', isDash(it))}</div>`).join('')}</div></div>`;
+            <div class="pg-items">${rowsOf(g).map(r => r.hub
+              ? `<div class="pi-row pi-sub"><span class="pic" style="color:${g.color}">${Icon(r.hub.ic, 'sm')}</span>
+                  <span class="pi-l"><b>${esc(r.hub.label)}</b><small>Áp cho cả Phase — hoặc chỉnh từng mục bên dưới</small></span>${tri(`data-ph="${esc(r.hub.key)}"`, null, false)}</div>`
+              : `<div class="pi-row ${r.child ? 'child' : ''}"><span class="pic" style="color:${g.color}">${Icon(r.it.ic, 'sm')}</span>
+                  <span class="pi-l">${esc(r.it.label)}${r.it.pd ? `<small>${esc(r.it.pd)}</small>` : ''}</span>
+                  ${tri(`data-k="${esc(r.it.perm)}" data-gg="${g.key}"${r.child ? ` data-phk="${esc(r.child)}"` : ''}`, q[r.it.perm] || '', isDash(r.it))}</div>`).join('')}</div></div>`;
         }).join('')}
-        <div class="muted small">Thống kê tổng chỉ lấy số liệu từ những gói thầu và mục người đó được xem.</div>
+        <div class="muted small">Trang Phase hiện khi được xem ít nhất 1 mục trong Phase đó. Tổng quan chỉ lấy số liệu từ những gói thầu và mục người đó được xem.</div>
       </div>
       <div class="fbar">${isNew ? '' : `<button type="button" class="btn danger ghost" data-del title="Xoá người dùng">${Icon('trash')}</button>`}
         <button type="button" class="btn ghost" data-cancel>Huỷ</button><button class="btn" type="submit">${Icon('check')} Lưu</button></div></form>`;
@@ -89,6 +103,10 @@
       setTri(gt, same ? lv[0] : '__mixed');
       const on = lv.filter(Boolean).length;
       f.querySelector(`.pgrp[data-g="${g.key}"] .pg-sum`).textContent = on ? `${on}/${its.length} mục được cấp` : 'Chưa cấp mục nào';
+      f.querySelectorAll(`.pgrp[data-g="${g.key}"] .tri[data-ph]`).forEach(pt => {
+        const pl = [...f.querySelectorAll(`.tri[data-phk="${pt.dataset.ph}"]`)].map(level);
+        setTri(pt, pl.every(x => x === pl[0]) ? pl[0] : '__mixed');
+      });
     });
     f.querySelectorAll('.tri').forEach(t => t.addEventListener('click', e => {
       const b = e.target.closest('button'); if (!b || b.disabled) return;
@@ -97,6 +115,7 @@
         const noEdit = it.querySelector('[data-l="edit"]').disabled;
         setTri(it, b.dataset.l === 'edit' && noEdit ? 'view' : b.dataset.l);
       });
+      else if (t.dataset.ph) f.querySelectorAll(`.tri[data-phk="${t.dataset.ph}"]`).forEach(it => setTri(it, b.dataset.l));   // cả Phase
       else setTri(t, b.dataset.l);
       sync();
     }));

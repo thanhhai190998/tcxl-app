@@ -531,6 +531,10 @@ input.sw:checked::after { transform: translateX(18px); }
 .pg-sum { color: var(--muted); font-size: 12px; }
 .pi-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px 8px 14px; border-top: 1px solid var(--line); }
 .pi-l { flex: 1; min-width: 0; font-size: 14px; }
+.pi-l small { display: block; margin-top: 1px; font-size: 12px; color: var(--muted); line-height: 1.35; }
+.pi-row.pi-sub { background: color-mix(in srgb, var(--gc, var(--pri)) 6%, transparent); }   /* dòng Phase: nút áp cho cả Phase */
+.pi-row.pi-sub .pi-l b { font-weight: 700; }
+.pi-row.child { padding-left: 38px; }   /* mục bảng thuộc Phase: thụt vào */
 .tri { display: inline-flex; flex: none; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--card); }
 .tri button { font: inherit; font-size: 12.5px; font-weight: 600; padding: 6px 9px; border: 0; background: transparent; color: var(--muted); cursor: pointer; }
 .tri button + button { border-left: 1px solid var(--line); }

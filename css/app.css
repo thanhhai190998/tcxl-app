@@ -21,6 +21,8 @@
   --ok: #3cc480; --bad: #ff6b6b; --warn: #f0b13a; --info: #5aa8ff; color-scheme: dark;
   --g0: #60a5fa; --g1: #a78bfa; --g2: #2dd4bf; --g3: #4ade80; --g4: #fbbf24; --g5: #f472b6; --g6: #94a3b8; --g7: #818cf8; --g8: #22d3ee;
   --s1: #3987e5; --s2: #d95926; }
+/* Chọn "Sáng": cấm trình duyệt tự làm tối trang (Chrome Android "Làm tối trang web", Samsung Internet…) */
+:root[data-theme="light"] { color-scheme: only light; }
 .ico { width: 20px; height: 20px; flex: none; display: block; }
 .ico.sm { width: 16px; height: 16px; display: inline-block; vertical-align: -3px; }
 * { box-sizing: border-box; }

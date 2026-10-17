@@ -81,7 +81,7 @@
         { k: 'vi_tri', h: 'Vị trí lưu kho', w: 16, list: enumOpts('KIEM_TRA', 'Vi_tri'), other: true, note: 'Không bắt buộc. Điền = ghi 1 lần kiểm tra vị trí mới.' },
         { k: 'tinh_trang', h: 'Tình trạng kiện', w: 14, list: enumOpts('KIEM_TRA', 'Tinh_trang'), other: true },
         { k: 'ngay_kt', h: 'Ngày kiểm tra vị trí', w: 13, type: 'date', note: 'Trống = lấy ngày kiểm đếm (hoặc hôm nay)' },
-        { k: 'nguoi_kt', h: 'Người kiểm tra', w: 16 },
+        { k: 'nguoi_kt', h: 'Người kiểm tra', w: 22, list: Views.enumOpts('KIEM_TRA', DB.field('KIEM_TRA', 'Nguoi_KT')), other: true },   // gợi ý từ Danh bạ, vẫn gõ tên khác được
         { k: 'ghi_chu_kt', h: 'Ghi chú kiểm tra', w: 24 }],
       fill: k => { const m = docOf('MGMER', k.MGMER), c = SCHEMA.lastCheck(DB, k.id);
         return { ...k, vt_now: c ? [c.Vi_tri, c.Tinh_trang].filter(Boolean).join(' · ') : '', mg_so: m ? m.So : '', mg_ngay: m ? m.Ngay : '' }; },

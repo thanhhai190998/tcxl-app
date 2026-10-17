@@ -696,8 +696,16 @@
     const seen = new Set(), out = [];
     const add = v => { const k = U.norm(v).trim(); if (v && !seen.has(k)) { seen.add(k); out.push(v); } };
     f.opts.forEach(add);
+    if (f.from) DB.rows(f.from.t).map(r => String(r[f.from.v] ?? '').trim()).filter(Boolean).sort((a, b) => a.localeCompare(b, 'vi')).forEach(add);   // vd tên trong Danh bạ
     [...cnt.keys()].sort((a, b) => cnt.get(b) - cnt.get(a) || a.localeCompare(b, 'vi')).forEach(add);
     return out;
+  };
+
+  // Dòng phụ cho gợi ý lấy từ bảng khác (f.from.s), vd tên → "Chức vụ · Đơn vị"
+  V.enumSubs = f => {
+    const m = {};
+    if (f.from && f.from.s) DB.rows(f.from.t).forEach(r => { const v = String(r[f.from.v] ?? '').trim(); if (v && !m[v]) { try { m[v] = f.from.s(r) || ''; } catch (e) { /* bỏ qua */ } } });
+    return m;
   };
 
   // Ô chọn trong danh sách có sẵn, gõ để tìm (thay <select>: ô chọn gốc chỉ nhảy theo chữ cái đầu — gõ "22" không ra "T22").
@@ -764,13 +772,14 @@
   // Ô chọn có thể gõ giá trị mới (thay <datalist> — trình duyệt hiện lẫn thành "Saved data", thiếu ô tìm)
   V.combo = root => root.querySelectorAll('.cbx:not(.pick)').forEach(box => {
     const inp = box.querySelector('input'), pop = box.querySelector('.cbx-pop'), opts = JSON.parse(box.dataset.opts || '[]');
+    const subs = JSON.parse(box.dataset.subs || '{}'), addl = box.dataset.addl || 'Thêm mới';   // dòng phụ (vd chức vụ · đơn vị), nhãn khi gõ giá trị mới
     let act = -1, items = [], all = true;
     const draw = () => {
       const q = U.norm(inp.value.trim()), exact = q && opts.some(o => U.norm(o) === q);
-      items = (q && !all ? opts.filter(o => U.match(o, inp.value)) : opts).map(v => ({ v }));
+      items = (q && !all ? opts.filter(o => U.match(o + ' ' + (subs[o] || ''), inp.value)) : opts).map(v => ({ v }));
       if (q && !exact) items.push({ v: inp.value.trim(), add: true });   // "Thêm mới" ở cuối — tránh lỡ chọn khi đã có giá trị gần đúng
       pop.innerHTML = items.length ? items.map((o, i) => `<button type="button" class="cbx-o ${o.add ? 'add' : ''} ${i === act ? 'on' : ''} ${!o.add && U.norm(o.v) === q ? 'sel' : ''}" data-i="${i}" role="option">
-          ${o.add ? `${Icon('plus', 'sm')}<span>Thêm mới: <b>${esc(o.v)}</b></span>` : `<span>${esc(o.v)}</span>${U.norm(o.v) === q ? Icon('check', 'sm') : ''}`}</button>`).join('')
+          ${o.add ? `${Icon('plus', 'sm')}<span>${esc(addl)}: <b>${esc(o.v)}</b></span>` : `<span>${esc(o.v)}${subs[o.v] ? `<small>${esc(subs[o.v])}</small>` : ''}</span>${U.norm(o.v) === q ? Icon('check', 'sm') : ''}`}</button>`).join('')
         : '<div class="cbx-empty">Chưa có lựa chọn nào — gõ để thêm mới</div>';
     };
     const open = showAll => {
@@ -831,8 +840,8 @@
         break;
       }
       case 'enum':
-        if (f.other) input = `<div class="cbx" data-opts="${esc(JSON.stringify(V.enumOpts(t, f)))}">
-          <input ${nm} value="${esc(v)}" placeholder="Chọn hoặc gõ để thêm mới" autocomplete="off" role="combobox" aria-expanded="false" ${f.req ? 'required' : ''}>
+        if (f.other) input = `<div class="cbx" data-opts="${esc(JSON.stringify(V.enumOpts(t, f)))}"${f.from ? ` data-subs="${esc(JSON.stringify(V.enumSubs(f)))}"` : ''}${f.addl ? ` data-addl="${esc(f.addl)}"` : ''}>
+          <input ${nm} value="${esc(v)}" placeholder="${esc(f.ph || 'Chọn hoặc gõ để thêm mới')}" autocomplete="off" role="combobox" aria-expanded="false" ${f.req ? 'required' : ''}>
           <button type="button" class="cbx-tg" tabindex="-1" aria-label="Mở danh sách">${Icon('chevron')}</button><div class="cbx-pop" role="listbox" hidden></div></div>`;
         else if (f.multi) { const cur = U.splitList(v); input = seg([...f.opts, ...cur.filter(x => !f.opts.includes(x))].map(o => ({ v: o, l: o })), v, true); }
         else if (f.opts.length <= SEG_MAX) input = seg([...f.opts, ...(v && !f.opts.includes(v) ? [v] : [])].map(o => ({ v: o, l: o })), v);

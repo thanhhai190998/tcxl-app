@@ -154,7 +154,7 @@
     fileName: (r, db) => { const k = db.get('KIEN', r.Kien); return ['KT No.' + (k && k.STT !== '' && k.STT != null ? k.STT : r.Kien), k && k.Goi_thau, U.fmtDate(r.Ngay).split('/').join('-')].filter(Boolean).join(' - '); },
     title: (r, db) => { const k = db.get('KIEN', r.Kien); return k ? db.title('KIEN', k) : '(kiện đã xoá)'; },
     sub: r => [r.Vi_tri, r.Tinh_trang].filter(Boolean).join(' · '),
-    needs: ['KIEN'],
+    needs: ['KIEN', 'NHAN_SU'],   // NHAN_SU: gợi ý Người kiểm tra từ Danh bạ
     fields: [
       { n: 'Kien', l: 'Kiện', t: 'ref', ref: 'KIEN', req: true },
       // Cột ảo: gói thầu lấy theo kiện (lần kiểm tra không lưu gói riêng) → lọc / hiện gói ở danh sách
@@ -163,7 +163,9 @@
       { n: 'Vi_tri', l: 'Vị trí lưu kho', t: 'enum', other: true, req: true, opts: ['Closed WH', 'Opened WH', 'Cold WH', 'Workshop', 'F5', 'F5-1A', 'F5-3', 'F5-4', 'F6',
         'Bãi Giáo', 'A4', 'A5', 'A7', 'Kho Than', 'FGD', 'Container', 'Installed'] },
       { n: 'Tinh_trang', l: 'Tình trạng kiện', t: 'enum', other: true, opts: ['OK', 'Không thấy', 'Opened', 'Box Broken', 'Tarpaulin Broken', 'Rusted', 'Bent'], init: 'OK' },
-      { n: 'Nguoi_KT', l: 'Người kiểm tra', s: 'Người KT', t: 'text' },
+      // Gợi ý từ Danh bạ (from): bấm chọn người, hoặc gõ tên khác, hoặc để trống; lưu tên dạng chữ (giữ được tên đã nhập trước đây)
+      { n: 'Nguoi_KT', l: 'Người kiểm tra', s: 'Người KT', t: 'enum', other: true, opts: [], ph: 'Chọn từ Danh bạ hoặc gõ tên — để trống nếu không cần', addl: 'Ghi tên khác',
+        from: { t: 'NHAN_SU', v: 'Ho_ten', s: r => [r.Chuc_vu, r.Don_vi].filter(Boolean).join(' · ') } },
       { n: 'RFI', l: 'RFI', t: 'text' },
       { n: 'Ghi_chu', l: 'Ghi chú sau kiểm tra', t: 'longtext' },
       { n: 'Anh_link', l: 'Đường dẫn ảnh / tài liệu kiểm tra (từ file Total)', t: 'text' },

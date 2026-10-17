@@ -145,12 +145,15 @@
     };
     // Vẽ ngay khi cuộn (trình duyệt đã gộp sự kiện cuộn theo khung hình; khoảng dòng không đổi thì không vẽ lại)
     wrap.onscroll = () => { st.top = wrap.scrollTop; st.left = wrap.scrollLeft; paint(); };
-    G.fit(wrap);
+    // Tạm cao hết chỗ trống → vẽ (khoảng trống trên dưới cho đủ chiều cao) → về đúng vị trí cuộn cũ → thu chiều cao vừa nội dung
+    G.fit(wrap, true);
+    paint(true);
     wrap.scrollTop = st.top || 0; wrap.scrollLeft = st.left || 0;
     paint(true);
     // Chiều cao dòng thật (theo font / màn hình) → tính lại khoảng trống trên dưới cho khớp
     const tr0 = tb.querySelector('tr[data-k]');
     if (tr0 && Math.abs(tr0.getBoundingClientRect().height - rh) > 0.3) { rh = tr0.getBoundingClientRect().height; paint(true); }
+    G.fit(wrap); paint(true);
     // Bấm dòng → chi tiết
     tb.onclick = e => { const tr = e.target.closest('tr[data-k]'); if (tr && !e.target.closest('a')) location.hash = '#/r/' + t + '/' + enc(tr.dataset.k); };
     // Tiêu đề: sắp xếp / lọc / kéo đổi độ rộng
@@ -175,11 +178,18 @@
     return rows;
   };
   // Bảng cao vừa màn hình (cuộn trong bảng, tiêu đề đứng yên); chừa thanh menu dưới trên điện thoại
-  G.fit = wrap => {
+  // Chiều cao bảng: vừa đủ số dòng (ít dòng thì bảng thấp), nhiều dòng thì cao vừa phần còn lại của màn hình.
+  // Máy tính: chừa chỗ cho chân trang (thấy ngay, không phải cuộn trang); điện thoại: chừa thanh menu dưới, chân trang nằm dưới cùng.
+  G.fit = (wrap, full) => {   // full = tạm cao hết chỗ trống (trước khi biết chiều cao nội dung)
     if (!wrap.isConnected) return;
     const bn = document.getElementById('bnav'), bh = bn && getComputedStyle(bn).display !== 'none' ? bn.offsetHeight : 0;
+    const foot = document.getElementById('foot'), fh = !bh && foot && foot.offsetParent ? foot.offsetHeight + (parseFloat(getComputedStyle(foot).marginTop) || 0) : 0;
+    const main = wrap.closest('main'), pb = main ? parseFloat(getComputedStyle(main).paddingBottom) || 0 : 0;
     const top = wrap.getBoundingClientRect().top + window.scrollY;
-    wrap.style.height = Math.max(300, window.innerHeight - top - bh - 14) + 'px';
+    const avail = Math.max(260, window.innerHeight - top - bh - fh - pb - 2);
+    const tbl = wrap.querySelector('table'), emp = wrap.querySelector('.gempty');
+    const want = (tbl ? tbl.offsetHeight : 0) + (emp ? emp.offsetHeight : 0) + (wrap.offsetHeight - wrap.clientHeight) + 2;
+    wrap.style.height = (full ? avail : Math.max(Math.min(want, avail), Math.min(avail, 160))) + 'px';
   };
   let rzT = null;
   window.addEventListener('resize', () => { clearTimeout(rzT); rzT = setTimeout(() => document.querySelectorAll('.gwrap').forEach(w => { G.fit(w); w.dispatchEvent(new Event('scroll')); }), 120); });

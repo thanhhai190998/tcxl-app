@@ -215,7 +215,7 @@
     App.head(C.appName, { home: true });
     App.main.innerHTML = `<div class="empty err">⚠️ ${U.esc(e.message)}<br><br>
       ${C.mode === 'demo' ? '<button class="btn" onclick="localStorage.removeItem(\'tcxl-demo-user\');location.reload()">Quay lại tài khoản quản trị viên (demo)</button>'
-        : '<button class="btn" onclick="App.signOut()">Đăng nhập tài khoản khác</button>'}</div>`;
+        : '<button class="btn" onclick="location.reload()">Thử lại</button> <button class="btn ghost" onclick="App.signOut()">Đăng nhập tài khoản khác</button>'}</div>`;
   }
   // Đăng xuất: xoá cả dữ liệu lưu tạm trên máy (bảng, ảnh, thông tin tài khoản)
   App.signOut = async () => {

@@ -80,12 +80,24 @@
     }
   });
 
+  // Google đôi khi trả trang HTML lỗi (quá tải, hết giờ…) thay cho JSON — ở chính Apps Script, hoặc ở bước máy chủ
+  // hỏi Google kiểm tra đăng nhập (Code.gs cũ báo "Unexpected token '<'…"). Lệnh chỉ đọc → tự gửi lại tối đa 3 lần.
+  const SAFE = new Set(['me', 'login', 'logout', 'list', 'batch', 'file', 'files', 'users', 'getConfig']);
+  const GLITCH = /Unexpected token|not valid JSON/i;
+  const NOJSON = 'Máy chủ Google đang trục trặc (trả về trang lỗi thay cho dữ liệu) — đợi vài phút rồi bấm Thử lại';
+  const wait = ms => new Promise(r => setTimeout(r, ms));
   async function post(body) {
-    let res;
-    // Không đặt Content-Type → text/plain, tránh preflight CORS với Apps Script
-    try { res = await fetch(CFG().apiUrl, { method: 'POST', body: JSON.stringify(body) }); }
-    catch (e) { throw new Error('Mất kết nối máy chủ'); }
-    return res.json();
+    const tries = SAFE.has(body.action) ? 3 : 1;
+    for (let i = 1; ; i++) {
+      let txt, j = null;
+      // Không đặt Content-Type → text/plain, tránh preflight CORS với Apps Script
+      try { txt = await (await fetch(CFG().apiUrl, { method: 'POST', body: JSON.stringify(body) })).text(); }
+      catch (e) { throw new Error('Mất kết nối máy chủ'); }
+      try { j = JSON.parse(txt); } catch (e) { console.warn('Máy chủ trả về không phải JSON:', body.action, txt.slice(0, 300)); }
+      if (j && !(j.ok === false && GLITCH.test(String(j.error || '')))) return j;
+      if (i < tries) { await wait(1000 * i); continue; }
+      return { ok: false, error: NOJSON };
+    }
   }
 
   // Đổi token Google lấy phiên 30 ngày (gọi 1 lần ngay sau khi đăng nhập; nhiều yêu cầu cùng lúc dùng chung)

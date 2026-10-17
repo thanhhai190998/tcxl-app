@@ -178,18 +178,17 @@
     return rows;
   };
   // Bảng cao vừa màn hình (cuộn trong bảng, tiêu đề đứng yên); chừa thanh menu dưới trên điện thoại
-  // Chiều cao bảng: vừa đủ số dòng (ít dòng thì bảng thấp), nhiều dòng thì cao vừa phần còn lại của màn hình.
+  // Chiều cao bảng: luôn kéo tới sát chân trang (giống bảng dữ liệu MS Access) — ít dòng thì phần dưới bảng để trống,
+  // chân trang đứng yên ở đáy màn hình, không nhảy lên khi lọc còn vài dòng (user chốt 17/10).
   // Máy tính: chừa chỗ cho chân trang (thấy ngay, không phải cuộn trang); điện thoại: chừa thanh menu dưới, chân trang nằm dưới cùng.
-  G.fit = (wrap, full) => {   // full = tạm cao hết chỗ trống (trước khi biết chiều cao nội dung)
+  G.fit = (wrap, full) => {   // full: giữ tham số cho chỗ gọi cũ (nay luôn cao hết chỗ trống)
     if (!wrap.isConnected) return;
     const bn = document.getElementById('bnav'), bh = bn && getComputedStyle(bn).display !== 'none' ? bn.offsetHeight : 0;
     const foot = document.getElementById('foot'), fh = !bh && foot && foot.offsetParent ? foot.offsetHeight + (parseFloat(getComputedStyle(foot).marginTop) || 0) : 0;
     const main = wrap.closest('main'), pb = main ? parseFloat(getComputedStyle(main).paddingBottom) || 0 : 0;
     const top = wrap.getBoundingClientRect().top + window.scrollY;
     const avail = Math.max(260, window.innerHeight - top - bh - fh - pb - 2);
-    const tbl = wrap.querySelector('table'), emp = wrap.querySelector('.gempty');
-    const want = (tbl ? tbl.offsetHeight : 0) + (emp ? emp.offsetHeight : 0) + (wrap.offsetHeight - wrap.clientHeight) + 2;
-    wrap.style.height = (full ? avail : Math.max(Math.min(want, avail), Math.min(avail, 160))) + 'px';
+    wrap.style.height = avail + 'px';
     // Máy tính: trang vẫn dài hơn màn hình (lề / chân trang tính thiếu) → bớt đúng phần lố để không phải cuộn trang
     if (!full && !bh) { const over = document.documentElement.scrollHeight - window.innerHeight; if (over > 0) wrap.style.height = Math.max(160, wrap.offsetHeight - over) + 'px'; }
   };

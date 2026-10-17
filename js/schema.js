@@ -105,7 +105,12 @@
       { n: 'Ngay_mo', l: 'Ngày mở kiện (GIR Date)', t: 'date', v: (r, db) => docDate(db, 'GIR', r.GIR) },
       { n: 'Vi_tri', l: 'Vị trí lưu kho (mới nhất)', s: 'Vị trí', t: 'text', v: (r, db) => { const c = lastCheck(db, r.id); return c ? c.Vi_tri : ''; } },
       { n: 'Tinh_trang', l: 'Tình trạng kiện (mới nhất)', t: 'text', v: (r, db) => { const c = lastCheck(db, r.id); return c ? c.Tinh_trang : ''; } },
-      { n: 'Ngay_KT', l: 'Ngày kiểm tra (mới nhất)', t: 'date', v: (r, db) => { const c = lastCheck(db, r.id); return c ? c.Ngay : ''; } }
+      { n: 'Ngay_KT', l: 'Ngày kiểm tra (mới nhất)', t: 'date', v: (r, db) => { const c = lastCheck(db, r.id); return c ? c.Ngay : ''; } },
+      // Cột ảo cho bảng Tổng quan (gộp P1–P3): thông tin biên bản OSD + lần kiểm tra mới nhất
+      { n: 'Loai_OSD', l: 'Loại OSD', t: 'text', multi: true, v: (r, db) => { const o = r.OSD && db.get('OSD', r.OSD); return o ? o.Loai || '' : ''; } },
+      { n: 'Ghi_chu_OSD', l: 'Ghi chú OSD', t: 'longtext', v: (r, db) => { const o = r.OSD && db.get('OSD', r.OSD); return o ? o.Noi_dung || '' : ''; } },
+      { n: 'RFI_KT', l: 'RFI (mới nhất)', t: 'text', v: (r, db) => { const c = lastCheck(db, r.id); return c ? c.RFI || '' : ''; } },
+      { n: 'Ghi_chu_KT', l: 'Ghi chú kiểm tra (mới nhất)', t: 'longtext', v: (r, db) => { const c = lastCheck(db, r.id); return c ? c.Ghi_chu || '' : ''; } }
     ],
     list: { hint: 'Tìm mô tả, số PKL, số kiện, bản vẽ, nhà cung cấp…', excel: 'KIEN', filter: ['Goi_thau', 'Phase'], lead: 'Goi_thau', sort: 'STT', cols: ['Nha_cung_cap', 'Vi_tri', 'Ngay_dem'], countUnit: 'kiện', page: true },
     detail: { stats: ['Ngay_dem', 'Ngay_mo', 'Vi_tri'], hide: ['Phase'] },
@@ -334,7 +339,8 @@
   // Mỗi mục có khoá quyền (perm). Mục bảng: perm = tên bảng. ic = biểu tượng (js/icons.js), desc = mô tả ngắn, color = màu nhóm
   const GROUPS = [
     { key: 'g0', label: 'Quản lý vật tư', ic: 'box', color: 'var(--g2)', items: [
-      { key: 'DASH_VATTU', label: 'Thống kê tổng', ic: 'chart', desc: 'Tiến độ hàng về, mở kiện, OSD', type: 'dash' },
+      // Khoá quyền giữ DASH_VATTU (người dùng cũ đã được cấp "Thống kê tổng") — nay là trang Tổng quan: Bảng + Biểu đồ
+      { key: 'DASH_VATTU', label: 'Tổng quan', ic: 'table', desc: 'Bảng tổng hợp P1–P3, biểu đồ tiến độ', type: 'overview' },
       { key: 'KIEN', label: 'P1 · Nhập vật tư', ic: 'box', desc: 'Danh sách kiện nhà thầu thông báo' },
       { key: 'MGMER', label: 'P2 · Kiểm đếm', ic: 'inspect', desc: 'Biên bản đếm kiện (MGMER)' },
       { key: 'KIEM_TRA', label: 'P2 · Vị trí & tình trạng', ic: 'pin', desc: 'Kiện để ở đâu, còn tốt không' },

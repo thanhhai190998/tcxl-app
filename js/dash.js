@@ -176,19 +176,20 @@
   };
 
   // ---------------- Khung chung ----------------
-  D.render = async it => {
-    App.head(it.label, { back: true });
-    App.loading();
+  // host = phần tử chứa (thẻ "Biểu đồ" trong trang Tổng quan); không có → vẽ cả trang như trước
+  D.render = async (it, host) => {
+    if (!host) { App.head(it.label, { back: true }); App.loading(); }
+    const root = host || App.main;
     const draw = { DASH_VATTU: vatTu }[it.key];
     const st = (D.state[it.key] = D.state[it.key] || {});
     const paint = async () => {
       charts.length = 0;
-      App.main.innerHTML = `<div class="dash">${await draw(st)}</div>`;
-      mount(App.main);
-      App.main.querySelectorAll('.dfilter').forEach(f => f.querySelectorAll('[data-v]').forEach(b => b.onclick = () => {
+      root.innerHTML = `<div class="dash">${await draw(st)}</div>`;
+      mount(root);
+      root.querySelectorAll('.dfilter').forEach(f => f.querySelectorAll('[data-v]').forEach(b => b.onclick = () => {
         st[f.dataset.fk] = b.dataset.v; paint();
       }));
-      Views.hydrate(App.main);
+      Views.hydrate(root);
     };
     await paint();
   };

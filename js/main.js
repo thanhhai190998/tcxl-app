@@ -24,7 +24,7 @@
       const q = App.user.quyen || {}, can = k => App.user.admin || Perm.rank(q[k]) > 0;
       const items = [
         { href: '#/', ic: 'home', l: 'Trang chủ' },
-        can('DASH_VATTU') && { href: '#/i/DASH_VATTU', ic: 'chart', l: 'Thống kê' },
+        can('DASH_VATTU') && { href: '#/i/DASH_VATTU', ic: 'table', l: 'Tổng quan' },
         can('KIEN') && { href: '#/i/KIEN', ic: 'box', l: 'Kiện' },
         { href: '#menu', ic: 'menu', l: 'Menu', menu: true }
       ].filter(Boolean);

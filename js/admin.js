@@ -3,7 +3,7 @@
   const esc = U.esc, enc = encodeURIComponent;
   const A = (window.Admin = {});
   const initials = s => { const w = String(s || '?').replace(/@.*/, '').replace(/\(.*?\)/g, '').trim().split(/[\s._]+/).filter(Boolean); return (w.length > 1 ? w[0][0] + w[w.length - 1][0] : (w[0] || '?').slice(0, 2)).toUpperCase(); };
-  const isDash = it => it.type === 'dash';   // mục chỉ có mức Xem
+  const isDash = it => it.type === 'dash' || it.type === 'overview';   // mục chỉ có mức Xem
 
   // ---------------- DANH SÁCH NGƯỜI DÙNG ----------------
   A.users = async () => {

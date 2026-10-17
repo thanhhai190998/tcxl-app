@@ -29,19 +29,21 @@
     if (def.badge) out.push({ n: '_badge', l: 'Trạng thái', f: { n: '_badge', t: 'badge' } });
     return out;
   };
-  G.defaults = t => {
+  G.defaults = (t, view) => {   // view = { key, tcols }: kiểu xem riêng (vd bảng Tổng quan) — bộ cột, độ rộng lưu riêng
     const def = TT()[t], L = def.list || {}, all = G.allCols(t).map(c => c.n);
-    const pick = L.tcols || [L.lead, ...(L.cols || []), L.sort].concat(def.fields.filter(f => f.req && !/^(image|file)$/.test(f.t)).map(f => f.n));
+    const pick = (view && view.tcols) || L.tcols || [L.lead, ...(L.cols || []), L.sort].concat(def.fields.filter(f => f.req && !/^(image|file)$/.test(f.t)).map(f => f.n));
     return [...new Set(pick.filter(n => n && all.includes(n)))];
   };
-  G.visible = t => {
-    const all = G.allCols(t).map(c => c.n), saved = ls.get('tcxl-cols|' + t, null);
-    const v = (saved || G.defaults(t)).filter(n => all.includes(n));
-    return v.length ? v : G.defaults(t);
+  G.visible = (t, view) => {
+    const all = G.allCols(t).map(c => c.n), saved = ls.get('tcxl-cols|' + vk(t, view), null);
+    const v = (saved || G.defaults(t, view)).filter(n => all.includes(n));
+    return v.length ? v : G.defaults(t, view);
   };
   const WIDTH = { date: 106, datetime: 140, expiry: 106, number: 92, price: 120, ref: 130, enum: 132, longtext: 240, url: 170, email: 190, phone: 120, file: 70, image: 70, badge: 120 };
-  G.width = (t, c) => (ls.get('tcxl-colw|' + t, {})[c.n]) || c.f.w || WIDTH[c.f.t] || (c.n === 'STT' ? 70 : 150);
+  G.width = (t, c, view) => (ls.get('tcxl-colw|' + vk(t, view), {})[c.n]) || c.f.w || WIDTH[c.f.t] || (c.n === 'STT' ? 70 : 150);
   const colOf = (t, n) => G.allCols(t).find(c => c.n === n);
+  const vk = (t, view) => (view && view.key) || t;   // khoá lưu bộ cột / độ rộng: theo kiểu xem hoặc theo bảng
+  G.colsOf = (t, view) => G.visible(t, view).map(n => colOf(t, n)).filter(Boolean);   // cột đang hiện (đối tượng cột)
 
   // ---------- Giá trị ô ----------
   // Khoá lọc của 1 ô (mảng — cột chọn nhiều có nhiều giá trị); trống → EMPTY
@@ -113,10 +115,10 @@
   // o: { t, rows (đã lọc tìm kiếm / thời gian), st (giữ sort, flt, top), onFilter(), base() → dòng trước lọc cột (đếm giá trị) }
   G.mount = (wrap, o) => {
     const { t, st } = o;
-    const cols = G.visible(t).map(n => colOf(t, n)).filter(Boolean);
+    const cols = G.visible(t, o.view).map(n => colOf(t, n)).filter(Boolean);
     let rows = G.apply(t, o.rows, st.flt);
     if (st.sort && st.sort.n && cols.concat(G.allCols(t)).some(c => c.n === st.sort.n)) rows = G.sort(t, rows, st.sort.n, st.sort.dir);
-    const widths = cols.map(c => G.width(t, c)), total = widths.reduce((a, b) => a + b, 0);
+    const widths = cols.map(c => G.width(t, c, o.view)), total = widths.reduce((a, b) => a + b, 0);
     wrap.innerHTML = `<table class="dt" style="min-width:${total}px"><colgroup>${widths.map(w => `<col style="width:${w}px">`).join('')}</colgroup>
       <thead><tr>${cols.map((c, i) => {
         const s = st.sort && st.sort.n === c.n ? st.sort.dir : 0, on = G.active(st.flt).includes(c.n);
@@ -166,7 +168,7 @@
       const mv = ev => { widths[i] = Math.max(56, w0 + ev.clientX - x0); col.style.width = widths[i] + 'px'; tbl.style.minWidth = widths.reduce((a, b) => a + b, 0) + 'px'; };
       const up = () => {
         removeEventListener('pointermove', mv); removeEventListener('pointerup', up);
-        const m = ls.get('tcxl-colw|' + t, {}); m[cols[i].n] = Math.round(widths[i]); ls.set('tcxl-colw|' + t, m);
+        const m = ls.get('tcxl-colw|' + vk(t, o.view), {}); m[cols[i].n] = Math.round(widths[i]); ls.set('tcxl-colw|' + vk(t, o.view), m);
       };
       addEventListener('pointermove', mv); addEventListener('pointerup', up);
     });
@@ -252,9 +254,9 @@
   };
 
   // ---------- Chọn cột ----------
-  G.chooser = (t, onDone) => {
+  G.chooser = (t, onDone, view) => {
     const all = G.allCols(t);
-    let vis = G.visible(t);
+    let vis = G.visible(t, view);
     const wrap = document.createElement('div'); wrap.className = 'modal-bg';
     const paint = () => {
       const order = [...vis, ...all.map(c => c.n).filter(n => !vis.includes(n))];
@@ -269,8 +271,8 @@
       const mv = (n, d) => { const i = vis.indexOf(n), j = i + d; if (j < 0 || j >= vis.length) return; [vis[i], vis[j]] = [vis[j], vis[i]]; paint(); };
       wrap.querySelectorAll('[data-up]').forEach(b => b.onclick = () => mv(b.dataset.up, -1));
       wrap.querySelectorAll('[data-dn]').forEach(b => b.onclick = () => mv(b.dataset.dn, 1));
-      wrap.querySelector('[data-def]').onclick = () => { vis = G.defaults(t); ls.set('tcxl-colw|' + t, null); paint(); };
-      wrap.querySelector('[data-ok]').onclick = () => { ls.set('tcxl-cols|' + t, vis); wrap.remove(); onDone(); };
+      wrap.querySelector('[data-def]').onclick = () => { vis = G.defaults(t, view); ls.set('tcxl-colw|' + vk(t, view), null); paint(); };
+      wrap.querySelector('[data-ok]').onclick = () => { ls.set('tcxl-cols|' + vk(t, view), vis); wrap.remove(); onDone(); };
     };
     wrap.onclick = e => { if (e.target === wrap) wrap.remove(); };
     paint(); document.body.appendChild(wrap);

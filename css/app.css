@@ -967,3 +967,12 @@ body:has(#view .gwrap) #foot { display: none; }   /* trang bảng: bảng cao v�
 /* Bảng nhỏ trong trang chi tiết (danh sách liên quan) */
 .gmini { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
 .gmini .dt thead th { padding-right: 10px; }
+
+/* Trang Tổng quan: thẻ Bảng / Biểu đồ + công cụ bảng trên cùng một thanh */
+.otop { flex-wrap: wrap; }
+.otabs { flex: none; display: inline-flex; gap: 4px; margin: 0; }
+.otabs .segb { display: inline-flex; align-items: center; gap: 6px; min-height: 42px; }
+.otabs .segb .ico { width: 16px; height: 16px; }
+.otools { flex: 1 1 320px; display: flex; align-items: center; gap: 8px; min-width: 0; }
+.otools:empty { display: none; }
+@media (max-width: 759px) { .otop .ladd[data-xlsx] { display: inline-flex; padding: 0 12px; } .otop .ladd[data-xlsx] span { display: none; } }

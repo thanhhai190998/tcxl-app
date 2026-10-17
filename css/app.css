@@ -976,3 +976,29 @@ body:has(#view .gwrap) #foot { display: none; }   /* trang bảng: bảng cao v�
 .otools { flex: 1 1 320px; display: flex; align-items: center; gap: 8px; min-width: 0; }
 .otools:empty { display: none; }
 @media (max-width: 759px) { .otop .ladd[data-xlsx] { display: inline-flex; padding: 0 12px; } .otop .ladd[data-xlsx] span { display: none; } }
+
+/* Trang Phase 1 / 2 / 3 (js/hub.js): số liệu nhanh + nút thao tác */
+.hub { display: grid; gap: 14px; max-width: 1100px; }
+.hub-intro { margin: 2px 0 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+.hub-stats { display: flex; flex-wrap: wrap; gap: 10px; }
+.hstat { display: flex; align-items: baseline; gap: 8px; padding: 10px 14px; border-radius: 12px; background: var(--card); border: 1px solid var(--line); }
+.hstat b { font-size: 22px; color: var(--text); font-variant-numeric: tabular-nums; }
+.hstat span { font-size: 13px; color: var(--muted); }
+.hub-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.htile { display: flex; align-items: center; gap: 14px; padding: 16px; border-radius: 14px; text-decoration: none; color: var(--text);
+  background: var(--card); border: 1px solid var(--line); transition: border-color .15s, transform .15s, box-shadow .15s; }
+.htile:hover { border-color: var(--gc, var(--pri)); box-shadow: 0 4px 16px #0001; transform: translateY(-1px); }
+.ht-ic { flex: none; width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center;
+  background: color-mix(in srgb, var(--gc, var(--pri)) 14%, transparent); color: var(--gc, var(--pri)); }
+.ht-ic .ico { width: 24px; height: 24px; }
+.ht-t { flex: 1; min-width: 0; display: grid; gap: 3px; }
+.ht-t b { font-size: 15.5px; }
+.ht-t small { font-size: 12.5px; color: var(--muted); line-height: 1.4; }
+.htile .ht-go { width: 18px; height: 18px; color: var(--muted); flex: none; }
+.htile.main { background: var(--gc, var(--pri)); border-color: transparent; color: #fff; }
+.htile.main .ht-ic { background: #ffffff26; color: #fff; }
+.htile.main .ht-t small, .htile.main .ht-go { color: #ffffffd0; }
+@media (max-width: 559px) { .hub-grid { grid-template-columns: 1fr 1fr; gap: 10px; } .htile { flex-direction: column; align-items: flex-start; gap: 10px; padding: 14px; }
+  .htile .ht-go { display: none; } .ht-t b { font-size: 14.5px; } }
+.xdrop.flash { animation: xflash 1.6s ease-out 2; }
+@keyframes xflash { 0%, 100% { box-shadow: none; } 30% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--pri) 35%, transparent); } }

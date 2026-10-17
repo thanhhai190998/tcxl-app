@@ -492,6 +492,7 @@
     await Promise.all(ts.map(t => DB.loadDeps(t).catch(() => {})));
     lib().catch(() => {});   // tải sẵn thư viện ở nền
     const st = X.state, qs = new URLSearchParams(location.hash.split('?')[1] || '');
+    const goUp = qs.get('s') === 'up';   // từ nút "Tải file lên" ở trang Phase → cuộn tới ô tải file
     if (qs.get('m') && (TPL[qs.get('m')] || qs.get('m') === 'TOTAL')) { st.m = qs.get('m'); st.touched = true; history.replaceState(null, '', '#/i/' + it.key); }
     // App chưa có kiện nào (Sheet mới) → quản trị viên thấy thẻ File Total trước
     if (!st.touched && App.user.admin && !DB.rows('KIEN').length) st.m = 'TOTAL';
@@ -766,6 +767,7 @@
       });
     }
     paint();
+    if (goUp) setTimeout(() => { const d = App.main.querySelector('#xdrop') || App.main.querySelectorAll('.xstep')[1]; if (d) { d.scrollIntoView({ behavior: 'smooth', block: 'center' }); d.classList.add('flash'); } }, 120);
   };
 
   // Cho kiểm thử: dựng file mẫu / đọc file mà không cần bấm nút

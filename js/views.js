@@ -5,7 +5,8 @@
   const V = (window.Views = { state: {} });
 
   const quyen = () => App.user.quyen || {};
-  const canItem = it => App.user.admin || Perm.rank(quyen()[it.perm]) > 0;
+  // Trang Phase (hub): được xem ít nhất 1 bảng trong đó
+  const canItem = it => App.user.admin || (it.type === 'hub' ? it.tables.some(t => tableLv(t) > 0) : Perm.rank(quyen()[it.perm]) > 0);
   const tableLv = t => permTableLevel(App.user, t);
   const rowLv = (t, r) => permRowLevel(App.user, t, r, (pt, k) => DB.get(pt, k));
   // File tải lên qua app lưu dạng "pwa:<mã Drive>" (không kèm tên) → trả '' để nơi gọi hiện nhãn dễ đọc thay cho dãy mã
@@ -125,7 +126,7 @@
   // ---------------- TRANG CHỦ ----------------
   // ---------------- MENU: các nhóm/mục người dùng được xem (dùng cho trang chủ + menu trượt) ----------------
   V.navGroups = () => {
-    const groups = V.items().map(g => ({ ...g, items: g.items.filter(canItem) })).filter(g => g.items.length);
+    const groups = V.items().map(g => ({ ...g, items: g.items.filter(it => !it.hidden && canItem(it)) })).filter(g => g.items.length);
     if (App.user.admin) groups.push({ key: 'adm', label: 'Quản trị', ic: 'shield', color: 'var(--g7)', items: [
       { key: '_admin', label: 'Phân quyền', ic: 'shield', desc: 'Người dùng & quyền', href: '#/admin', color: 'var(--g7)' },
       { key: '_settings', label: 'Cài đặt', ic: 'gear', desc: 'Giao diện, khoá app, cài app', href: '#/settings', color: 'var(--g7)' }
@@ -139,7 +140,7 @@
   const store = { get: (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (e) { return d; } },
     set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* bỏ qua */ } } };
   V.visit = key => { const v = store.get(VISIT_KEY, {}); v[key] = (v[key] || 0) + 1; store.set(VISIT_KEY, v); };
-  const DEFAULT_FAV = ['DASH_VATTU', 'KIEN', 'MGMER', 'KIEM_TRA', 'GIR', 'OSD', 'GOI_THAU', 'NHAN_SU'];
+  const DEFAULT_FAV = ['DASH_VATTU', 'P1', 'P2', 'P3', 'GOI_THAU', 'NHAN_SU', 'LINK'];
   function frequent(all, n = 8) {
     const v = store.get(VISIT_KEY, {}), byKey = new Map(all.map(it => [it.key, it]));
     const top = Object.entries(v).sort((a, b) => b[1] - a[1]).map(([k]) => byKey.get(k)).filter(Boolean);
@@ -258,6 +259,7 @@
     V.visit(key);
     if (it.type === 'dash') return Dash.render(it);
     if (it.type === 'overview') return Overview.render(it);
+    if (it.type === 'hub') return Hub.render(it);
     if (it.type === 'excel') return Excel.render(it);
     const t = it.table, def = TT()[t], L = def.list || {};
     App.head(it.label, { back: true });

@@ -44,7 +44,8 @@
     const q = Object.assign({}, u.Quyen || {});
     const goiAll = DB.rows('GOI_THAU').map(r => r.MaGoi).sort((a, b) => String(a).localeCompare(String(b), 'vi', { numeric: true }));
     const goiSel = (u.Goi_thau || '').split(',').map(s => s.trim()).filter(Boolean);
-    const groups = Views.items().filter(g => g.items.length);
+    // Phân quyền theo từng bảng / mục; trang Phase (hub) không có quyền riêng nên không liệt kê
+    const groups = Views.items().map(g => ({ ...g, items: g.items.filter(it => it.type !== 'hub') })).filter(g => g.items.length);
 
     App.main.innerHTML = `<form class="fwrap" id="uf" novalidate>
       <div class="card form">
@@ -70,7 +71,7 @@
               <span class="gic">${Icon(g.ic)}</span><span class="pg-n"><b>${esc(g.label)}</b><small class="pg-sum"></small></span>
               ${tri(`data-g="${g.key}"`, null, g.items.every(isDash))}</div>
             <div class="pg-items">${g.items.map(it => `<div class="pi-row"><span class="pic" style="color:${g.color}">${Icon(it.ic, 'sm')}</span>
-              <span class="pi-l">${esc(it.label)}</span>${tri(`data-k="${esc(it.perm)}" data-gg="${g.key}"`, q[it.perm] || '', isDash(it))}</div>`).join('')}</div></div>`;
+              <span class="pi-l">${esc((it.ph ? it.ph + ' · ' : '') + it.label)}</span>${tri(`data-k="${esc(it.perm)}" data-gg="${g.key}"`, q[it.perm] || '', isDash(it))}</div>`).join('')}</div></div>`;
         }).join('')}
         <div class="muted small">Thống kê tổng chỉ lấy số liệu từ những gói thầu và mục người đó được xem.</div>
       </div>

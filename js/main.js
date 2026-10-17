@@ -87,9 +87,12 @@
         const href = a.getAttribute('href');
         a.classList.toggle('on', href === '#menu' ? false : href === '#/' ? isHome : h.startsWith(href));
       });
+      // Trang của bảng ẩn khỏi menu (danh sách / chi tiết / form / chọn kiện) → sáng mục Phase chứa bảng đó
+      const t = (h.match(/^#\/(?:i|r|f|pick)\/([A-Z_]+)/) || [])[1];
+      const hub = t && SCHEMA.groups.flatMap(g => g.items).find(x => x.type === 'hub' && x.tables.includes(t));
       document.querySelectorAll('#drawer a.dr-i').forEach(a => {
         const href = a.getAttribute('href');
-        a.classList.toggle('on', href === '#/' ? isHome : h === href || h.startsWith(href + '?'));
+        a.classList.toggle('on', href === '#/' ? isHome : h === href || h.startsWith(href + '?') || !!(hub && href === '#/i/' + hub.key));
       });
       // Nhóm chứa trang đang xem tự mở; rời trang thì trả về trạng thái người dùng đã chọn
       const opened = App.drOpened();

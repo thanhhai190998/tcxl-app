@@ -341,12 +341,18 @@
     { key: 'g0', label: 'Quản lý vật tư', ic: 'box', color: 'var(--g2)', items: [
       // Khoá quyền giữ DASH_VATTU (người dùng cũ đã được cấp "Thống kê tổng") — nay là trang Tổng quan: Bảng + Biểu đồ
       { key: 'DASH_VATTU', label: 'Tổng quan', ic: 'table', desc: 'Bảng tổng hợp P1–P3, biểu đồ tiến độ', type: 'overview' },
-      { key: 'KIEN', label: 'P1 · Nhập vật tư', ic: 'box', desc: 'Danh sách kiện nhà thầu thông báo' },
-      { key: 'MGMER', label: 'P2 · Kiểm đếm', ic: 'inspect', desc: 'Biên bản đếm kiện (MGMER)' },
-      { key: 'KIEM_TRA', label: 'P2 · Vị trí & tình trạng', ic: 'pin', desc: 'Kiện để ở đâu, còn tốt không' },
-      { key: 'GIR', label: 'P3 · Mở kiện', ic: 'open', desc: 'Biên bản mở kiện (GIR)' },
-      { key: 'OSD', label: 'P3 · Biên bản OSD', ic: 'alert', desc: 'Dư, thiếu, hư hỏng' },
-      { key: 'EXCEL', label: 'Nhập / xuất Excel', ic: 'upload', desc: 'Tải mẫu, điền, tải lên cả loạt', type: 'excel' }
+      // 3 trang Phase (js/hub.js): các nút thao tác — tạo biên bản, danh sách, tải form, tải file lên. Không có khoá quyền riêng:
+      // hiện khi người dùng được xem ít nhất 1 bảng trong đó (tables)
+      { key: 'P1', label: 'Phase 1 · Nhập vật tư', ic: 'box', desc: 'Kiện nhà thầu thông báo: thêm tay, nhập file', type: 'hub', tables: ['KIEN'] },
+      { key: 'P2', label: 'Phase 2 · Kiểm đếm & vị trí', ic: 'inspect', desc: 'Biên bản MGMER, chọn kiện, vị trí lưu kho', type: 'hub', tables: ['MGMER', 'KIEM_TRA'] },
+      { key: 'P3', label: 'Phase 3 · Mở kiện & OSD', ic: 'open', desc: 'Biên bản GIR, OSD, chọn kiện', type: 'hub', tables: ['GIR', 'OSD'] },
+      // Các mục bảng: không hiện trên menu (vào qua trang Phase), giữ để phân quyền theo từng bảng; ph = hiện ở trang Phân quyền
+      { key: 'KIEN', label: 'Danh sách kiện', ph: 'P1', ic: 'box', desc: 'Danh sách kiện nhà thầu thông báo', hidden: true },
+      { key: 'MGMER', label: 'Danh sách MGMER', ph: 'P2', ic: 'inspect', desc: 'Biên bản kiểm đếm (MGMER)', hidden: true },
+      { key: 'KIEM_TRA', label: 'Vị trí & tình trạng', ph: 'P2', ic: 'pin', desc: 'Kiện để ở đâu, còn tốt không', hidden: true },
+      { key: 'GIR', label: 'Danh sách GIR', ph: 'P3', ic: 'open', desc: 'Biên bản mở kiện (GIR)', hidden: true },
+      { key: 'OSD', label: 'Danh sách OSD', ph: 'P3', ic: 'alert', desc: 'Biên bản dư, thiếu, hư hỏng', hidden: true },
+      { key: 'EXCEL', label: 'Nhập / xuất Excel', ph: 'P1–P3', ic: 'upload', desc: 'Tải mẫu, điền, tải lên cả loạt', type: 'excel', hidden: true }
     ] },
     { key: 'g1', label: 'Gói thầu & nhân sự', ic: 'folder', color: 'var(--g0)', items: [
       { key: 'GOI_THAU', ic: 'folder', desc: 'Nhà thầu, hợp đồng, phụ trách' },
@@ -356,7 +362,7 @@
   ];
   GROUPS.forEach(g => g.items.forEach(it => {
     if (!it.type) { it.type = 'table'; it.table = it.key; it.label = it.label || T[it.key].label; }
-    it.perm = it.key;
+    it.perm = it.type === 'hub' ? null : it.key;
     it.color = g.color;
   }));
   const groupsWithAlbums = () => GROUPS;   // app này không có album ảnh (giữ tên hàm cho khung chung)

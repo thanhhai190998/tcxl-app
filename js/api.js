@@ -141,6 +141,7 @@
     removeMany: (t, keyField, keys, via, bulk) => call('removeMany', { table: t, keyField, keys, via, bulk }),
     clearTables: (tables, via) => call('clearTables', { tables, via }),   // nạp lại toàn bộ file Total (chỉ quản trị viên)
     history: o => call('history', o || {}),                               // lịch sử chỉnh sửa (chỉ quản trị viên chính)
+    fileStore: () => call('fileStore'),                                   // nơi lưu file + dung lượng (quản trị viên)
     upload: (t, field, name, dataUrl) => { const p = U.dataUrlParts(dataUrl); return call('upload', { table: t, field, name, mime: p.mime, data: p.data }); },
     file: (t, keyField, key, field, thumb, size) => call('file', { table: t, keyField, key, field, thumb: !!thumb, size }),
     files: (items, size) => call('files', { items, size }),

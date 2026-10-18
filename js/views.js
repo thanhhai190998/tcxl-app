@@ -9,8 +9,9 @@
   const canItem = it => App.user.admin || (it.type === 'hub' ? it.tables.some(t => tableLv(t) > 0) : Perm.rank(quyen()[it.perm]) > 0);
   const tableLv = t => permTableLevel(App.user, t);
   const rowLv = (t, r) => permRowLevel(App.user, t, r, (pt, k) => DB.get(pt, k));
-  // File tải lên qua app lưu dạng "pwa:<mã Drive>" (không kèm tên) → trả '' để nơi gọi hiện nhãn dễ đọc thay cho dãy mã
-  const fileName = p => /^pwa:/.test(String(p || '')) ? '' : String(p || '').split('/').pop().replace(/^[0-9a-f]{8}\./, '');
+  // File tải lên qua app lưu dạng "pwa:<mã Drive>" (Drive tài khoản chính) hoặc "fs:<mã>" (kho file Drive của phòng), không kèm tên
+  // → trả '' để nơi gọi hiện nhãn dễ đọc thay cho dãy mã
+  const fileName = p => /^(pwa|fs):/.test(String(p || '')) ? '' : String(p || '').split('/').pop().replace(/^[0-9a-f]{8}\./, '');
 
   V.items = () => S().groupsWithAlbums(DB);
   V.findItem = key => {

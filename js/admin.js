@@ -277,7 +277,9 @@
       + slink('privacy.html', 'shield', 'var(--g0)', 'Chính sách bảo mật', ''));
 
     if (App.user.admin) {
-      h += group('Quản trị', slink('#/admin', 'users', 'var(--g7)', 'Phân quyền', '<span data-ucount>Người dùng và quyền truy cập</span>'));
+      h += group('Quản trị', slink('#/admin', 'users', 'var(--g7)', 'Phân quyền', '<span data-ucount>Người dùng và quyền truy cập</span>')
+        + (App.user.owner ? slink('#/admin/log', 'clock', 'var(--g7)', 'Lịch sử chỉnh sửa', 'Ai thêm / sửa / xoá gì, lúc nào') : '')
+        + srow('folder', 'var(--g7)', 'Kho file (PDF, ảnh tải lên)', '<span data-fstore>Đang kiểm tra…</span>'));
     }
     if (demo) {
       const emails = API.demo.emails(), cur = API.demo.current();
@@ -318,6 +320,15 @@
       if (!await U.confirm('Xoá dữ liệu lưu tạm trên máy này (danh sách, ảnh nhỏ)? Dữ liệu trên Google Sheets không bị ảnh hưởng; lần mở sau sẽ tải lại.')) return;
       await DB.wipe(); U.toast('Đã xoá dữ liệu lưu tạm', 'ok'); location.reload();
     });
+    // Kho file: Drive của phòng (FileService.gs) hay Drive tài khoản chính + dung lượng còn lại
+    const fsEl = App.main.querySelector('[data-fstore]');
+    if (fsEl) API.fileStore().then(x => {
+      if (!fsEl.isConnected) return;
+      const gb = b => (b >= 1e12 ? (b / 1e12).toFixed(1) + ' TB' : (b / 1e9).toFixed(1) + ' GB').replace('.', ',');
+      const cap = x.limit ? ` · đã dùng ${gb(x.used)} / ${gb(x.limit)}` : '';
+      fsEl.innerHTML = x.local ? `Drive tài khoản chính <b>${esc(x.email)}</b>${cap}${x.limit && x.used / x.limit > 0.8 ? ' · <b>sắp đầy</b>' : ''} — có thể chuyển sang Drive của phòng`
+        : `Drive của phòng <b>${esc(x.email)}</b>${cap} ✓`;
+    }).catch(e => { if (fsEl.isConnected) fsEl.textContent = /không hợp lệ/.test(e.message) ? 'Máy chủ chưa cập nhật Code.gs mới' : e.message; });
     const du = App.main.querySelector('[data-disk]');
     if (du) DB.diskUsage().then(b => { if (du.isConnected && b) du.textContent = 'Đang dùng ' + (b / 1048576).toFixed(1).replace('.', ',') + ' MB trên máy'; });
     on('unlock', async () => { if (await Vault.ensureOpen()) A.settings(); });

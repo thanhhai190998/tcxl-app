@@ -341,6 +341,7 @@
       ts.forEach(t => { out[t] = rows(t).length; state.tables[t] = []; audit(u, 'clear', t, '', out[t], null, via); });
       await persist(); return out;
     },
+    async fileStore() { await wait(); if (!me().admin) throw new Error('Chỉ quản trị viên'); return { local: true, email: 'quan.tri@demo', used: 7.1e9, limit: 15e9 }; },
     // Lịch sử chỉnh sửa — chỉ quản trị viên chính; r = số thứ tự (1 = cũ nhất), before = xem tiếp phần cũ hơn
     async history(o = {}) {
       await wait(); const u = me();

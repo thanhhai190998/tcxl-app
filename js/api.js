@@ -134,9 +134,13 @@
     add: (t, keyField, row) => call('add', { table: t, keyField, row }),
     update: (t, keyField, row) => call('update', { table: t, keyField, row }),
     remove: (t, keyField, key) => call('remove', { table: t, keyField, key }),
-    addMany: (t, keyField, rows) => call('addMany', { table: t, keyField, rows }),          // cần Code.gs bản TCXL
-    updateMany: (t, keyField, rows) => call('updateMany', { table: t, keyField, rows }),
-    removeMany: (t, keyField, keys) => call('removeMany', { table: t, keyField, keys }),
+    // via = nguồn thao tác ghi vào lịch sử chỉnh sửa (vd "Nhập Excel P1", "Nạp file Total")
+    // bulk = lô thuộc 1 lần nhập lớn (> 200 dòng) → máy chủ ghi lịch sử 1 dòng tóm tắt thay vì từng dòng
+    addMany: (t, keyField, rows, via, bulk) => call('addMany', { table: t, keyField, rows, via, bulk }),          // cần Code.gs bản TCXL
+    updateMany: (t, keyField, rows, via, bulk) => call('updateMany', { table: t, keyField, rows, via, bulk }),
+    removeMany: (t, keyField, keys, via, bulk) => call('removeMany', { table: t, keyField, keys, via, bulk }),
+    clearTables: (tables, via) => call('clearTables', { tables, via }),   // nạp lại toàn bộ file Total (chỉ quản trị viên)
+    history: o => call('history', o || {}),                               // lịch sử chỉnh sửa (chỉ quản trị viên chính)
     upload: (t, field, name, dataUrl) => { const p = U.dataUrlParts(dataUrl); return call('upload', { table: t, field, name, mime: p.mime, data: p.data }); },
     file: (t, keyField, key, field, thumb, size) => call('file', { table: t, keyField, key, field, thumb: !!thumb, size }),
     files: (items, size) => call('files', { items, size }),

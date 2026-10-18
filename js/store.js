@@ -32,6 +32,8 @@
   };
   const ns = () => window.APP_CONFIG.mode + '|' + ((window.App && App.user && App.user.email) || '') + '|t:';
   const CHUNK = 6;   // số bảng tối đa trong 1 lần gọi ngầm
+  // Lần ghi lớn (> 200 dòng) hoặc nạp file Total → máy chủ ghi lịch sử chỉnh sửa dạng tóm tắt, không ghi từng dòng
+  const bulk = (list, via) => list.length > 200 || /file Total/i.test(via || '');
 
   const DB = (window.DB = {
     data: {}, pending: {}, fresh: new Set(), queue: new Set(), track: new Set(), noBatch: false,
@@ -259,22 +261,23 @@
     },
     // Thêm / sửa nhiều dòng: gửi từng lô 1.000 dòng (Apps Script giới hạn thời gian mỗi lần gọi),
     // onStep(đã xong, tổng) để hiện tiến trình
-    async addMany(t, list, onStep) {
+    // via = nguồn thao tác (ghi vào lịch sử chỉnh sửa trên máy chủ)
+    async addMany(t, list, onStep, via) {
       await this.afterOutbox(t);
       const kf = this.keyField(t), saved = [];
       for (let i = 0; i < list.length; i += 1000) {
-        saved.push(...await API.addMany(t, kf, list.slice(i, i + 1000)));
+        saved.push(...await API.addMany(t, kf, list.slice(i, i + 1000), via, bulk(list, via)));
         if (onStep) onStep(Math.min(i + 1000, list.length), list.length);
       }
       this.data[t] = [...(this.data[t] || []), ...saved];
       this.persist(t, this.ver[t]);   // giữ phiên bản: máy chủ vẫn so lại, khác thì tải mới (gotVer đã nhận bản sau khi ghi)
       return saved;
     },
-    async updateMany(t, list, onStep) {
+    async updateMany(t, list, onStep, via) {
       await this.afterOutbox(t);
       const kf = this.keyField(t), saved = [];
       for (let i = 0; i < list.length; i += 1000) {
-        saved.push(...await API.updateMany(t, kf, list.slice(i, i + 1000)));
+        saved.push(...await API.updateMany(t, kf, list.slice(i, i + 1000), via, bulk(list, via)));
         if (onStep) onStep(Math.min(i + 1000, list.length), list.length);
       }
       const by = new Map(saved.map(r => [String(r[kf]), r]));
@@ -282,16 +285,23 @@
       this.persist(t, this.ver[t]);   // giữ phiên bản: máy chủ vẫn so lại, khác thì tải mới (gotVer đã nhận bản sau khi ghi)
       return saved;
     },
-    async removeMany(t, keys, onStep, size = 1000) {   // size: số dòng mỗi lần gọi (xoá cả bảng: lớn hơn cho nhanh — mỗi lần máy chủ viết lại bảng)
+    async removeMany(t, keys, onStep, size = 1000, via) {   // size: số dòng mỗi lần gọi (xoá nhiều: lớn hơn cho nhanh — mỗi lần máy chủ viết lại bảng)
       await this.afterOutbox(t);
       const kf = this.keyField(t);
       for (let i = 0; i < keys.length; i += size) {
-        await API.removeMany(t, kf, keys.slice(i, i + size));
+        await API.removeMany(t, kf, keys.slice(i, i + size), via, bulk(keys, via));
         if (onStep) onStep(Math.min(i + size, keys.length), keys.length);
       }
       const drop = new Set(keys.map(String));
       this.data[t] = (this.data[t] || []).filter(r => !drop.has(String(r[kf])));
       this.persist(t, this.ver[t]);   // giữ phiên bản: máy chủ vẫn so lại, khác thì tải mới (gotVer đã nhận bản sau khi ghi)
+    },
+    // Xoá sạch cả bảng trong 1 lần gọi (nạp lại toàn bộ file Total — chỉ quản trị viên)
+    async clearTables(ts, via) {
+      for (const t of ts) await this.afterOutbox(t);
+      const r = await API.clearTables(ts, via);
+      ts.forEach(t => { this.data[t] = []; this.persist(t, this.ver[t]); });
+      return r;
     },
     async remove(t, key) {
       await this.afterOutbox(t);

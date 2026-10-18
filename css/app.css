@@ -1013,3 +1013,17 @@ body:has(#view .gwrap) .foot { margin-top: 0; }
   .htile .ht-go { display: none; } .ht-t b { font-size: 14.5px; } }
 .xdrop.flash { animation: xflash 1.6s ease-out 2; }
 @keyframes xflash { 0%, 100% { box-shadow: none; } 30% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--pri) 35%, transparent); } }
+
+/* Lịch sử chỉnh sửa (chỉ quản trị viên chính) */
+.hlist { display: flex; flex-direction: column; }
+.hrow { padding: 10px 2px; border-top: 1px solid var(--line); }
+.hrow:first-child { border-top: 0; }
+.hh { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.hm { margin-top: 2px; }
+.hc, .hk { font-size: 13px; margin-top: 4px; overflow-wrap: anywhere; }
+.hf { color: var(--muted); }
+.hc s { color: var(--muted); }
+.hd summary { cursor: pointer; font-size: 13px; color: var(--muted); margin-top: 4px; }
+.hfilter { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.hfilter select, .hfilter input { flex: 1 1 180px; min-width: 0; }
+.rel.hist .rel-h .muted { margin-right: auto; }

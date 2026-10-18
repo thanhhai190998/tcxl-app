@@ -147,6 +147,7 @@
       else if (p[0] === 'pick') await Pick.render(p[1], p[2]);
       else if (p[0] === 'admin' && !p[1]) await Admin.users();
       else if (p[0] === 'admin' && p[1] === 'u') await Admin.user(p[2]);
+      else if (p[0] === 'admin' && p[1] === 'log') await Admin.log();
       else if (p[0] === 'settings') await Admin.settings();
       else App.notFound();
       if (keep) window.scrollTo(0, y);

@@ -260,26 +260,33 @@
   // ---------- 3. Ghi vào app (thứ tự: gói → biên bản → kiện → kiểm tra), nhật ký + dữ liệu hoàn tác ----------
   TS.apply = async (P, step) => {
     const add = {}, upd = {};
+    const VIA = P.replace ? 'Nạp lại toàn bộ file Total' : 'Nạp file Total';   // máy chủ chỉ cho quản trị viên thao tác có nguồn "file Total"
     const NAME = { MGMER: 'biên bản kiểm đếm', GIR: 'biên bản mở kiện', OSD: 'biên bản OSD', KIEN: 'kiện', KIEM_TRA: 'lần kiểm tra vị trí', NHAP_EXCEL: 'lịch sử nhập' };
     // Demo: xoá dữ liệu giả (cả nhật ký). Nạp lại toàn bộ: xoá kiện / biên bản / lần kiểm tra hiện có — lấy bản mới nhất từ
     // máy chủ trước để không sót dòng người khác vừa thêm (sót → trùng mã khi nạp)
     if (P.empty || P.replace) {
       const ts = ['KIEM_TRA', 'KIEN', 'OSD', 'GIR', 'MGMER'].concat(P.empty ? ['NHAP_EXCEL'] : []);
-      if (P.replace) { step('Đang lấy dữ liệu mới nhất…'); for (const t of ts) await DB.load(t, true); }
-      for (const t of ts) {
+      let cleared = false;
+      if (P.replace) {
+        // Máy chủ mới: xoá sạch 5 bảng trong 1 lần gọi (chỉ quản trị viên); máy chủ cũ chưa có lệnh này → xoá theo lô như trước
+        step('Đang xoá dữ liệu cũ…');
+        try { await DB.clearTables(ts, VIA); cleared = true; }
+        catch (e) { if (!/Thao tác không hợp lệ/.test(e.message)) throw e; step('Đang lấy dữ liệu mới nhất…'); for (const t of ts) await DB.load(t, true); }
+      }
+      if (!cleared) for (const t of ts) {
         const keys = DB.rows(t).map(r => r[DB.keyField(t)]);
-        if (keys.length) await DB.removeMany(t, keys, (d, n) => step(`Đang xoá ${P.empty ? 'dữ liệu giả' : 'dữ liệu cũ'}: ${NAME[t]} ${U.int(d)}/${U.int(n)}…`), 5000);
+        if (keys.length) await DB.removeMany(t, keys, (d, n) => step(`Đang xoá ${P.empty ? 'dữ liệu giả' : 'dữ liệu cũ'}: ${NAME[t]} ${U.int(d)}/${U.int(n)}…`), 5000, VIA);
       }
     }
-    if (P.goiNew.length) { step('Đang tạo ' + P.goiNew.length + ' gói thầu…'); await DB.addMany('GOI_THAU', P.goiNew); add.GOI_THAU = P.goiNew.map(g => g.MaGoi); }
+    if (P.goiNew.length) { step('Đang tạo ' + P.goiNew.length + ' gói thầu…'); await DB.addMany('GOI_THAU', P.goiNew, null, VIA); add.GOI_THAU = P.goiNew.map(g => g.MaGoi); }
     for (const t of ['MGMER', 'GIR', 'OSD', 'KIEN', 'KIEM_TRA']) {
       const x = P[t];
       if (x.add.length) {
-        await DB.addMany(t, x.add, (d, n) => step(`Đang thêm ${NAME[t]} ${U.int(d)}/${U.int(n)}…`));
+        await DB.addMany(t, x.add, (d, n) => step(`Đang thêm ${NAME[t]} ${U.int(d)}/${U.int(n)}…`), VIA);
         add[t] = x.add.map(r => r[DB.keyField(t)]);
       }
       if (x.upd.length) {
-        await DB.updateMany(t, x.upd.map(u => ({ [DB.keyField(t)]: u.row[DB.keyField(t)], ...u.now })), (d, n) => step(`Đang cập nhật ${NAME[t]} ${U.int(d)}/${U.int(n)}…`));
+        await DB.updateMany(t, x.upd.map(u => ({ [DB.keyField(t)]: u.row[DB.keyField(t)], ...u.now })), (d, n) => step(`Đang cập nhật ${NAME[t]} ${U.int(d)}/${U.int(n)}…`), VIA);
         upd[t] = x.upd.map(u => ({ id: u.row[DB.keyField(t)], old: u.old, now: u.now }));
       }
     }
@@ -287,7 +294,7 @@
     // Nạp lại toàn bộ: các lần nhập trước không hoàn tác được nữa (mã kiện cũ nay thuộc kiện khác); lần này cũng không hoàn tác
     if (P.replace) {
       const old = DB.rows('NHAP_EXCEL').filter(l => l.Trang_thai === 'Đã ghi').map(l => ({ id: l.id, Trang_thai: 'Hết hiệu lực (đã nạp lại toàn bộ)' }));
-      if (old.length) { step('Đang cập nhật lịch sử nhập…'); await DB.updateMany('NHAP_EXCEL', old); }
+      if (old.length) { step('Đang cập nhật lịch sử nhập…'); await DB.updateMany('NHAP_EXCEL', old, null, VIA); }
     }
     const log = { id: U.uid(), Thoi_gian: U.toLocalInput(new Date()).replace('T', ' '), Nguoi: App.user.name || App.user.email,
       Mau: P.replace ? 'Nạp lại toàn bộ file Total' : 'Đồng bộ file Total',

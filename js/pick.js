@@ -173,7 +173,7 @@
       const goiOp = noGoi && gs.size === 1 ? [{ fn: 'update', t, rows: [{ [DB.keyField(t)]: rec.id, Goi_thau: [...gs][0] }], soft: true,
         note: 'Đã lưu kiện nhưng chưa gán được gói ' + [...gs][0] + ' cho ' + title }] : [];
       Outbox.push(`${title}: ${[add.length && '+' + U.int(add.length), del.length && '−' + U.int(del.length)].filter(Boolean).join(' ')} kiện`,
-        [{ fn: 'updateMany', t: 'KIEN', rows }, { fn: 'addMany', t: 'KIEM_TRA', rows: checks }, ...goiOp]);
+        [{ fn: 'updateMany', t: 'KIEN', rows, via: 'Chọn kiện · ' + title }, { fn: 'addMany', t: 'KIEM_TRA', rows: checks, via: 'Chọn kiện · ' + title }, ...goiOp]);
       orig.clear(); sel.forEach(x => orig.add(x));   // đã ghi → không hỏi lại khi rời trang
       location.replace('#/r/' + t + '/' + enc(rec.id));
     };

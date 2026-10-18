@@ -163,6 +163,75 @@
     <div class="st"><b>${title}</b>${sub ? `<small>${sub}</small>` : ''}</div><span class="schev">${Icon('chevron')}</span></a>`;
   const group = (title, body) => `<div class="sg-h">${esc(title)}</div><div class="card slist">${body}</div>`;
 
+  // ---------------- LỊCH SỬ CHỈNH SỬA (chỉ quản trị viên chính — máy chủ cũng chỉ trả cho quản trị viên chính) ----------------
+  const ACT = { add: ['Thêm', 'ok'], update: ['Sửa', 'info'], remove: ['Xoá', 'bad'], clear: ['Xoá cả bảng', 'bad'] };
+  const tblName = t => t === '_NGUOIDUNG' ? 'Người dùng / phân quyền' : t === '_CAUHINH' ? 'Cấu hình' : (SCHEMA.tables[t] ? SCHEMA.tables[t].label : t);
+  const fDef = (t, f) => { const d = SCHEMA.tables[t]; return d && d.fields.find(y => y.n === f); };
+  const fLabel = (t, f) => { const x = fDef(t, f); return x ? x.l : ({ Ho_ten: 'Họ tên', Kich_hoat: 'Kích hoạt', Admin: 'Quản trị viên', Goi_thau: 'Gói thầu', Quyen: 'Quyền' }[f] || f); };
+  const fVal = (t, f, v) => {
+    if (v === '' || v == null) return '<i class="muted">(trống)</i>';
+    const x = fDef(t, f);
+    let s = typeof v === 'boolean' ? (v ? 'Có' : 'Không') : String(v);
+    if (x && x.ref) { const r = DB.get(x.ref, v); if (r) s = DB.title(x.ref, r) + ' (' + s + ')'; }
+    else if (/^\d{4}-\d{2}-\d{2}( \d{2}:\d{2}(:\d{2})?)?$/.test(s)) s = U.fmtDate(s.slice(0, 10)) + s.slice(10, 16);
+    return esc(s.length > 300 ? s.slice(0, 300) + '…' : s);
+  };
+  const fmtTime = s => { const m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})(?: (\d{2}:\d{2}))?/); return m ? `${m[3]}/${m[2]}/${m[1]}${m[4] ? ' ' + m[4] : ''}` : String(s); };
+  // o.here = đang ở trang chi tiết của chính dòng đó (không lặp tên bảng / mã)
+  A.histList = (rows, o = {}) => {
+    if (!rows.length) return `<div class="muted small rel-empty">Chưa có lịch sử${o.here ? ' — tính năng ghi lịch sử bắt đầu từ bản 0.11.0; lần nạp file lớn (hơn 200 dòng) chỉ ghi tóm tắt ở trang Lịch sử chỉnh sửa' : ''}.</div>`;
+    return `<div class="hlist">${rows.map(h => {
+      const [al, tone] = ACT[h.Thao_tac] || [h.Thao_tac, ''];
+      let d = null; try { d = h.Chi_tiet ? JSON.parse(h.Chi_tiet) : null; } catch (e) { d = null; }
+      const t = h.Bang, n = Number(h.So_dong) || 1;
+      let body = '';
+      if (d && d.keys) body = `<div class="hk">${U.int(n)} dòng${d.cols ? ' · cột ' + d.cols.map(f => esc(fLabel(t, f))).join(', ') : ''}: <span class="muted">${d.keys.map(esc).join(', ')}</span></div>`;
+      else if (d && h.Thao_tac === 'update') body = Object.keys(d).map(f => `<div class="hc"><span class="hf">${esc(fLabel(t, f))}:</span> <s>${fVal(t, f, d[f][0])}</s> → <b>${fVal(t, f, d[f][1])}</b></div>`).join('');
+      else if (d) {
+        const ks = Object.keys(d);
+        body = `<details class="hd"><summary>${h.Thao_tac === 'remove' ? 'Nội dung đã xoá' : 'Nội dung'} (${ks.length} ô)</summary>${ks.map(f => `<div class="hc"><span class="hf">${esc(fLabel(t, f))}:</span> ${fVal(t, f, d[f])}</div>`).join('')}</details>`;
+      } else if (h.Thao_tac === 'clear') body = `<div class="hk">Xoá ${U.int(n)} dòng</div>`;
+      const rec = o.here || !h.Ma ? '' : SCHEMA.tables[t] && h.Thao_tac !== 'remove' && DB.get(t, h.Ma) ? `<a href="#/r/${esc(t)}/${enc(h.Ma)}">${esc(DB.title(t, DB.get(t, h.Ma)))}</a>` : esc(h.Ma);
+      return `<div class="hrow"><div class="hh"><span class="badge ${tone}">${esc(al)}</span>${o.here ? '' : ` <b>${esc(tblName(t))}</b>`} ${rec}</div>
+        <div class="hm muted small">${esc(fmtTime(h.Thoi_gian))} · ${h.Ten ? esc(h.Ten) + ' · ' : ''}${esc(h.Email)}${h.Nguon ? ' · ' + esc(h.Nguon) : ''}</div>${body}</div>`;
+    }).join('')}</div>`;
+  };
+  A.log = async () => {
+    if (!App.user.owner) return App.notFound();
+    App.head('Lịch sử chỉnh sửa', { back: true });
+    const st = A.logSt = A.logSt || { table: '', act: '', q: '' };
+    const TB = ['KIEN', 'MGMER', 'KIEM_TRA', 'GIR', 'OSD', 'GOI_THAU', 'NHAN_SU', 'LINK', 'NHAP_EXCEL', '_NGUOIDUNG'];
+    App.main.innerHTML = `<div class="card hlog"><p class="muted small">Máy chủ tự ghi mỗi lần thêm / sửa / xoá trên app: thời gian, tài khoản Google của người làm,
+        giá trị cũ → mới (dòng bị xoá giữ lại nội dung). <b>Chỉ quản trị viên chính</b> xem được. Lần nhập / nạp file lớn (hơn 200 dòng) ghi 1 dòng tóm tắt.</p>
+        <div class="hfilter">
+          <select data-f="table" aria-label="Mục"><option value="">Mọi mục</option>${TB.map(t => `<option value="${t}" ${st.table === t ? 'selected' : ''}>${esc(tblName(t))}</option>`).join('')}</select>
+          <select data-f="act" aria-label="Thao tác"><option value="">Mọi thao tác</option>${Object.entries(ACT).map(([k, [l]]) => `<option value="${k}" ${st.act === k ? 'selected' : ''}>${l}</option>`).join('')}</select>
+          <input type="search" data-f="q" placeholder="Người làm (email / tên)" value="${esc(st.q)}" autocomplete="off">
+        </div></div>
+      <div class="card" id="hbox"></div>`;
+    const box = App.main.querySelector('#hbox');
+    let next = 0, rows = [], seq = 0;
+    const load = async more => {
+      const my = ++seq, btn = box.querySelector('[data-more]');
+      if (btn) { btn.disabled = true; btn.textContent = 'Đang tải…'; }
+      if (!more) { rows = []; box.innerHTML = '<div class="center pad"><span class="spin"></span></div>'; }
+      try {
+        const r = await API.history({ table: st.table, act: st.act, q: st.q, limit: 100, before: more ? next : 0 });
+        if (my !== seq) return;   // đã đổi bộ lọc trong lúc chờ
+        rows = rows.concat(r.rows); next = r.next;
+        box.innerHTML = A.histList(rows) + (next ? '<div class="center pad"><button type="button" class="btn ghost" data-more>Xem cũ hơn</button></div>' : '');
+        const m = box.querySelector('[data-more]'); if (m) m.onclick = () => load(true);
+      } catch (e) {
+        box.innerHTML = `<div class="xerr">${Icon('alert')}<span>${esc(/không hợp lệ/.test(e.message) ? 'Máy chủ chưa cập nhật Code.gs có lịch sử chỉnh sửa — dán Code.gs mới rồi triển khai phiên bản mới' : e.message)}</span></div>`;
+      }
+    };
+    App.main.querySelectorAll('[data-f]').forEach(el => {
+      const go = () => { st[el.dataset.f] = el.value.trim(); load(false); };
+      if (el.tagName === 'SELECT') el.onchange = go; else { let tm; el.oninput = () => { clearTimeout(tm); tm = setTimeout(go, 400); }; }
+    });
+    load(false);
+  };
+
   A.settings = async () => {
     App.head('Cài đặt', { back: true });
     const C = window.APP_CONFIG, demo = C.mode === 'demo';

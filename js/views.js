@@ -129,6 +129,8 @@
     const groups = V.items().map(g => ({ ...g, items: g.items.filter(it => !it.hidden && canItem(it)) })).filter(g => g.items.length);
     if (App.user.admin) groups.push({ key: 'adm', label: 'Quản trị', ic: 'shield', color: 'var(--g7)', items: [
       { key: '_admin', label: 'Phân quyền', ic: 'shield', desc: 'Người dùng & quyền', href: '#/admin', color: 'var(--g7)' },
+      // Lịch sử chỉnh sửa: chỉ quản trị viên chính (máy chủ cũng chỉ trả cho quản trị viên chính)
+      ...(App.user.owner ? [{ key: '_log', label: 'Lịch sử chỉnh sửa', ic: 'clock', desc: 'Ai thêm / sửa / xoá gì, lúc nào', href: '#/admin/log', color: 'var(--g7)' }] : []),
       { key: '_settings', label: 'Cài đặt', ic: 'gear', desc: 'Giao diện, khoá app, cài app', href: '#/settings', color: 'var(--g7)' }
     ] });
     return groups;
@@ -590,8 +592,20 @@
           : tableLv(rel.t) === 2 ? `<a class="btn sm" href="#/f/${rel.t}/new?${enc(rel.fk)}=${enc(key)}${inherit(rel.t)}">${Icon('plus', 'sm')} Thêm</a>` : ''}</div>
         <div class="rel-body">${rows.length ? Grid.mini(rel.t, rows, { skip: rel.fk, limit: REL_PAGE }) : '<div class="muted small rel-empty">Chưa có</div>'}</div></section>`;
     }
+    // Lịch sử chỉnh sửa của dòng này — chỉ quản trị viên chính thấy, bấm mới tải
+    if (App.user.owner) html += `<section class="card rel hist"><div class="rel-h"><span class="gic" style="--gc:var(--g7)">${Icon('clock')}</span>
+      <h3>Lịch sử chỉnh sửa</h3><span class="muted small">chỉ quản trị viên chính thấy</span>
+      <button type="button" class="btn sm ghost" data-hist>${Icon('eye', 'sm')} Xem</button></div><div class="rel-body" data-histbody hidden></div></section>`;
     App.main.innerHTML = html;
     V.hydrate(App.main);
+    const hb = App.main.querySelector('[data-hist]');
+    if (hb) hb.onclick = async () => {
+      const body = App.main.querySelector('[data-histbody]');
+      body.hidden = false; hb.disabled = true; body.innerHTML = '<div class="center pad"><span class="spin"></span></div>';
+      try { body.innerHTML = Admin.histList((await API.history({ table: t, key })).rows, { here: true }); }
+      catch (e) { body.innerHTML = `<div class="xerr">${Icon('alert')}<span>${esc(/không hợp lệ/.test(e.message) ? 'Máy chủ chưa cập nhật Code.gs có lịch sử chỉnh sửa' : e.message)}</span></div>`; }
+      hb.remove();
+    };
     const bindMore = sec => {
       const b = sec.querySelector('[data-more]'); if (!b) return;
       b.onclick = () => {

@@ -71,7 +71,7 @@
       try {
         if (o.fn === 'add') out.push(await API.add(o.t, kf, part[0]));
         else if (o.fn === 'update') out.push(await API.update(o.t, kf, part[0]));
-        else out.push(...await API[o.fn](o.t, kf, part));
+        else out.push(...await API[o.fn](o.t, kf, part, o.via, o.rows.length > 200));
       } catch (e) {
         // Lần gửi trước đã tới máy chủ nhưng mất mạng lúc nhận trả lời → máy chủ báo trùng khoá = thực ra đã lưu (khoá do máy tạo, không trùng ai)
         if (!(tried && /^add/.test(o.fn) && /Khoá đã tồn tại/.test(e.message))) throw e;

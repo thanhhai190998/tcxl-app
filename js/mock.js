@@ -237,6 +237,18 @@
     if (dup) throw new Error(`Số "${row.So}" đã có ${g ? 'trong gói ' + g : '(biên bản chưa có gói)'}${dup.Ngay ? ', ngày ' + U.fmtDate(dup.Ngay) : ''} — hãy dùng số khác`);
   };
 
+  // Giống máy chủ (Code.gs audit_): lịch sử chỉnh sửa trong state.audit — chỉ quản trị viên chính đọc (history)
+  const AUDIT_ROWS = 200;
+  const short = v => typeof v === 'string' && v.length > 1000 ? '(' + v.length + ' ký tự)' : v;
+  const snap = r => { const o = {}; Object.keys(r || {}).forEach(k => { if (r[k] !== '' && r[k] != null) o[k] = short(r[k]); }); return o; };
+  const diff = (old, row, kf) => { const c = {}; Object.keys(row || {}).forEach(k => { if (k === kf) return; const a = old[k] ?? '', b = row[k] ?? ''; if (String(a) !== String(b)) c[k] = [short(a), short(b)]; }); return c; };
+  const pad2 = n => String(n).padStart(2, '0');
+  const stamp = () => { const d = new Date(); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`; };
+  const audit = (u, act, t, key, n, detail, via) => { (state.audit = state.audit || []).push({ Thoi_gian: stamp(), Email: u.email, Ten: u.name || '', Thao_tac: act, Bang: t,
+    Ma: key == null ? '' : String(key), So_dong: n ?? 1, Chi_tiet: detail ? JSON.stringify(detail) : '', Nguon: via || '' }); };
+  const auditBulk = (u, act, t, keys, via, extra) => { const k = keys.map(String); audit(u, act, t, '', k.length, { keys: k.length > 40 ? [...k.slice(0, 20), '…', ...k.slice(-20)] : k, ...(extra || {}) }, via); };
+  const viaCheck = (u, via) => { if (/file Total/i.test(String(via || '')) && !u.admin) throw new Error('Chỉ quản trị viên được nạp file Total'); };
+
   window.MockAPI = {
     async me() { await wait(); return me(); },
     async list(t) { await wait(); const u = me(); return clone(rows(t).filter(r => level(u, t, r) >= 1)); },
@@ -255,27 +267,29 @@
         } catch (e) { return { error: e.message }; }
       });
     },
-    async add(t, kf, row) {
+    async add(t, kf, row, via) {
       await wait(); const u = me();
       if (level(u, t, row) < 2) throw new Error('Bạn không có quyền thêm vào mục này');
       if (!row[kf]) throw new Error('Thiếu khoá ' + kf);
       if (findIdx(t, kf, row[kf]) >= 0) throw new Error('Khoá đã tồn tại: ' + row[kf]);
       checkUniqueNo(t, kf, row, null);
       row = clone(row); autoStt(t, [row]);
-      rows(t).push(clone(row)); await persist(); return clone(row);
+      rows(t).push(clone(row)); audit(u, 'add', t, row[kf], 1, t === 'NHAP_EXCEL' ? null : snap(row), via); await persist(); return clone(row);
     },
-    async update(t, kf, row) {
+    async update(t, kf, row, via) {
       await wait(); const u = me();
       const i = findIdx(t, kf, row[kf]); if (i < 0) throw new Error('Không tìm thấy dòng');
       const old = rows(t)[i], merged = Object.assign({}, old, row);
       if (level(u, t, old) < 2 || level(u, t, merged) < 2) throw new Error('Bạn không có quyền sửa dòng này');
       checkUniqueNo(t, kf, merged, old);
+      const ch = diff(old, row, kf); if (Object.keys(ch).length) audit(u, 'update', t, row[kf], 1, t === 'NHAP_EXCEL' ? null : ch, via);
       rows(t)[i] = merged; await persist(); return clone(merged);
     },
     // Thêm / sửa nhiều dòng một lần (gắn hàng trăm kiện vào 1 biên bản): kiểm tra quyền TỪNG dòng,
     // có dòng không hợp lệ thì không ghi dòng nào
-    async addMany(t, kf, list) {
+    async addMany(t, kf, list, via, bulk) {
       await wait(); const u = me(), all = rows(t), have = new Set(all.map(r => String(r[kf])));
+      viaCheck(u, via);
       list.forEach(row => {
         if (!row[kf]) throw new Error('Thiếu khoá ' + kf);
         if (have.has(String(row[kf]))) throw new Error('Khoá đã tồn tại: ' + row[kf]);
@@ -283,28 +297,63 @@
         have.add(String(row[kf]));
       });
       list = clone(list); autoStt(t, list);
-      list.forEach(row => all.push(clone(row))); await persist(); return clone(list);
+      list.forEach(row => all.push(clone(row)));
+      if (list.length <= AUDIT_ROWS && !bulk) list.forEach(row => audit(u, 'add', t, row[kf], 1, t === 'NHAP_EXCEL' ? null : snap(row), via)); else auditBulk(u, 'add', t, list.map(r => r[kf]), via);
+      await persist(); return clone(list);
     },
-    async updateMany(t, kf, list) {
+    async updateMany(t, kf, list, via, bulk) {
       await wait(); const u = me(), all = rows(t), at = new Map(all.map((r, i) => [String(r[kf]), i]));
+      viaCheck(u, via);
       const out = list.map(row => {
         const i = at.get(String(row[kf])); if (i == null) throw new Error('Không tìm thấy dòng ' + row[kf]);
         const old = all[i], merged = Object.assign({}, old, row);
         if (level(u, t, old) < 2 || level(u, t, merged) < 2) throw new Error('Bạn không có quyền sửa dòng ' + row[kf]);
-        return [i, merged];
+        return [i, merged, diff(old, row, kf), row[kf]];
       });
-      out.forEach(([i, m]) => { all[i] = m; }); await persist(); return clone(out.map(x => x[1]));
+      out.forEach(([i, m]) => { all[i] = m; });
+      const chg = out.filter(x => Object.keys(x[2]).length);
+      if (chg.length <= AUDIT_ROWS && !bulk) chg.forEach(x => audit(u, 'update', t, x[3], 1, t === 'NHAP_EXCEL' ? null : x[2], via));
+      else auditBulk(u, 'update', t, chg.map(x => x[3]), via, { cols: [...new Set(chg.flatMap(x => Object.keys(x[2])))] });
+      await persist(); return clone(out.map(x => x[1]));
     },
-    async removeMany(t, kf, keys) {
+    async removeMany(t, kf, keys, via, bulk) {
       await wait(); const u = me(), drop = new Set(keys.map(String));
-      rows(t).forEach(r => { if (drop.has(String(r[kf])) && level(u, t, r) < 2) throw new Error('Bạn không có quyền xoá dòng ' + r[kf]); });
-      state.tables[t] = rows(t).filter(r => !drop.has(String(r[kf]))); await persist(); return true;
+      viaCheck(u, via);
+      const gone = rows(t).filter(r => drop.has(String(r[kf])));
+      gone.forEach(r => { if (level(u, t, r) < 2) throw new Error('Bạn không có quyền xoá dòng ' + r[kf]); });
+      state.tables[t] = rows(t).filter(r => !drop.has(String(r[kf])));
+      if (gone.length <= AUDIT_ROWS && !bulk) gone.forEach(r => audit(u, 'remove', t, r[kf], 1, snap(r), via)); else auditBulk(u, 'remove', t, gone.map(r => r[kf]), via);
+      await persist(); return true;
     },
-    async remove(t, kf, key) {
+    async remove(t, kf, key, via) {
       await wait(); const u = me();
       const i = findIdx(t, kf, key); if (i < 0) return true;
       if (level(u, t, rows(t)[i]) < 2) throw new Error('Bạn không có quyền xoá dòng này');
+      audit(u, 'remove', t, key, 1, snap(rows(t)[i]), via);
       rows(t).splice(i, 1); await persist(); return true;
+    },
+    // Nạp lại toàn bộ file Total: xoá sạch các bảng vật tư — chỉ quản trị viên
+    async clearTables(ts, via) {
+      await wait(); const u = me();
+      if (!u.admin) throw new Error('Chỉ quản trị viên');
+      ts.forEach(t => { if (!['KIEM_TRA', 'KIEN', 'OSD', 'GIR', 'MGMER'].includes(t)) throw new Error('Không được xoá cả bảng ' + t); });
+      const out = {};
+      ts.forEach(t => { out[t] = rows(t).length; state.tables[t] = []; audit(u, 'clear', t, '', out[t], null, via); });
+      await persist(); return out;
+    },
+    // Lịch sử chỉnh sửa — chỉ quản trị viên chính; r = số thứ tự (1 = cũ nhất), before = xem tiếp phần cũ hơn
+    async history(o = {}) {
+      await wait(); const u = me();
+      if (!u.owner) throw new Error('Chỉ quản trị viên chính xem được lịch sử chỉnh sửa');
+      const all = (state.audit || []).map((h, i) => ({ r: i + 2, ...h })), q = String(o.q || '').toLowerCase(), lim = Math.min(Number(o.limit) || 100, 500), out = [];
+      if (o.key) return { rows: all.filter(h => h.Ma === String(o.key) && (!o.table || h.Bang === o.table)).reverse().slice(0, lim), next: 0 };
+      let next = 0;
+      for (let i = (o.before ? o.before - 2 : all.length) - 1; i >= 0; i--) {
+        const h = all[i]; next = h.r;
+        if ((o.table && h.Bang !== o.table) || (o.act && h.Thao_tac !== o.act) || (q && !(h.Email + ' ' + h.Ten).toLowerCase().includes(q))) continue;
+        out.push(h); if (out.length >= lim) break;
+      }
+      return { rows: out, next: next > 2 ? next : 0 };
     },
     async upload(t, field, name, dataUrl) {
       await wait(); const u = me();
@@ -326,10 +375,17 @@
       u.Email = u.Email.trim().toLowerCase();
       if (u.Email === OWNER) throw new Error('Không sửa được tài khoản quản trị viên chính');
       const i = state.users.findIndex(x => x.Email === u.Email);
+      const uo = x => ({ Ho_ten: x.Ho_ten || '', Kich_hoat: !!x.Kich_hoat, Admin: !!x.Admin, Goi_thau: String(x.Goi_thau || ''), Quyen: JSON.stringify(x.Quyen || {}) });
+      audit(me(), i >= 0 ? 'update' : 'add', '_NGUOIDUNG', u.Email, 1, i >= 0 ? diff(uo(state.users[i]), uo(u), '') : snap(uo(u)));
       if (i >= 0) state.users[i] = u; else state.users.push(u);
       await persist(); return clone(u);
     },
-    async deleteUser(email) { await wait(); if (!me().admin) throw new Error('Chỉ quản trị viên'); state.users = state.users.filter(x => x.Email !== email); await persist(); return true; },
+    async deleteUser(email) {
+      await wait(); if (!me().admin) throw new Error('Chỉ quản trị viên');
+      const old = state.users.find(x => x.Email === email);
+      if (old) audit(me(), 'remove', '_NGUOIDUNG', email, 1, snap({ Ho_ten: old.Ho_ten, Admin: old.Admin, Goi_thau: old.Goi_thau, Quyen: JSON.stringify(old.Quyen || {}) }));
+      state.users = state.users.filter(x => x.Email !== email); await persist(); return true;
+    },
     async getConfig(k) { await wait(); return state.config[k] ?? null; },
     async setConfig(k, v) {
       await wait(); const u = me();

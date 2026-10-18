@@ -390,6 +390,7 @@
   async function apply(P, fileName, step) {
     const add = {}, upd = {}, now = new Date();
     const note = 'Tạo từ file Excel ' + fileName;
+    const via = 'Nhập Excel ' + TPL[P.m].label.split(' · ')[0] + ': ' + fileName;   // nguồn ghi vào lịch sử chỉnh sửa
     // 1. Biên bản mới
     for (const t of ['MGMER', 'GIR', 'OSD']) {
       const ds = P.newDocs.filter(d => d.t === t); if (!ds.length) continue;
@@ -398,7 +399,7 @@
         : t === 'GIR' ? { id: d.id, So: d.so, Ngay: d.ngay, Goi_thau: P.goi, MGMER: d.mg && d.mg.size === 1 ? [...d.mg][0] : '', Thanh_phan: '', File: '', Ghi_chu: note }
         : { id: d.id, So: d.so, Ngay: d.ngay, Goi_thau: P.goi, GIR: d.gir ? d.gir.id : '', Loai: d.loai || '', Noi_dung: d.nd || '', File: '' });
       step('Đang tạo ' + ds.length + ' biên bản ' + t + '…');
-      await DB.addMany(t, rows);
+      await DB.addMany(t, rows, null, via);
       add[t] = rows.map(r => r.id);
     }
     // 2. Kiện: thêm mới / cập nhật (giữ giá trị cũ để hoàn tác)
@@ -411,12 +412,12 @@
         init.forEach(f => { if (r[f.n] === '' || r[f.n] == null) r[f.n] = f.init; });
         return r;
       });
-      if (news.length) { step('Đang thêm ' + news.length + ' kiện…'); await DB.addMany('KIEN', news, (d, n) => step(`Đang thêm kiện ${d}/${n}…`)); add.KIEN = news.map(r => r.id); }
+      if (news.length) { step('Đang thêm ' + news.length + ' kiện…'); await DB.addMany('KIEN', news, (d, n) => step(`Đang thêm kiện ${d}/${n}…`), via); add.KIEN = news.map(r => r.id); }
       const ups = ok.filter(x => x.st === 'upd');
       if (ups.length) {
         upd.KIEN = ups.map(x => ({ id: x.id, old: Object.fromEntries(x.chg.map(c => [c.f, c.o])), now: Object.fromEntries(x.chg.map(c => [c.f, c.n])) }));
         step('Đang cập nhật ' + ups.length + ' kiện…');
-        await DB.updateMany('KIEN', upd.KIEN.map(u => ({ id: u.id, ...u.now })), (d, n) => step(`Đang cập nhật kiện ${d}/${n}…`));
+        await DB.updateMany('KIEN', upd.KIEN.map(u => ({ id: u.id, ...u.now })), (d, n) => step(`Đang cập nhật kiện ${d}/${n}…`), via);
       }
     } else {
       const ups = ok.filter(x => x.doc || x.osd).map(x => {
@@ -428,10 +429,10 @@
       if (ups.length) {
         upd.KIEN = ups;
         step('Đang cập nhật ' + ups.length + ' kiện…');
-        await DB.updateMany('KIEN', ups.map(u => ({ id: u.id, ...u.now })), (d, n) => step(`Đang cập nhật kiện ${d}/${n}…`));
+        await DB.updateMany('KIEN', ups.map(u => ({ id: u.id, ...u.now })), (d, n) => step(`Đang cập nhật kiện ${d}/${n}…`), via);
       }
       const checks = ok.filter(x => x.check).map(x => ({ id: U.uid(), Kien: x.id, ...x.check, RFI: '', Hinh_anh: '', Ghi_chu: [x.check.Ghi_chu, note].filter(Boolean).join(' · ') }));
-      if (checks.length) { step('Đang ghi ' + checks.length + ' lần kiểm tra vị trí…'); await DB.addMany('KIEM_TRA', checks); add.KIEM_TRA = checks.map(r => r.id); }
+      if (checks.length) { step('Đang ghi ' + checks.length + ' lần kiểm tra vị trí…'); await DB.addMany('KIEM_TRA', checks, null, via); add.KIEM_TRA = checks.map(r => r.id); }
     }
     // 3. Nhật ký
     const log = { id: U.uid(), Thoi_gian: U.toLocalInput(now).replace('T', ' '), Nguoi: App.user.name || App.user.email, Mau: TPL[P.m].label, Goi_thau: P.goi, Ten_file: fileName,
@@ -444,19 +445,20 @@
   // Hoàn tác cả lô: xoá những gì đã thêm, trả kiện về giá trị cũ
   const undoRaw = async log => String(log.Hoan_tac || '').startsWith('file:') ? API.undoData(log.id) : (log.Hoan_tac || '{}');
   async function undo(log, step) {
+    const UVIA = 'Hoàn tác nhập Excel: ' + (log.Ten_file || '');
     step('Đang đọc dữ liệu hoàn tác…');
     const h = JSON.parse(await undoRaw(log)), add = h.add || {}, upd = h.upd || {};
-    if ((add.KIEM_TRA || []).length) { step('Đang xoá ' + add.KIEM_TRA.length + ' lần kiểm tra vị trí…'); await DB.removeMany('KIEM_TRA', add.KIEM_TRA.filter(x => DB.get('KIEM_TRA', x))); }
+    if ((add.KIEM_TRA || []).length) { step('Đang xoá ' + add.KIEM_TRA.length + ' lần kiểm tra vị trí…'); await DB.removeMany('KIEM_TRA', add.KIEM_TRA.filter(x => DB.get('KIEM_TRA', x)), null, 1000, UVIA); }
     for (const t of ['KIEN', 'MGMER', 'GIR', 'OSD', 'KIEM_TRA']) {
       const us = (upd[t] || []).filter(u => DB.get(t, u.id)); if (!us.length) continue;
       step('Đang trả ' + us.length + ' dòng ' + t + ' về giá trị cũ…');
-      await DB.updateMany(t, us.map(u => ({ [DB.keyField(t)]: u.id, ...u.old })));
+      await DB.updateMany(t, us.map(u => ({ [DB.keyField(t)]: u.id, ...u.old })), null, UVIA);
     }
     if ((add.KIEN || []).length) {
       const live = add.KIEN.filter(x => DB.get('KIEN', x)), used = new Set(DB.rows('KIEM_TRA').map(r => String(r.Kien)));
       const keep = live.filter(x => used.has(String(x)));   // kiện mới đã có người ghi vị trí sau đó → giữ lại
       step('Đang xoá ' + (live.length - keep.length) + ' kiện đã thêm…');
-      await DB.removeMany('KIEN', live.filter(x => !keep.includes(x)));
+      await DB.removeMany('KIEN', live.filter(x => !keep.includes(x)), null, 1000, UVIA);
       h.kept = (h.kept || []).concat(keep);
     }
     for (const t of ['OSD', 'GIR', 'MGMER']) {
@@ -464,13 +466,13 @@
       const refBy = new Set(DB.rows('KIEN').map(k => String(k[t] || '')).concat(t === 'GIR' ? DB.rows('OSD').map(o => String(o.GIR || '')) : [], t === 'MGMER' ? DB.rows('GIR').map(g => String(g.MGMER || '')) : []));
       const live = add[t].filter(x => DB.get(t, x)), keep = live.filter(x => refBy.has(String(x)));   // biên bản đã được dùng tiếp → giữ
       step('Đang xoá biên bản ' + t + '…');
-      await DB.removeMany(t, live.filter(x => !keep.includes(x)));
+      await DB.removeMany(t, live.filter(x => !keep.includes(x)), null, 1000, UVIA);
       h.kept = (h.kept || []).concat(keep);
     }
     if ((add.GOI_THAU || []).length) {
       const used = new Set(DB.rows('KIEN').map(k => String(k.Goi_thau)));
       const live = add.GOI_THAU.filter(x => DB.get('GOI_THAU', x)), keep = live.filter(x => used.has(String(x)));
-      if (live.length > keep.length) { step('Đang xoá gói thầu đã tạo…'); await DB.removeMany('GOI_THAU', live.filter(x => !keep.includes(x))); }
+      if (live.length > keep.length) { step('Đang xoá gói thầu đã tạo…'); await DB.removeMany('GOI_THAU', live.filter(x => !keep.includes(x)), null, 1000, UVIA); }
       h.kept = (h.kept || []).concat(keep);
     }
     await DB.update('NHAP_EXCEL', { id: log.id, Trang_thai: 'Đã hoàn tác' });

@@ -820,6 +820,9 @@
     const seg = (opts, cur, multi) => `<div class="seg" data-seg="${esc(f.n)}" ${f.req ? 'data-req="1"' : ''} ${multi ? 'data-multi="1"' : ''}><input type="hidden" ${nm} value="${esc(cur)}">
       ${opts.map(o => { const on = multi ? U.splitList(cur).includes(String(o.v)) : String(o.v) === String(cur);
         return `<button type="button" class="segb ${on ? 'on' : ''}" aria-pressed="${on}" ${on && !f.req ? 'title="Đang chọn — bấm lần nữa để bỏ chọn"' : ''} data-v="${esc(o.v)}">${esc(o.l)}</button>`; }).join('')}</div>`;
+    // f.auto (vd STT kiện): số do app tự cấp — chỉ hiện, không cho sửa
+    if (f.auto) return `<div class="fld" data-f="${esc(f.n)}"><span class="lbl">${esc(f.l)} <small class="lhint">· app tự đánh số</small></span>
+      <input ${nm} type="text" value="${esc(v)}" readonly tabindex="-1" class="ro"></div>`;
     let input;
     switch (f.t) {
       case 'longtext': input = `<textarea ${nm} rows="3"${f.ph ? ` placeholder="${esc(f.ph)}"` : ''}>${esc(v)}</textarea>`; break;
@@ -1021,6 +1024,7 @@
       form.querySelectorAll('.fld.err').forEach(b => b.classList.remove('err'));
       const out = {}, missing = [], uploads = [], badDate = [];
       for (const f of fields) {
+        if (f.auto) continue;   // số app tự cấp — không gửi lại
         const el = byName(f.n);
         let val;
         if (el && el.closest('.dinp.bad')) { badDate.push(f); continue; }   // chữ ngày gõ chưa đúng dd/mm/yyyy

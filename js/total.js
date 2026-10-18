@@ -1,8 +1,10 @@
 // =====================================================================
 //  FILE TOTAL 28 CỘT ("Goods delivered to Site-fully formated.xlsx", sheet Full)
 //   • Đồng bộ vào app: chỉ ĐỌC file người dùng chọn (trình duyệt đọc 1 bản sao của file, không ghi gì vào file),
-//     tách thành kiện / biên bản MGMER, GIR, OSD / lần kiểm tra vị trí. Mã cố định theo số thứ tự (No.) và số biên bản
-//     → nạp lại file mới hơn thì cập nhật đúng kiện cũ, không nhân đôi.
+//     tách thành kiện / biên bản MGMER, GIR, OSD / lần kiểm tra vị trí. STT kiện app tự đánh theo thứ tự dòng (không đọc
+//     cột No.), mã kiện theo STT, mã biên bản theo gói + số → nạp lại file mới hơn thì cập nhật đúng kiện cũ, không nhân đôi.
+//   • Nạp lại toàn bộ (mode 'replace'): xoá hết kiện / biên bản / lần kiểm tra cũ rồi nạp file — biên bản còn trong file
+//     giữ lại file đính kèm, ghi chú đã nhập trên app.
 //   • Xuất: tạo FILE MỚI đúng bố cục 28 cột (A–AB) như file gốc.
 // =====================================================================
 (function () {
@@ -66,7 +68,7 @@
       for (let c = 1; c <= 28; c++) {
         const x = raw(row.getCell(c));
         if (!x.link && links.has(colName(c) + r)) x.link = links.get(colName(c) + r);
-        cells.push(x); if (txt(x.v) !== '') any = true;
+        cells.push(x); if (c > 1 && txt(x.v) !== '') any = true;   // dòng chỉ có số ở cột A (công thức No. kéo dài) = dòng trống
       }
       if (any) rows.push({ r, c: cells });
     }
@@ -108,12 +110,13 @@
   }
 
   // ---------- 2. Lập kế hoạch (so với dữ liệu đang có trong app) ----------
-  // map: Restart Phase → mã gói; mode: 'all' = thêm + cập nhật, 'new' = chỉ thêm cái chưa có
+  // map: Restart Phase → mã gói; mode: 'all' = thêm + cập nhật, 'new' = chỉ thêm cái chưa có, 'replace' = xoá dữ liệu cũ rồi nạp lại
   TS.plan = (src, map, mode, empty) => {   // empty = coi như app chưa có kiện / biên bản nào (demo: xoá dữ liệu giả trước khi nạp)
+    const replace = mode === 'replace' && !empty;
     const I = { odd: [], txtNum: 0, badNum: [], mgDays: new Map(), giDays: new Map(), linkMix: new Set(), noDate: 0, noLoc: 0, mgWord: [] };
     const yearNow = new Date().getFullYear();
     const out = { KIEN: [], MGMER: new Map(), GIR: new Map(), OSD: new Map(), KIEM_TRA: [], GOI: new Map() };
-    const usedIds = new Set();
+    let seq = 0;
     const he = DB.field('KIEN', 'He_thong').opts;
     const canonHe = s => he.find(o => U.norm(o) === U.norm(s)) || s;
     const checkDate = (d, r, col) => { if (d && (+d.slice(0, 4) < 2010 || +d.slice(0, 4) > yearNow + 1)) I.odd.push(`dòng ${r} cột ${col}: ${U.fmtDate(d)}`); return d; };
@@ -123,13 +126,11 @@
       const goi = map.get(T(4)) || TS.defaultGoi(T(4));
       if (!out.GOI.has(goi)) out.GOI.set(goi, { MaGoi: goi, TenGoi: goiName(goi, T(4)), Restart_Phase: T(4), n: 0 });
       out.GOI.get(goi).n++;
-      const no = num(V(0));
-      let id = typeof no === 'number' && no > 0 && Number.isInteger(no) ? 'K' + pad(no, 5) : 'K-r' + r;
-      if (usedIds.has(id)) id = 'K-r' + r;
-      usedIds.add(id);
+      // STT app tự đánh theo thứ tự dòng — không đọc cột A (xoá / chèn dòng trong Excel hay làm cột No. lệch số, #REF!)
+      const no = ++seq, id = 'K' + pad(no, 5);
       const n = i => { const x = num(V(i)); if (typeof V(i) === 'string' && V(i).trim() && typeof x === 'number') I.txtNum++; if (x === null) { I.badNum.push(`dòng ${r} cột ${HEAD[i].trim()}: "${T(i)}"`); return T(i); } return x; };
       const k = {
-        id, STT: typeof no === 'number' ? no : T(0), Goi_thau: goi, To_may: /^(1|2|C)$/i.test(T(1)) ? T(1).toUpperCase() : T(1),
+        id, STT: no, Goi_thau: goi, To_may: /^(1|2|C)$/i.test(T(1)) ? T(1).toUpperCase() : T(1),
         He_thong: T(2) ? canonHe(T(2)) : '', Goi_PM: T(3), Hang_muc: T(5), Mo_ta: T(6), Ban_ve: T(7), Nha_cung_cap: T(8),
         PKL_No: T(9), PSIC_No: T(10), Package_No: T(11), DVT: T(12), So_luong: n(13), Don_vi_KL: /^kg$/i.test(T(14)) ? 'Kg' : T(14), KL_tinh: n(15),
         Ghi_chu: T(22), MGMER: '', GIR: '', OSD: ''
@@ -145,7 +146,7 @@
         let d = out.MGMER.get(key);
         if (!d) {
           d = { id: 'MG-' + goi + '-' + mgNo.replace(/[^\w-]/g, '') + (mgDate ? '-' + mgDate.replace(/-/g, '') : '') + (/[^\w-]/.test(mgNo) ? '-' + hash(mgNo) : ''),
-            So: mgNo, Ngay: mgDate, Goi_thau: goi, Dia_diem: '', Thanh_phan: '', File: '', Thu_muc: '', Duong_dan: c[17].link ? unlink(c[17].link) : '', Ghi_chu: '', n: 0 };
+            So: mgNo, Ngay: mgDate, Goi_thau: goi, Duong_dan: c[17].link ? unlink(c[17].link) : '', n: 0 };
           out.MGMER.set(key, d);
           const dk = goi + '|' + mgNo; I.mgDays.set(dk, (I.mgDays.get(dk) || new Set()).add(mgDate));
         } else if (c[17].link && unlink(c[17].link) !== d.Duong_dan) { if (!d.Duong_dan) d.Duong_dan = unlink(c[17].link); else I.linkMix.add(`MGMER ${mgNo} (${goi})`); }
@@ -158,7 +159,7 @@
         let d = out.GIR.get(key);
         if (!d) {
           d = { id: 'GI-' + goi + '-' + giNo.replace(/[^\w-]/g, '') + (giDate ? '-' + giDate.replace(/-/g, '') : '') + (/[^\w-]/.test(giNo) ? '-' + hash(giNo) : ''),
-            So: giNo, Ngay: giDate, Goi_thau: goi, MGMER: '', Thanh_phan: '', File: '', Ghi_chu: '', mgs: new Set(), n: 0 };
+            So: giNo, Ngay: giDate, Goi_thau: goi, MGMER: '', mgs: new Set(), n: 0 };
           out.GIR.set(key, d);
           const dk = goi + '|' + giNo; I.giDays.set(dk, (I.giDays.get(dk) || new Set()).add(giDate));
         }
@@ -179,7 +180,7 @@
         if (!kd) I.noDate++;
         if (!T(23)) I.noLoc++;
         out.KIEM_TRA.push({ id: 'KT-' + id + '-' + (kd ? kd.replace(/-/g, '') : '0'), Kien: id, Ngay: kd, Vi_tri: T(23), Tinh_trang: /^ok$/i.test(T(24)) ? 'OK' : T(24),
-          Nguoi_KT: '', RFI: T(27), Ghi_chu: T(26), Anh_link: c[26].link ? unlink(c[26].link) : '', RFI_link: c[27].link ? unlink(c[27].link) : '', Hinh_anh: '' });
+          RFI: T(27), Ghi_chu: T(26), Anh_link: c[26].link ? unlink(c[26].link) : '', RFI_link: c[27].link ? unlink(c[27].link) : '' });
       }
       out.KIEN.push(k);
     }
@@ -188,15 +189,26 @@
     out.OSD.forEach(d => { const g = [...d.girs].filter(Boolean); d.GIR = g.length === 1 ? g[0] : ''; delete d.girs; });
     const multi = m => [...m].filter(([, s]) => s.size > 1).map(([k, s]) => `${k.split('|')[1]} (${k.split('|')[0]}): ${[...s].map(x => x ? U.fmtDate(x) : 'không ngày').join(', ')}`);
 
-    // So với dữ liệu đang có: thêm / cập nhật / không đổi
+    // So với dữ liệu đang có: thêm / cập nhật / không đổi. Chỉ so các cột lấy từ file — cột nhập trên app (file đính kèm,
+    // ghi chú, người kiểm tra…) không bị nạp lại xoá; ô liên kết biên bản trống trong file mà app đã gắn thì giữ của app.
     const strip = o => { const x = { ...o }; delete x.n; return x; };
+    const DEF = { MGMER: { Dia_diem: '', Thanh_phan: '', File: '', Thu_muc: '', Ghi_chu: '' }, GIR: { Thanh_phan: '', File: '', Ghi_chu: '' },
+      OSD: { Ngay: '', Loai: '', Noi_dung: '', File: '' }, KIEM_TRA: { Nguoi_KT: '', Hinh_anh: '' } };
+    const KEEP = { KIEN: ['MGMER', 'GIR', 'OSD'] };
+    const kept = { n: 0, files: 0 };
     const diff = (t, list) => {
-      const add = [], upd = [];
+      const add = [], upd = [], kf = DB.keyField(t);
       let same = 0;
       list.map(strip).forEach(row => {
-        const cur = empty ? null : DB.get(t, row[DB.keyField(t)]);
-        if (!cur) return add.push(row);
-        const ch = Object.keys(row).filter(f => String(cur[f] ?? '') !== String(row[f] ?? ''));
+        const cur = empty || replace ? null : DB.get(t, row[kf]);
+        if (!cur) {
+          // Nạp lại toàn bộ: biên bản (mã theo gói + số, không đổi) còn trong file → giữ phần đã nhập trên app
+          const was = replace && DEF[t] && t !== 'KIEM_TRA' && DB.get(t, row[kf]), app = {};
+          if (was) Object.keys(DEF[t]).forEach(f => { if (String(was[f] ?? '') !== '') app[f] = was[f]; });
+          if (Object.keys(app).length) { kept.n++; if (app.File) kept.files++; }
+          return add.push({ ...(DEF[t] || {}), ...app, ...row });
+        }
+        const ch = Object.keys(row).filter(f => String(cur[f] ?? '') !== String(row[f] ?? '') && !((KEEP[t] || []).includes(f) && row[f] === '' && cur[f]));
         if (!ch.length || mode === 'new') { same++; return; }
         upd.push({ row, old: Object.fromEntries(ch.map(f => [f, cur[f] ?? ''])), now: Object.fromEntries(ch.map(f => [f, row[f]])) });
       });
@@ -206,7 +218,7 @@
       .map(g => ({ MaGoi: g.MaGoi, TenGoi: g.TenGoi, Restart_Phase: g.Restart_Phase, Nha_thau: '', Thau_phu: '', Tinh_trang: 'Đang thực hiện', Ngay_ky: '', Thoi_gian: '',
         Ngay_bat_dau: '', Ngay_ket_thuc: '', Can_bo: '', Thu_muc: '', Ghi_chu: 'Tạo khi đồng bộ file Total' }));
     const P = {
-      name: src.name, mode, empty: !!empty, goi: [...out.GOI.values()], goiNew,
+      name: src.name, mode, empty: !!empty, replace, goi: [...out.GOI.values()], goiNew,
       MGMER: diff('MGMER', [...out.MGMER.values()]), GIR: diff('GIR', [...out.GIR.values()]), OSD: diff('OSD', [...out.OSD.values()]),
       KIEN: diff('KIEN', out.KIEN), KIEM_TRA: diff('KIEM_TRA', out.KIEM_TRA),
       issues: [
@@ -221,22 +233,45 @@
         [I.noLoc, 'lần kiểm tra tình trạng không ghi vị trí (cột Location)', []]
       ].filter(x => x[0])
     };
-    P.OSD.add = P.OSD.add.map(r => ({ Ngay: '', Loai: '', Noi_dung: '', File: '', ...r }));   // biên bản mới: đủ cột; biên bản cũ: giữ ghi chú
     P.writes = goiNew.length + ['MGMER', 'GIR', 'OSD', 'KIEN', 'KIEM_TRA'].reduce((s, t) => s + P[t].add.length + P[t].upd.length, 0);
+    if (replace) {
+      // Sẽ xoá mọi dòng hiện có. Báo trước những gì nhập trên app sẽ mất (mã 8 ký tự = tạo trên app; K…, MG-…, KT-K… = từ file Total)
+      const fromTotal = { KIEN: /^K(\d+|-r\d+)$/, MGMER: /^MG-/, GIR: /^GI-/, OSD: /^OS-/, KIEM_TRA: /^KT-K/ };
+      const LOST = { KIEN: 'kiện thêm trên app', KIEM_TRA: 'lần kiểm tra vị trí ghi trên app', MGMER: 'biên bản MGMER tạo trên app',
+        GIR: 'biên bản GIR tạo trên app', OSD: 'biên bản OSD tạo trên app' };
+      const now = new Set(['MGMER', 'GIR', 'OSD'].flatMap(t => P[t].add.map(r => t + '|' + r.id)));
+      P.del = {}; P.lost = [];
+      ['KIEM_TRA', 'KIEN', 'OSD', 'GIR', 'MGMER'].forEach(t => {
+        const rows = DB.rows(t);
+        P.del[t] = rows.length;
+        const app = rows.filter(r => !fromTotal[t].test(String(r.id)));
+        if (app.length) P.lost.push([app.length, LOST[t], app.slice(0, 30).map(r => DB.title(t, r))]);
+        if (DEF[t] && t !== 'KIEM_TRA') {
+          const gone = rows.filter(r => fromTotal[t].test(String(r.id)) && !now.has(t + '|' + r.id) && Object.keys(DEF[t]).some(f => String(r[f] ?? '') !== ''));
+          if (gone.length) P.lost.push([gone.length, 'biên bản ' + t + ' có file / ghi chú nhập trên app nhưng không còn trong file mới', gone.slice(0, 30).map(r => DB.title(t, r))]);
+        }
+      });
+      P.kept = kept;
+      P.writes += Object.values(P.del).reduce((s, n) => s + n, 0);
+    }
     return P;
   };
 
   // ---------- 3. Ghi vào app (thứ tự: gói → biên bản → kiện → kiểm tra), nhật ký + dữ liệu hoàn tác ----------
   TS.apply = async (P, step) => {
     const add = {}, upd = {};
-    if (P.empty) {   // chỉ bản demo: xoá kiện / biên bản / vị trí / nhật ký giả trước khi nạp dữ liệu thật
-      for (const t of ['KIEM_TRA', 'KIEN', 'OSD', 'GIR', 'MGMER', 'NHAP_EXCEL']) {
+    const NAME = { MGMER: 'biên bản kiểm đếm', GIR: 'biên bản mở kiện', OSD: 'biên bản OSD', KIEN: 'kiện', KIEM_TRA: 'lần kiểm tra vị trí', NHAP_EXCEL: 'lịch sử nhập' };
+    // Demo: xoá dữ liệu giả (cả nhật ký). Nạp lại toàn bộ: xoá kiện / biên bản / lần kiểm tra hiện có — lấy bản mới nhất từ
+    // máy chủ trước để không sót dòng người khác vừa thêm (sót → trùng mã khi nạp)
+    if (P.empty || P.replace) {
+      const ts = ['KIEM_TRA', 'KIEN', 'OSD', 'GIR', 'MGMER'].concat(P.empty ? ['NHAP_EXCEL'] : []);
+      if (P.replace) { step('Đang lấy dữ liệu mới nhất…'); for (const t of ts) await DB.load(t, true); }
+      for (const t of ts) {
         const keys = DB.rows(t).map(r => r[DB.keyField(t)]);
-        if (keys.length) await DB.removeMany(t, keys, (d, n) => step(`Đang xoá dữ liệu giả ${t} ${U.int(d)}/${U.int(n)}…`));
+        if (keys.length) await DB.removeMany(t, keys, (d, n) => step(`Đang xoá ${P.empty ? 'dữ liệu giả' : 'dữ liệu cũ'}: ${NAME[t]} ${U.int(d)}/${U.int(n)}…`), 5000);
       }
     }
     if (P.goiNew.length) { step('Đang tạo ' + P.goiNew.length + ' gói thầu…'); await DB.addMany('GOI_THAU', P.goiNew); add.GOI_THAU = P.goiNew.map(g => g.MaGoi); }
-    const NAME = { MGMER: 'biên bản kiểm đếm', GIR: 'biên bản mở kiện', OSD: 'biên bản OSD', KIEN: 'kiện', KIEM_TRA: 'lần kiểm tra vị trí' };
     for (const t of ['MGMER', 'GIR', 'OSD', 'KIEN', 'KIEM_TRA']) {
       const x = P[t];
       if (x.add.length) {
@@ -249,10 +284,16 @@
       }
     }
     const cnt = (t, k) => (P[t][k] || []).length;
-    const log = { id: U.uid(), Thoi_gian: U.toLocalInput(new Date()).replace('T', ' '), Nguoi: App.user.name || App.user.email, Mau: 'Đồng bộ file Total',
+    // Nạp lại toàn bộ: các lần nhập trước không hoàn tác được nữa (mã kiện cũ nay thuộc kiện khác); lần này cũng không hoàn tác
+    if (P.replace) {
+      const old = DB.rows('NHAP_EXCEL').filter(l => l.Trang_thai === 'Đã ghi').map(l => ({ id: l.id, Trang_thai: 'Hết hiệu lực (đã nạp lại toàn bộ)' }));
+      if (old.length) { step('Đang cập nhật lịch sử nhập…'); await DB.updateMany('NHAP_EXCEL', old); }
+    }
+    const log = { id: U.uid(), Thoi_gian: U.toLocalInput(new Date()).replace('T', ' '), Nguoi: App.user.name || App.user.email,
+      Mau: P.replace ? 'Nạp lại toàn bộ file Total' : 'Đồng bộ file Total',
       Goi_thau: '', Ten_file: P.name, So_moi: cnt('KIEN', 'add'), So_cap_nhat: cnt('KIEN', 'upd'),
-      So_bien_ban: ['MGMER', 'GIR', 'OSD'].reduce((s, t) => s + cnt(t, 'add'), 0), So_vi_tri: cnt('KIEM_TRA', 'add'), So_bo_qua: 0, Trang_thai: 'Đã ghi',
-      Hoan_tac: JSON.stringify({ add, upd }) };
+      So_bien_ban: ['MGMER', 'GIR', 'OSD'].reduce((s, t) => s + cnt(t, 'add'), 0), So_vi_tri: cnt('KIEM_TRA', 'add'), So_bo_qua: 0,
+      Trang_thai: P.replace ? 'Đã nạp lại toàn bộ' : 'Đã ghi', Hoan_tac: P.replace ? '' : JSON.stringify({ add, upd }) };
     await DB.add('NHAP_EXCEL', log);
     return log;
   };

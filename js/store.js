@@ -282,12 +282,12 @@
       this.persist(t, this.ver[t]);   // giữ phiên bản: máy chủ vẫn so lại, khác thì tải mới (gotVer đã nhận bản sau khi ghi)
       return saved;
     },
-    async removeMany(t, keys, onStep) {
+    async removeMany(t, keys, onStep, size = 1000) {   // size: số dòng mỗi lần gọi (xoá cả bảng: lớn hơn cho nhanh — mỗi lần máy chủ viết lại bảng)
       await this.afterOutbox(t);
       const kf = this.keyField(t);
-      for (let i = 0; i < keys.length; i += 1000) {
-        await API.removeMany(t, kf, keys.slice(i, i + 1000));
-        if (onStep) onStep(Math.min(i + 1000, keys.length), keys.length);
+      for (let i = 0; i < keys.length; i += size) {
+        await API.removeMany(t, kf, keys.slice(i, i + size));
+        if (onStep) onStep(Math.min(i + size, keys.length), keys.length);
       }
       const drop = new Set(keys.map(String));
       this.data[t] = (this.data[t] || []).filter(r => !drop.has(String(r[kf])));

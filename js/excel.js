@@ -572,7 +572,8 @@
         </section>
         ${App.user.admin ? `<section class="card xstep"><div class="fsec"><span class="xn">${Icon('upload', 'sm')}</span>Đồng bộ từ file Total</div>
           <p class="muted small">Chọn file "Goods delivered to Site-fully formated.xlsx" (sheet Full). App <b>chỉ đọc</b> file — không sửa, không lưu lại file —
-            rồi tách thành kiện, biên bản MGMER / GIR / OSD và lần kiểm tra vị trí. Mã kiện theo cột No. nên lần sau nạp file mới hơn sẽ cập nhật đúng kiện cũ, không nhân đôi.</p>
+            rồi tách thành kiện, biên bản MGMER / GIR / OSD và lần kiểm tra vị trí. <b>Số thứ tự (STT) app tự đánh</b> theo thứ tự dòng trong file —
+            cột No. (A) không cần điền, xoá / chèn dòng không sao.</p>
           <label class="upbox xdrop" id="tdrop">${Icon('upload')}<span><b>Chọn file Total .xlsx</b> hoặc kéo thả vào đây</span><input type="file" accept=".xlsx" hidden id="tfile"></label>
           <div id="tprev"></div></section>` : ''}
         <section class="card xstep"><div class="fsec"><span class="xn">${Icon('clock', 'sm')}</span>Lịch sử nhập</div><div id="xlog"></div></section></div>`;
@@ -619,17 +620,21 @@
           <div class="muted small">Mã chưa có trong app sẽ được tạo thành gói mới. "(trống)" = dòng không ghi Restart Phase — mặc định vào gói KXĐ (chưa xác định), có thể gõ mã khác.</div></div>
         <div class="fld"><span class="lbl">Kiện / biên bản đã có trong app</span><div class="seg" data-tmode>
           <button type="button" class="segb ${st.tx.mode === 'all' ? 'on' : ''}" data-v="all">Thêm mới + cập nhật theo file</button>
-          <button type="button" class="segb ${st.tx.mode === 'new' ? 'on' : ''}" data-v="new">Chỉ thêm cái chưa có</button></div></div>
-        ${demo ? `<label class="chk"><input type="checkbox" id="tempty" ${st.tx.empty ? 'checked' : ''}> Xoá dữ liệu vật tư <b>giả</b> của bản demo trước khi nạp (chỉ có ở bản demo)</label>` : ''}
+          <button type="button" class="segb ${st.tx.mode === 'new' ? 'on' : ''}" data-v="new">Chỉ thêm cái chưa có</button>
+          <button type="button" class="segb ${st.tx.mode === 'replace' ? 'on' : ''}" data-v="replace">Xoá dữ liệu cũ, nạp lại toàn bộ</button></div>
+          ${st.tx.mode === 'replace' ? `<div class="muted small">Xoá <b>hết</b> kiện, biên bản MGMER / GIR / OSD và lần kiểm tra vị trí đang có trong app rồi nạp lại từ file này
+            (dùng khi đã sửa file, vd xoá dòng trùng). Biên bản còn trong file giữ lại file PDF, ghi chú đã nhập trên app. Không hoàn tác được — bấm "Xem trước" để biết trước cái gì sẽ mất.</div>` : ''}</div>
+        ${demo && st.tx.mode !== 'replace' ? `<label class="chk"><input type="checkbox" id="tempty" ${st.tx.empty ? 'checked' : ''}> Xoá dữ liệu vật tư <b>giả</b> của bản demo trước khi nạp (chỉ có ở bản demo)</label>` : ''}
         <div class="xact"><button type="button" class="btn" data-tplan>${Icon('eye')} Xem trước</button></div>
         <div id="tplan"></div>`;
       box.querySelector('[data-tclear]').onclick = () => { TSRC = null; TP = null; box.innerHTML = ''; const b2 = App.main.querySelector('.pbar'); if (b2) b2.remove(); };
       box.querySelectorAll('.tmin').forEach(i => i.oninput = () => { TSRC.map.set(i.dataset.ph, i.value.trim().toUpperCase() || TotalSync.defaultGoi(i.dataset.ph)); TP = null; tplanDraw(); });
       box.querySelector('[data-tmode]').onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; st.tx.mode = b.dataset.v; TP = null; tdraw(); };
       const em = box.querySelector('#tempty'); if (em) em.onchange = () => { st.tx.empty = em.checked; TP = null; tplanDraw(); };
-      box.querySelector('[data-tplan]').onclick = () => {
-        const b = box.querySelector('[data-tplan]'); b.disabled = true; b.textContent = 'Đang so sánh…';
-        setTimeout(() => { try { TP = TotalSync.plan(TSRC, TSRC.map, st.tx.mode, demo && st.tx.empty); } catch (e) { U.toast(e.message, 'err'); } b.disabled = false; b.innerHTML = `${Icon('eye')} Xem trước`; tplanDraw(); }, 30);
+      box.querySelector('[data-tplan]').onclick = async () => {
+        const b = box.querySelector('[data-tplan]'), rep = st.tx.mode === 'replace'; b.disabled = true; b.textContent = rep ? 'Đang lấy dữ liệu mới nhất…' : 'Đang so sánh…';
+        if (rep) for (const t of ['KIEN', 'MGMER', 'GIR', 'OSD', 'KIEM_TRA']) await DB.load(t, true).catch(() => {});
+        setTimeout(() => { try { TP = TotalSync.plan(TSRC, TSRC.map, st.tx.mode, demo && st.tx.empty && !rep); } catch (e) { U.toast(e.message, 'err'); } b.disabled = false; b.innerHTML = `${Icon('eye')} Xem trước`; tplanDraw(); }, 30);
       };
       tplanDraw();
     }
@@ -639,9 +644,19 @@
       if (!TP) { box.innerHTML = ''; return; }
       const NAME = [['KIEN', 'Kiện'], ['MGMER', 'Biên bản kiểm đếm (MGMER)'], ['GIR', 'Biên bản mở kiện (GIR)'], ['OSD', 'Biên bản OSD'], ['KIEM_TRA', 'Lần kiểm tra vị trí / tình trạng']];
       const sample = TP.KIEN.upd.slice(0, 20);
-      box.innerHTML = `<table class="dtable ttable"><thead><tr><th>Dữ liệu</th><th>Thêm mới</th><th>Cập nhật</th><th>Không đổi</th></tr></thead><tbody>
+      const lostHtml = !TP.replace ? '' : `<div class="xerr warn">${Icon('alert')}<span>Sẽ <b>xoá ${U.int(Object.values(TP.del).reduce((s, n) => s + n, 0))} dòng</b> đang có rồi nạp lại từ file — không hoàn tác được.
+          ${TP.kept.n ? `Giữ lại phần nhập trên app của <b>${U.int(TP.kept.n)}</b> biên bản còn trong file (${U.int(TP.kept.files)} có file PDF).` : ''}
+          Nên bấm <b>Xuất Excel</b> ở trên để giữ 1 bản sao trước khi nạp.</span></div>
+        ${TP.lost.length ? `<div class="tiss"><div class="lbl">Nhập trên app, sẽ mất sau khi nạp lại</div>${TP.lost.map(([n, t, ex]) => `<details class="tis"><summary><b>${U.int(n)}</b> ${esc(t)}</summary>
+          <div class="xm">${ex.map(esc).join('<br>')}${n > ex.length ? '<br>… và ' + (n - ex.length) + ' mục khác' : ''}</div></details>`).join('')}</div>`
+          : '<div class="muted small">Không có dữ liệu nào nhập trên app bị mất (mọi dòng đang có đều từ file Total).</div>'}`;
+      box.innerHTML = TP.replace ? `<table class="dtable ttable"><thead><tr><th>Dữ liệu</th><th>Đang có (xoá)</th><th>Nạp từ file</th></tr></thead><tbody>
+          ${TP.goiNew.length ? `<tr><td>Gói thầu mới: ${esc(TP.goiNew.map(g => g.MaGoi).join(', '))}</td><td>–</td><td>${TP.goiNew.length}</td></tr>` : ''}
+          ${NAME.map(([t, l]) => `<tr><td>${esc(l)}</td><td>${U.int(TP.del[t])}</td><td>${U.int(TP[t].add.length)}</td></tr>`).join('')}</tbody></table>${lostHtml}`
+        : `<table class="dtable ttable"><thead><tr><th>Dữ liệu</th><th>Thêm mới</th><th>Cập nhật</th><th>Không đổi</th></tr></thead><tbody>
           ${TP.goiNew.length ? `<tr><td>Gói thầu mới: ${esc(TP.goiNew.map(g => g.MaGoi).join(', '))}</td><td>${TP.goiNew.length}</td><td>–</td><td>–</td></tr>` : ''}
-          ${NAME.map(([t, l]) => `<tr><td>${esc(l)}</td><td>${U.int(TP[t].add.length)}</td><td>${U.int(TP[t].upd.length)}</td><td>${U.int(TP[t].same)}</td></tr>`).join('')}</tbody></table>
+          ${NAME.map(([t, l]) => `<tr><td>${esc(l)}</td><td>${U.int(TP[t].add.length)}</td><td>${U.int(TP[t].upd.length)}</td><td>${U.int(TP[t].same)}</td></tr>`).join('')}</tbody></table>`;
+      box.innerHTML += `
         <div class="muted small">Theo gói: ${TP.goi.map(g => `<b>${esc(g.MaGoi)}</b> ${U.int(g.n)}`).join(' · ')}</div>
         ${TP.issues.length ? `<div class="tiss"><div class="lbl">Cần biết trước khi nạp</div>${TP.issues.map(([n, t, ex]) => `<details class="tis"><summary><b>${U.int(n)}</b> ${esc(t)}</summary>
           ${ex.length ? `<div class="xm">${ex.slice(0, 15).map(esc).join('<br>')}${ex.length > 15 ? '<br>… và ' + (ex.length - 15) + ' mục khác' : ''}</div>` : ''}</details>`).join('')}</div>` : ''}
@@ -653,7 +668,9 @@
         <button type="button" class="btn ghost sm" data-tcancel>Huỷ</button><button type="button" class="btn" data-write ${TP.writes ? '' : 'disabled'}>${Icon('check')} Nạp vào app</button></div>`);
       App.main.querySelector('[data-tcancel]').onclick = () => { TP = null; tplanDraw(); };
       App.main.querySelector('[data-write]').onclick = async () => {
-        if (!(await U.confirm(`Nạp ${U.int(TP.writes)} dòng từ "${TP.name}" vào app? File gốc không bị thay đổi. Có thể hoàn tác trong "Lịch sử nhập".`))) return;
+        if (!(await U.confirm(TP.replace
+          ? `XOÁ ${U.int(Object.values(TP.del).reduce((s, n) => s + n, 0))} dòng kiện / biên bản / lần kiểm tra đang có trong app rồi nạp lại ${U.int(TP.KIEN.add.length)} kiện từ "${TP.name}"? Không hoàn tác được. File gốc không bị thay đổi.`
+          : `Nạp ${U.int(TP.writes)} dòng từ "${TP.name}" vào app? File gốc không bị thay đổi. Có thể hoàn tác trong "Lịch sử nhập".`))) return;
         const b = App.main.querySelector('[data-write]'), lbl = b.innerHTML; b.disabled = true;
         const t0 = Date.now();
         try {
@@ -745,12 +762,14 @@
     function drawLog() {
       const box = App.main.querySelector('#xlog'); if (!box) return;
       const logs = DB.rows('NHAP_EXCEL').slice().sort((a, b) => String(b.Thoi_gian).localeCompare(String(a.Thoi_gian))).slice(0, 30);
-      box.innerHTML = logs.length ? `<div class="rows">${logs.map(l => `<div class="row" data-tone="${l.Trang_thai === 'Đã hoàn tác' ? '' : 'ok'}">
+      // Hoàn tác được: lần nhập còn "Đã ghi" và có dữ liệu hoàn tác (lần nạp lại toàn bộ thì không; lần nhập trước đó thành "Hết hiệu lực")
+      const live = l => (l.Trang_thai || 'Đã ghi') === 'Đã ghi' && !!l.Hoan_tac;
+      box.innerHTML = logs.length ? `<div class="rows">${logs.map(l => `<div class="row" data-tone="${live(l) || l.Trang_thai === 'Đã nạp lại toàn bộ' ? 'ok' : ''}">
           <span class="lead tx" style="--gc:var(--g2)">${esc(String(l.Goi_thau || '').slice(0, 5))}</span>
           <div class="row-main"><div class="row-title">${esc(l.Ten_file)}</div><div class="row-sub">${esc(DB.sub('NHAP_EXCEL', l))}</div>
           <div class="row-meta">${[l.So_moi && `<span>+${U.int(l.So_moi)} kiện mới</span>`, l.So_cap_nhat && `<span>${U.int(l.So_cap_nhat)} kiện cập nhật</span>`,
             l.So_bien_ban && `<span>${U.int(l.So_bien_ban)} biên bản mới</span>`, l.So_vi_tri && `<span>${U.int(l.So_vi_tri)} vị trí</span>`, l.So_bo_qua && `<span>${U.int(l.So_bo_qua)} dòng lỗi bỏ qua</span>`].filter(Boolean).join('')}</div></div>
-          ${l.Trang_thai === 'Đã hoàn tác' ? '<span class="badge">Đã hoàn tác</span>'
+          ${!live(l) ? `<span class="badge ${l.Trang_thai === 'Đã nạp lại toàn bộ' ? 'ok' : ''}">${esc(l.Trang_thai || 'Đã ghi')}</span>`
             : canUp && rowLv('NHAP_EXCEL', l) >= 2 ? `<button type="button" class="btn sm danger ghost" data-undo="${esc(l.id)}">Hoàn tác</button>` : '<span class="badge ok">Đã ghi</span>'}</div>`).join('')}</div>`
         : '<div class="muted small">Chưa có lần nhập nào.</div>';
       box.querySelectorAll('[data-undo]').forEach(b => b.onclick = async () => {

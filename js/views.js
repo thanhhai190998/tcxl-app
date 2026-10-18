@@ -1095,6 +1095,13 @@
             out[f.n] = await Vault.enc(v);
           } else if (!(await U.confirm('Chưa đặt mật khẩu chủ nên "' + f.l + '" sẽ lưu dạng chữ thường. Vẫn lưu?'))) throw new Error('Đã huỷ');
         }
+        // Tên file trên Drive theo số biên bản (def.fileName, vd "GIR 1010 - T12") — bảng nhiều ô file thì thêm tên ô
+        const baseName = (row, f) => {
+          let base = '';
+          try { base = def.fileName ? String(def.fileName(row, DB) || '').trim() : ''; } catch (e2) { base = ''; }
+          if (base && fields.filter(x => x.t === 'file' || x.t === 'image').length > 1) base += ' - ' + f.l;
+          return base.replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ').slice(0, 110);
+        };
         const upOps = [];
         for (const [f, file] of uploads) {
           if (file.size > 25 * 1024 * 1024) throw new Error(f.l + ': file lớn hơn 25 MB');
@@ -1102,10 +1109,7 @@
           const du = isImg ? await U.resizeImage(file, window.APP_CONFIG.mode === 'demo' ? 900 : 1600) : await U.readDataUrl(file);
           // Tên trên Drive theo số biên bản (def.fileName, vd "GIR 1010 - T12.pdf") thay cho tên gốc của file; không có thì giữ tên gốc
           const ext = isImg ? '.jpg' : ((file.name.match(/\.[a-z0-9]{1,8}$/i) || [''])[0].toLowerCase());
-          let base = '';
-          try { base = def.fileName ? String(def.fileName(out, DB) || '').trim() : ''; } catch (e2) { base = ''; }
-          if (base && fields.filter(x => x.t === 'file' || x.t === 'image').length > 1) base += ' - ' + f.l;   // bảng có nhiều ô file
-          base = base.replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ').slice(0, 110);
+          const base = baseName({ ...r, ...out }, f);
           const name = base ? base + ext : isImg ? file.name.replace(/\.[^.]+$/, '') + '.jpg' : file.name;
           // Tải file cũng chạy nền: giữ nội dung file trên máy, ô file tạm ghi "@up:<khoá>" (mở xem được ngay), tải xong thay bằng mã thật
           const uk = U.uid() + U.uid();
@@ -1113,9 +1117,13 @@
           upOps.push({ fn: 'upload', t, field: f.n, name, key: uk });
           out[f.n] = '@up:' + uk;
         }
+        // Sửa số biên bản / gói (tên file theo đó đổi) mà không tải file mới → đổi tên file đã có trên Drive cho khớp
+        const renOps = isNew ? [] : fields.filter(f => (f.t === 'file' || f.t === 'image') && !uploads.some(([x]) => x === f) && /^(pwa:|fs:|@up:|demo\/)/.test(String(r[f.n] || '')) && out[f.n] !== '')
+          .map(f => ({ f, a: baseName(r, f), b: baseName({ ...r, ...out }, f) })).filter(x => x.b && x.a !== x.b)
+          .map(x => ({ fn: 'rename', t, key: k, field: x.f.n, name: x.b, soft: true, note: 'Đã lưu nhưng chưa đổi được tên file trên Drive' }));
         // Lưu nền (outbox.js): dữ liệu trên máy đổi ngay, đi tiếp; tải file + gửi máy chủ chạy ngầm, lỗi thì báo kèm "Thử lại" / "Bỏ thay đổi"
         Outbox.push((isNew ? 'Thêm ' : 'Sửa ') + def.label.replace(/\s*\(.*\)$/, '').toLowerCase() + ' ' + DB.title(t, out),
-          [...upOps, { fn: isNew ? 'add' : 'update', t, rows: [out] }]);
+          [...upOps, { fn: isNew ? 'add' : 'update', t, rows: [out] }, ...renOps]);
         Files.forget(t, k);
         dirty = false;
         if (isNew && def.assign) U.toast('Đã tạo biên bản — chọn các kiện thuộc biên bản', 'ok');

@@ -341,6 +341,14 @@
       ts.forEach(t => { out[t] = rows(t).length; state.tables[t] = []; audit(u, 'clear', t, '', out[t], null, via); });
       await persist(); return out;
     },
+    async renameFile(t, kf, key, field, name) {
+      await wait(); const u = me(), r = rows(t).find(x => String(x[kf]) === String(key));
+      if (!r || level(u, t, r) < 2) throw new Error('Bạn không có quyền sửa dòng này');
+      const v = String(r[field] || ''); if (!/^demo\//.test(v)) return null;
+      const now = name + ((v.match(/\.[a-z0-9]{1,8}$/i) || [''])[0]), old = (state.fnames = state.fnames || {})[v] || v.split('/').pop();
+      state.fnames[v] = now; if (old !== now) audit(u, 'update', t, key, 1, { [field]: ['Tên file: ' + old, 'Tên file: ' + now] });
+      await persist(); return now;
+    },
     async fileStore() { await wait(); if (!me().admin) throw new Error('Chỉ quản trị viên'); return { local: true, email: 'quan.tri@demo', used: 7.1e9, limit: 15e9 }; },
     // Lịch sử chỉnh sửa — chỉ quản trị viên chính; r = số thứ tự (1 = cũ nhất), before = xem tiếp phần cũ hơn
     async history(o = {}) {

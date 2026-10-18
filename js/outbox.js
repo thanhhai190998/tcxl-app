@@ -8,6 +8,7 @@
 //   soft = lỗi không chặn cả việc (chỉ báo note), vd gán gói cho biên bản sau khi chọn kiện.
 //   { fn: 'upload', t, field, name, key }: tải file (nội dung giữ trên máy, DB.upGet(key)) lên trước; mã file trả về
 //   thay cho "@up:<key>" trong các việc sau của cùng lần lưu → bấm Lưu không phải chờ tải file.
+//   { fn: 'rename', t, key, field, name }: đổi tên file đính kèm trên Drive (sửa số biên bản) — thường đi kèm soft.
 // =====================================================================
 (function () {
   const O = (window.Outbox = {});
@@ -20,7 +21,7 @@
   O.pending = () => q.length;
   O.busy = t => q.some(j => j.ops.some(o => o.t === t));   // bảng còn thay đổi chưa lưu → không lấy dữ liệu máy chủ đè lên
   O.push = (label, ops) => {
-    ops = ops.filter(o => o.fn === 'upload' || (o.rows && o.rows.length));
+    ops = ops.filter(o => o.fn === 'upload' || o.fn === 'rename' || (o.rows && o.rows.length));
     if (!ops.length) return;
     ops.forEach(o => { if (o.rows) DB.localPut(o.t, o.rows); });   // dữ liệu trên máy đổi ngay
     q.push({ id: U.uid(), label, ops, at: Date.now() });
@@ -81,6 +82,7 @@
       }
       return null;
     }
+    if (o.fn === 'rename') { await API.renameFile(o.t, DB.keyField(o.t), o.key, o.field, o.name); return null; }
     const kf = DB.keyField(o.t), out = [];
     for (let i = o.ci || 0; i < o.rows.length; i += CHUNK) {
       const part = o.rows.slice(i, i + CHUNK), tried = o.again || o.tried === i;

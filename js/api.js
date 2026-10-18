@@ -142,6 +142,7 @@
     clearTables: (tables, via) => call('clearTables', { tables, via }),   // nạp lại toàn bộ file Total (chỉ quản trị viên)
     history: o => call('history', o || {}),                               // lịch sử chỉnh sửa (chỉ quản trị viên chính)
     fileStore: () => call('fileStore'),                                   // nơi lưu file + dung lượng (quản trị viên)
+    renameFile: (t, keyField, key, field, name) => call('renameFile', { table: t, keyField, key, field, name }),   // đổi tên file trên Drive
     upload: (t, field, name, dataUrl) => { const p = U.dataUrlParts(dataUrl); return call('upload', { table: t, field, name, mime: p.mime, data: p.data }); },
     file: (t, keyField, key, field, thumb, size) => call('file', { table: t, keyField, key, field, thumb: !!thumb, size }),
     files: (items, size) => call('files', { items, size }),

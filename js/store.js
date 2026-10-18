@@ -168,6 +168,10 @@
       });
     },
 
+    // File chờ tải lên nền (outbox.js): giữ nội dung file trên máy (IndexedDB) tới khi tải xong; ô file tạm ghi "@up:<khoá>"
+    upPut(k, dataUrl) { return IDB.set('up|' + k, dataUrl); },
+    upGet(k) { return IDB.get('up|' + k); },
+    upDel(k) { return IDB.del('up|' + k); },
     invalidate(t) { delete this.data[t]; this.fresh.delete(t); },
     clear() { this.data = {}; this.fresh.clear(); },
     // Xoá mọi dữ liệu lưu tạm trên máy (bảng + ảnh) — dùng khi đăng xuất / đổi người
@@ -384,6 +388,9 @@
       const ck = keyOf(t, key, field, size);
       if (mem.has(ck)) return mem.get(ck);
       const p = (async () => {
+        // File còn đang chờ tải lên nền → mở luôn bản trên máy (khỏi chờ)
+        const rec = DB.get(t, key), pend = rec && String(rec[field] || '').match(/^@up:(.+)$/);
+        if (pend) { const du = await DB.upGet(pend[1]); if (du) return URL.createObjectURL(U.b64ToBlob(U.dataUrlParts(du).data, U.dataUrlParts(du).mime)); }
         const hit = size === 'full' ? await fileGet(ck) : await diskGet(ck);
         if (hit) return URL.createObjectURL(hit);
         const f = size === 'thumb' ? await thumb(t, key, field) : await API.file(t, DB.keyField(t), key, field, false, size);
@@ -409,7 +416,8 @@
     async open(t, key, field, btn) {
       if (btn && btn.classList.contains('busy')) return;
       const ck = keyOf(t, key, field, 'full');
-      let ready = mem.has(ck) && await Promise.race([mem.get(ck).then(() => true, () => false), new Promise(r => setTimeout(() => r(false), 30))]);
+      const rec = DB.get(t, key);
+      let ready = /^@up:/.test(String(rec && rec[field] || '')) || (mem.has(ck) && await Promise.race([mem.get(ck).then(() => true, () => false), new Promise(r => setTimeout(() => r(false), 30))]));
       if (!ready) try { ready = !!(await (await caches.open(FILES)).match(ck)); } catch (e) { /* bỏ qua */ }   // đã lưu trên máy
       // Chưa có sẵn → mở ngay 1 tab "Đang tải…" trong lúc bấm (trình duyệt chặn tab mở sau vài giây chờ, coi là popup),
       // tải xong mới chuyển tab đó sang file. iPhone (app cài trên màn hình chính) không dùng được cách này → giữ cách cũ.

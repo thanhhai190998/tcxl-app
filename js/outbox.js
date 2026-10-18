@@ -6,21 +6,23 @@
 //   • Hàng đợi lưu trên máy (localStorage) → tắt app giữa chừng, mở lại tự gửi tiếp.
 //  Việc: { label, ops: [{ fn: 'add' | 'update' | 'addMany' | 'updateMany', t, rows, soft?, note? }] }
 //   soft = lỗi không chặn cả việc (chỉ báo note), vd gán gói cho biên bản sau khi chọn kiện.
+//   { fn: 'upload', t, field, name, key }: tải file (nội dung giữ trên máy, DB.upGet(key)) lên trước; mã file trả về
+//   thay cho "@up:<key>" trong các việc sau của cùng lần lưu → bấm Lưu không phải chờ tải file.
 // =====================================================================
 (function () {
   const O = (window.Outbox = {});
   const CHUNK = 1000;   // Apps Script giới hạn thời gian mỗi lần gọi → gửi từng lô
   const KEY = () => 'tcxl-outbox|' + window.APP_CONFIG.mode + '|' + ((window.App && App.user && App.user.email) || '');
-  let q = [], running = false, err = null, net = false, netT = null, doneT = null;
+  let q = [], running = false, err = null, net = false, netT = null, doneT = null, stage = '';
   const save = () => { try { if (q.length) localStorage.setItem(KEY(), JSON.stringify(q)); else localStorage.removeItem(KEY()); } catch (e) { /* bỏ qua */ } };
   const isNet = e => /Mất kết nối|Failed to fetch|NetworkError|Load failed/i.test(e && e.message || '') || navigator.onLine === false;
 
   O.pending = () => q.length;
   O.busy = t => q.some(j => j.ops.some(o => o.t === t));   // bảng còn thay đổi chưa lưu → không lấy dữ liệu máy chủ đè lên
   O.push = (label, ops) => {
-    ops = ops.filter(o => o.rows && o.rows.length);
+    ops = ops.filter(o => o.fn === 'upload' || (o.rows && o.rows.length));
     if (!ops.length) return;
-    ops.forEach(o => DB.localPut(o.t, o.rows));   // dữ liệu trên máy đổi ngay
+    ops.forEach(o => { if (o.rows) DB.localPut(o.t, o.rows); });   // dữ liệu trên máy đổi ngay
     q.push({ id: U.uid(), label, ops, at: Date.now() });
     save(); paint(); run();
   };
@@ -39,7 +41,7 @@
     running = true; net = false; clearTimeout(netT); paint();
     try {
       while (q.length && !err) {
-        try { await send(q[0]); q.shift(); save(); }
+        try { const j = await send(q[0]); q.shift(); save(); upClean(j); }
         catch (e) {
           if (isNet(e)) { net = true; netT = setTimeout(run, 15000); break; }   // mất mạng: 15 giây sau / khi có mạng thử lại
           err = { label: q[0].label, msg: e.message };
@@ -50,9 +52,13 @@
       if (!q.length && !err) { done(); }
     }
   }
+  const upClean = job => job.ops.forEach(o => { if (o.fn === 'upload') DB.upDel(o.key); });   // xoá bản file giữ tạm trên máy
   async function send(job) {
     for (const o of job.ops) {
       if (o.ok) continue;
+      // Ô file "@up:<khoá>" → mã file vừa tải lên ở việc upload trước đó
+      const ups = job.ops.filter(x => x.fn === 'upload' && x.val);
+      if (ups.length && o.rows) o.rows.forEach(r => Object.keys(r).forEach(k => { const u = ups.find(x => r[k] === '@up:' + x.key); if (u) r[k] = u.val; }));
       try {
         const saved = await call(o);
         if (saved && saved.length) DB.localPut(o.t, saved);   // dòng máy chủ trả (đủ cột, STT kiện do máy chủ cấp…)
@@ -62,8 +68,19 @@
       }
       o.ok = true; save();
     }
+    return job;
   }
   async function call(o) {
+    if (o.fn === 'upload') {
+      if (!o.val) {
+        const du = await DB.upGet(o.key);
+        if (!du) throw new Error('File "' + o.name + '" chờ tải lên không còn trên máy — mở lại và chọn lại file');
+        stage = 'Đang tải file lên… ' + o.name; paint();
+        try { o.val = await API.upload(o.t, o.field, o.name, du); } finally { stage = ''; paint(); }
+        save();
+      }
+      return null;
+    }
     const kf = DB.keyField(o.t), out = [];
     for (let i = o.ci || 0; i < o.rows.length; i += CHUNK) {
       const part = o.rows.slice(i, i + CHUNK), tried = o.again || o.tried === i;
@@ -84,6 +101,7 @@
   // Bỏ mọi thay đổi chưa lưu: tải lại các bảng liên quan từ máy chủ (bỏ phiên bản → lấy đủ dữ liệu)
   async function discard() {
     const ts = [...new Set(q.flatMap(j => j.ops.map(o => o.t)))];
+    q.forEach(upClean);
     q = []; err = null; save(); paint();
     ts.forEach(t => { delete DB.ver[t]; DB.fresh.delete(t); });
     try { await DB.fetch(ts, true); U.toast('Đã bỏ các thay đổi chưa lưu', 'ok'); }
@@ -109,7 +127,7 @@
     } else if (net) {
       el.innerHTML = `<div class="ob-t">Mất kết nối — sẽ tự lưu lại khi có mạng${more}</div><div class="ob-a"><button type="button" class="btn sm ghost" data-ob="retry">Thử ngay</button></div>`;
     } else {
-      el.innerHTML = `<span class="ob-spin"></span><div class="ob-t">Đang lưu lên máy chủ…${more}</div>`;
+      el.innerHTML = `<span class="ob-spin"></span><div class="ob-t">${U.esc(stage || 'Đang lưu lên máy chủ…')}${more}</div>`;
     }
     el.querySelectorAll('[data-ob]').forEach(b => b.onclick = async () => {
       if (b.dataset.ob === 'retry') { err = null; net = false; run(); return; }

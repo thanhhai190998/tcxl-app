@@ -11,7 +11,7 @@
   const rowLv = (t, r) => permRowLevel(App.user, t, r, (pt, k) => DB.get(pt, k));
   // File tải lên qua app lưu dạng "pwa:<mã Drive>" (Drive tài khoản chính) hoặc "fs:<mã>" (kho file Drive của phòng), không kèm tên
   // → trả '' để nơi gọi hiện nhãn dễ đọc thay cho dãy mã
-  const fileName = p => /^(pwa|fs):/.test(String(p || '')) ? '' : String(p || '').split('/').pop().replace(/^[0-9a-f]{8}\./, '');
+  const fileName = p => /^(pwa|fs|@up):/.test(String(p || '')) ? '' : String(p || '').split('/').pop().replace(/^[0-9a-f]{8}\./, '');
 
   V.items = () => S().groupsWithAlbums(DB);
   V.findItem = key => {
@@ -1095,6 +1095,7 @@
             out[f.n] = await Vault.enc(v);
           } else if (!(await U.confirm('Chưa đặt mật khẩu chủ nên "' + f.l + '" sẽ lưu dạng chữ thường. Vẫn lưu?'))) throw new Error('Đã huỷ');
         }
+        const upOps = [];
         for (const [f, file] of uploads) {
           if (file.size > 25 * 1024 * 1024) throw new Error(f.l + ': file lớn hơn 25 MB');
           const isImg = f.t === 'image' && /^image\/(jpeg|png|webp|heic|heif)/.test(file.type);
@@ -1106,12 +1107,15 @@
           if (base && fields.filter(x => x.t === 'file' || x.t === 'image').length > 1) base += ' - ' + f.l;   // bảng có nhiều ô file
           base = base.replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ').slice(0, 110);
           const name = base ? base + ext : isImg ? file.name.replace(/\.[^.]+$/, '') + '.jpg' : file.name;
-          btn.textContent = 'Đang tải ' + f.l.toLowerCase() + '…';
-          out[f.n] = await API.upload(t, f.n, name, du);
+          // Tải file cũng chạy nền: giữ nội dung file trên máy, ô file tạm ghi "@up:<khoá>" (mở xem được ngay), tải xong thay bằng mã thật
+          const uk = U.uid() + U.uid();
+          if (!(await DB.upPut(uk, du)) && !(await DB.upGet(uk))) throw new Error('Không giữ được file trên máy để tải lên nền — thử lại');
+          upOps.push({ fn: 'upload', t, field: f.n, name, key: uk });
+          out[f.n] = '@up:' + uk;
         }
-        // Lưu nền (outbox.js): dữ liệu trên máy đổi ngay, đi tiếp; gửi máy chủ chạy ngầm, lỗi thì báo kèm "Thử lại" / "Bỏ thay đổi".
-        // (File đã tải lên ở trên xong rồi mới tới đây.)
-        Outbox.push((isNew ? 'Thêm ' : 'Sửa ') + def.label.replace(/\s*\(.*\)$/, '').toLowerCase() + ' ' + DB.title(t, out), [{ fn: isNew ? 'add' : 'update', t, rows: [out] }]);
+        // Lưu nền (outbox.js): dữ liệu trên máy đổi ngay, đi tiếp; tải file + gửi máy chủ chạy ngầm, lỗi thì báo kèm "Thử lại" / "Bỏ thay đổi"
+        Outbox.push((isNew ? 'Thêm ' : 'Sửa ') + def.label.replace(/\s*\(.*\)$/, '').toLowerCase() + ' ' + DB.title(t, out),
+          [...upOps, { fn: isNew ? 'add' : 'update', t, rows: [out] }]);
         Files.forget(t, k);
         dirty = false;
         if (isNew && def.assign) U.toast('Đã tạo biên bản — chọn các kiện thuộc biên bản', 'ok');

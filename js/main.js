@@ -331,5 +331,25 @@
     navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController && !reloaded) { reloaded = true; location.reload(); } });
   }
 
+  // Khoá phóng to / thu nhỏ cả trang (Ctrl + lăn chuột, Ctrl + / −, chụm 2 ngón trên bàn di chuột / điện thoại): bố cục bảng
+  // tính theo cỡ 100%, lỡ tay thu nhỏ thì chữ bé li ti. Ctrl + 0 vẫn dùng được để đưa trang về 100%.
+  // Xem ảnh lớn vẫn phóng to được (khung xem ảnh tự xử lý lăn chuột / chụm, không phải phóng to cả trang).
+  document.addEventListener('wheel', e => { if (e.ctrlKey || e.metaKey) e.preventDefault(); }, { passive: false });
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && (['+', '=', '-', '_'].includes(e.key) || ['Equal', 'Minus', 'NumpadAdd', 'NumpadSubtract'].includes(e.code))) e.preventDefault();
+  }, true);
+  ['gesturestart', 'gesturechange'].forEach(ev => document.addEventListener(ev, e => { if (!e.target.closest || !e.target.closest('.lightbox')) e.preventDefault(); }, { passive: false }));
+  // Trình duyệt nhớ mức thu phóng theo trang → đã lỡ thu nhỏ / phóng to từ trước thì nhắc bấm Ctrl + 0 (máy tính; điện thoại không có)
+  const zoomHint = () => {
+    const z = window.outerWidth && window.innerWidth ? window.outerWidth / window.innerWidth : 1;
+    let el = document.getElementById('zhint');
+    const off = window.matchMedia('(pointer: fine)').matches && Math.abs(z - 1) > 0.12;
+    if (!off) { if (el) el.remove(); return; }
+    if (!el) { el = document.createElement('div'); el.id = 'zhint'; el.className = 'zhint'; el.setAttribute('role', 'status'); document.body.appendChild(el); }
+    el.innerHTML = `Trang đang ${z < 1 ? 'thu nhỏ' : 'phóng to'} khoảng <b>${Math.round(z * 100)}%</b> — bấm <kbd>Ctrl</kbd> + <kbd>0</kbd> để về cỡ chuẩn`;
+  };
+  window.addEventListener('resize', zoomHint);
+  setTimeout(zoomHint, 600);
+
   start();
 })();

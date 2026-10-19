@@ -1027,3 +1027,9 @@ body:has(#view .gwrap) .foot { margin-top: 0; }
 .hfilter { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .hfilter select, .hfilter input { flex: 1 1 180px; min-width: 0; }
 .rel.hist .rel-h .muted { margin-right: auto; }
+
+/* Không phóng to cả trang: chạm đúp không zoom (main.js chặn Ctrl + lăn chuột / Ctrl + −); lỡ thu phóng từ trước → nhắc Ctrl + 0 */
+html { touch-action: manipulation; }
+.zhint { position: fixed; top: calc(62px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 90; max-width: calc(100vw - 32px);
+  background: #a85d00; color: #fff; padding: 8px 14px; border-radius: 10px; font-size: 14px; box-shadow: 0 4px 16px #0004; pointer-events: none; }
+.zhint kbd { background: #fff3; border-radius: 4px; padding: 0 5px; font: inherit; font-weight: 700; }

@@ -138,20 +138,6 @@
   };
   V.hrefOf = it => it.href || '#/i/' + enc(it.key);
 
-  // ---------------- "HAY DÙNG": đếm số lần mở từng mục (lưu trên máy này) ----------------
-  const VISIT_KEY = 'tcxl-visits', TAB_KEY = 'tcxl-home-tab';
-  const store = { get: (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (e) { return d; } },
-    set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* bỏ qua */ } } };
-  V.visit = key => { const v = store.get(VISIT_KEY, {}); v[key] = (v[key] || 0) + 1; store.set(VISIT_KEY, v); };
-  const DEFAULT_FAV = ['DASH_VATTU', 'P1', 'P2', 'P3', 'GOI_THAU', 'NHAN_SU', 'LINK'];
-  function frequent(all, n = 8) {
-    const v = store.get(VISIT_KEY, {}), byKey = new Map(all.map(it => [it.key, it]));
-    const top = Object.entries(v).sort((a, b) => b[1] - a[1]).map(([k]) => byKey.get(k)).filter(Boolean);
-    const out = [];
-    for (const it of [...top, ...DEFAULT_FAV.map(k => byKey.get(k)).filter(Boolean), ...all]) if (!out.includes(it) && out.length < n) out.push(it);
-    return out;
-  }
-
   function greeting() {
     const h = new Date().getHours();
     const hello = h < 11 ? 'Chào buổi sáng' : h < 13 ? 'Chào buổi trưa' : h < 18 ? 'Chào buổi chiều' : 'Chào buổi tối';
@@ -160,15 +146,12 @@
     return { hello, name, day: day.charAt(0).toUpperCase() + day.slice(1) };
   }
 
-  // Ô gọn kiểu màn hình điện thoại: biểu tượng + tên
-  const mini = it => `<a class="mt" href="${V.hrefOf(it)}" style="--gc:${it.color || 'var(--g7)'}" title="${esc(it.desc || it.label)}">
-    <span class="mt-ic">${Icon(it.ic)}</span><span class="mt-l">${esc(it.label)}</span></a>`;
-
+  // ---------------- TRANG CHỦ: bảng điều khiển tiến độ ----------------
+  // 4 ô số liệu · thêm nhanh · thanh tiến độ 3 Phase · theo gói thầu · biên bản mới nhất (chỉ phần người dùng được xem)
   V.home = async () => {
     App.head(window.APP_CONFIG.appName, { home: true });
     App.loading();
-    const groups = V.navGroups(), all = groups.flatMap(g => g.items);
-
+    const groups = V.navGroups();
     const can = t => permTableLevel(App.user, t);
     const PH = SCHEMA.PHASES, kl = '#/i/KIEN?Phase=';
     const kpis = [
@@ -181,16 +164,15 @@
       { t: 'KIEN', label: 'Kiện mới' }, { t: 'MGMER', label: 'Biên bản kiểm đếm' },
       { t: 'KIEM_TRA', label: 'Kiểm tra vị trí' }, { t: 'GIR', label: 'Mở kiện' }
     ].filter(q => can(q.t) === 2);
+    const DOC = [['MGMER', 'Kiểm đếm'], ['GIR', 'Mở kiện'], ['OSD', 'OSD']].filter(([t]) => can(t) > 0);
+    const kienOk = can('KIEN') > 0;
 
     const g = greeting();
     App.hero(`<div class="hero-in ${kpis.length ? 'with-kpi' : ''}">
       <div class="hday">${esc(g.day)}</div>
       <h1 class="hhello">${esc(g.hello)}, ${esc(g.name)}</h1>
-      <label class="hsearch">${Icon('search')}<input type="search" id="hq" placeholder="Tìm nhanh một mục…" autocomplete="off"></label>
     </div>`);
 
-    let tab = store.get(TAB_KEY, 'g0');
-    if (!groups.some(x => x.key === tab)) tab = groups[0] && groups[0].key;
     let html = '';
     if (kpis.length) html += `<div class="kpi-row">${kpis.map(k => `<a class="kcard" href="${k.href}" data-k="${k.id}">
       <span class="kic">${Icon(k.ic)}</span><span class="kn"><span class="skel"></span></span><span class="kl">${esc(k.label)}</span></a>`).join('')}</div>`;
@@ -198,60 +180,71 @@
       `<a class="qbtn" href="#/f/${q.t}/new">${Icon('plus')}${esc(q.label)}</a>`).join('')}</div>`;
     if (!groups.length) html += '<div class="empty">Tài khoản của bạn chưa được cấp quyền mục nào. Hãy liên hệ quản trị viên.</div>';
     else {
-      html += `<section class="hsec" id="hfav"><div class="hsec-h"><h2>${Icon('star', 'sm')} Hay dùng</h2><span class="muted small">tự cập nhật theo số lần bạn mở</span></div>
-        <div class="mgrid">${frequent(all).map(mini).join('')}</div></section>`;
-      html += `<section class="hsec" id="hall"><div class="hsec-h"><h2>Tất cả mục</h2></div>
-        <div class="gtabs">${groups.map(x => `<button type="button" class="gtab ${x.key === tab ? 'on' : ''}" data-t="${x.key}" style="--gc:${x.color}">
-          <span class="gt-ic">${Icon(x.ic)}</span>${esc(x.label)}<b>${x.items.length}</b></button>`).join('')}</div>
-        <div class="mgrid" id="gitems"></div></section>`;
-      html += `<section class="hsec" id="hres" hidden><div class="hsec-h"><h2>Kết quả tìm</h2></div><div class="mgrid" id="ritems"></div></section>`;
+      if (kienOk) html += `<section class="hsec"><div class="hsec-h"><h2>${Icon('table', 'sm')} Tiến độ 3 Phase</h2><span class="muted small" id="hpsum"></span></div>
+        <div class="card hprog"><div class="pbar3" id="hpbar"></div><div class="plg" id="hplg"><span class="skel"></span></div></div></section>`;
+      if (kienOk || DOC.length) html += `<div class="hcols">
+        ${kienOk ? `<section class="hsec"><div class="hsec-h"><h2>${Icon('folder', 'sm')} Theo gói thầu</h2>
+          ${can('DASH_VATTU') > 0 || App.user.admin ? '<a class="small hmore" href="#/i/DASH_VATTU">Xem Tổng quan</a>' : ''}</div>
+          <div class="card hlist" id="hgoi"><span class="skel"></span></div></section>` : ''}
+        ${DOC.length ? `<section class="hsec"><div class="hsec-h"><h2>${Icon('clock', 'sm')} Biên bản mới nhất</h2></div>
+          <div class="card hlist" id="hdocs"><span class="skel"></span></div></section>` : ''}</div>`;
     }
     App.main.innerHTML = html;
 
-    // Tab nhóm
-    const drawTab = () => {
-      const gr = groups.find(x => x.key === tab); const box = document.getElementById('gitems');
-      if (box && gr) box.innerHTML = gr.items.map(mini).join('');
-    };
-    App.main.querySelectorAll('.gtab').forEach(b => b.onclick = () => {
-      tab = b.dataset.t; store.set(TAB_KEY, tab);
-      App.main.querySelectorAll('.gtab').forEach(x => x.classList.toggle('on', x === b));
-      drawTab();
-      centerTab(b, true);
-    });
-    // Đưa tab đang chọn vào giữa dải tab (chỉ cuộn ngang, không kéo trang)
-    const centerTab = (b, smooth) => { const bar = b && b.parentElement; if (!bar) return;
-      bar.scrollTo({ left: b.offsetLeft - bar.offsetLeft - (bar.clientWidth - b.offsetWidth) / 2, behavior: smooth ? 'smooth' : 'auto' }); };
-    centerTab(App.main.querySelector('.gtab.on'));
-    drawTab();
+    // Số liệu (tải sau, không chặn trang)
+    const need = [...new Set([...kpis.flatMap(k => k.ts), ...(kienOk ? ['KIEN'] : []), ...DOC.map(d => d[0])])].filter(t => can(t) > 0);
+    if (!need.length) return;
+    await Promise.all(need.map(t => DB.loadDeps(t).catch(() => {})));
+    if (!App.main.querySelector('.kpi-row, .hsec')) return;   // đã sang trang khác trong lúc chờ
+    const kien = DB.rows('KIEN'), fmt = n => U.int(n);
+    const set = (id, n) => { const card = App.main.querySelector(`[data-k="${id}"]`); if (card) card.querySelector('.kn').textContent = n; };
+    set('tot', fmt(kien.length));
+    set('ve', fmt(kien.filter(r => r.MGMER && !r.GIR).length));
+    set('mo', fmt(kien.filter(r => r.GIR).length));
+    set('osd', fmt(DB.rows('OSD').length));
 
-    // Tìm nhanh: hiện kết quả từ mọi nhóm
-    const hq = document.getElementById('hq');
-    hq.oninput = () => {
-      const q = U.norm(hq.value.trim());
-      const res = q ? all.filter(it => U.match(it.label + ' ' + (it.desc || ''), hq.value)) : [];
-      ['hfav', 'hall'].forEach(id => { const el = document.getElementById(id); if (el) el.hidden = !!q; });
-      App.main.querySelectorAll('.kpi-row, .quick').forEach(el => { el.hidden = !!q; });
-      const rs = document.getElementById('hres');
-      if (rs) { rs.hidden = !q; document.getElementById('ritems').innerHTML = res.length ? res.map(mini).join('') : '<div class="muted small mg-empty">Không có mục nào khớp</div>'; }
-      document.querySelector('.hero-in').classList.toggle('with-kpi', kpis.length > 0 && !q);
-    };
+    const pct = (n, tot) => tot ? Math.round(n / tot * 100) : 0;
+    const phOf = r => r.GIR ? 2 : r.MGMER ? 1 : 0;   // giống SCHEMA.phaseOf
+    const PNAME = ['P1 · Chờ về', 'P2 · Đã về, chưa mở', 'P3 · Đã mở kiện'];
+    // Thanh tiến độ: 3 đoạn, bấm vào đoạn nào thì mở danh sách kiện của Phase đó
+    // big = thanh lớn (mỗi đoạn là liên kết); thanh nhỏ trong dòng gói thầu (đã là liên kết) dùng <span> — không lồng <a> trong <a>
+    const bar = (c, tot, big) => [0, 1, 2].filter(i => c[i]).map(i => big
+      ? `<a class="p${i + 1}" href="${kl + encodeURIComponent(PH[i])}" style="width:${c[i] / tot * 100}%" title="${esc(PNAME[i])}: ${fmt(c[i])} kiện (${pct(c[i], tot)}%)"></a>`
+      : `<span class="p${i + 1}" style="width:${c[i] / tot * 100}%"></span>`).join('');
+    if (kienOk) {
+      const c = [0, 0, 0]; kien.forEach(r => { c[phOf(r)]++; });
+      const tot = kien.length;
+      const pb = App.main.querySelector('#hpbar'), lg = App.main.querySelector('#hplg'), sm = App.main.querySelector('#hpsum');
+      if (pb) pb.innerHTML = tot ? bar(c, tot, true) : '';
+      if (lg) lg.innerHTML = tot ? [0, 1, 2].map(i => `<a class="p${i + 1}" href="${kl + encodeURIComponent(PH[i])}"><i></i>${esc(PNAME[i])}
+        <b>${fmt(c[i])}</b><span>${pct(c[i], tot)}%</span></a>`).join('') : '<span class="muted small">Chưa có kiện nào</span>';
+      if (sm) sm.textContent = tot ? `${fmt(tot)} kiện · đã mở ${pct(c[2], tot)}%` : '';
 
-    // Số liệu trong ngày (tải sau, không chặn trang)
-    if (kpis.length) {
-      const need = [...new Set(kpis.flatMap(k => k.ts).filter(t => can(t) > 0))];
-      await Promise.all(need.map(t => DB.loadDeps(t).catch(() => {})));
-      const set = (id, n, warn) => {
-        const card = App.main.querySelector(`[data-k="${id}"]`); if (!card) return;
-        card.querySelector('.kn').textContent = n;
-        card.classList.toggle('warn', !!warn && n > 0);
-        card.classList.toggle('good', !!warn && n === 0);
-      };
-      const kien = DB.rows('KIEN'), fmt = n => U.int(n);
-      set('tot', fmt(kien.length));
-      set('ve', fmt(kien.filter(r => r.MGMER && !r.GIR).length));
-      set('mo', fmt(kien.filter(r => r.GIR).length));
-      set('osd', fmt(DB.rows('OSD').length));
+      // Theo gói thầu: tổng kiện + thanh 3 Phase nhỏ, nhiều kiện trước
+      const by = new Map();
+      kien.forEach(r => { const k = String(r.Goi_thau || '(chưa có gói)'); if (!by.has(k)) by.set(k, [0, 0, 0]); by.get(k)[phOf(r)]++; });
+      const goi = [...by.entries()].map(([k, x]) => ({ k, x, n: x[0] + x[1] + x[2] })).sort((a, b) => b.n - a.n);
+      const LIM = 8, gl = App.main.querySelector('#hgoi');
+      if (gl) gl.innerHTML = goi.length ? goi.slice(0, LIM).map(o => {
+        const gr = DB.get('GOI_THAU', o.k), state = o.x[2] ? `mở ${pct(o.x[2], o.n)}%` : o.x[1] ? `đã về ${pct(o.x[1], o.n)}%` : 'chờ về';
+        return `<a class="hrow2" href="#/i/KIEN?Goi_thau=${encodeURIComponent(o.k)}" title="${esc(gr ? gr.TenGoi || o.k : o.k)}">
+          <b class="hg">${esc(o.k)}</b><span class="pbar3 sm">${bar(o.x, o.n)}</span><span class="hn">${fmt(o.n)} kiện</span><span class="hs muted">${state}</span></a>`;
+      }).join('') + (goi.length > LIM ? `<div class="muted small hrest">+ ${goi.length - LIM} gói khác — xem ở Tổng quan</div>` : '')
+        : '<div class="muted small hrest">Chưa có kiện nào</div>';
+    }
+
+    // Biên bản mới nhất (theo ngày biên bản; bỏ ngày gõ nhầm ở tương lai xa) + số kiện của từng biên bản
+    const dl = App.main.querySelector('#hdocs');
+    if (dl) {
+      const soon = U.isoOf(new Date(Date.now() + 31 * 864e5));
+      const cnt = {}; DOC.forEach(([t]) => { cnt[t] = new Map(); kien.forEach(r => { if (r[t]) cnt[t].set(r[t], (cnt[t].get(r[t]) || 0) + 1); }); });
+      const docs = DOC.flatMap(([t, l]) => DB.rows(t).filter(r => r.Ngay && String(r.Ngay) <= soon).map(r => ({ t, l, r })))
+        .sort((a, b) => String(b.r.Ngay).localeCompare(String(a.r.Ngay))).slice(0, 6);
+      dl.innerHTML = docs.length ? docs.map(d => { const id = d.r[DB.keyField(d.t)], n = cnt[d.t].get(id) || 0;
+        return `<a class="hrow2 doc" href="#/r/${d.t}/${encodeURIComponent(id)}"><span class="badge info hd">${esc(d.l)}</span>
+          <b class="hg">${esc(d.r.So || id)}</b><span class="muted hs hgoi">${esc(d.r.Goi_thau || '')}</span><span class="hn">${esc(U.fmtDate(d.r.Ngay))}</span>
+          <span class="hs muted">${n ? fmt(n) + ' kiện' : ''}</span></a>`; }).join('')
+        : '<div class="muted small hrest">Chưa có biên bản nào</div>';
     }
   };
 
@@ -259,7 +252,6 @@
   V.list = async key => {
     const it = V.findItem(key);
     if (!it || !canItem(it)) return App.notFound();
-    V.visit(key);
     if (it.type === 'dash') return Dash.render(it);
     if (it.type === 'overview') return Overview.render(it);
     if (it.type === 'hub') return Hub.render(it);

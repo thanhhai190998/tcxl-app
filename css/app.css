@@ -1038,3 +1038,36 @@ html { touch-action: manipulation; }
 .zhint { position: fixed; top: calc(62px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 90; max-width: calc(100vw - 32px);
   background: #a85d00; color: #fff; padding: 8px 14px; border-radius: 10px; font-size: 14px; box-shadow: 0 4px 16px #0004; pointer-events: none; }
 .zhint kbd { background: #fff3; border-radius: 4px; padding: 0 5px; font: inherit; font-weight: 700; }
+
+/* Trang chủ (bảng điều khiển tiến độ): thanh 3 Phase, theo gói thầu, biên bản mới nhất */
+.hprog { padding: 14px 16px; margin-bottom: 0; }
+.pbar3 { display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: var(--line); }
+.pbar3 > * { display: block; height: 100%; min-width: 3px; }
+.pbar3 > * + * { box-shadow: inset 2px 0 0 var(--card); }
+.pbar3 .p1, .plg .p1 i { background: color-mix(in srgb, var(--muted) 40%, var(--line)); }
+.pbar3 .p2, .plg .p2 i { background: color-mix(in srgb, var(--pri) 45%, #fff); }
+.pbar3 .p3, .plg .p3 i { background: var(--pri); }
+.pbar3.sm { height: 8px; border-radius: 4px; }
+.plg { display: flex; flex-wrap: wrap; gap: 6px 22px; margin-top: 10px; font-size: 13px; }
+.plg a { display: inline-flex; align-items: center; gap: 6px; color: var(--text); text-decoration: none; }
+.plg a:hover b { color: var(--pri); }
+.plg i { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.plg b { font-weight: 700; }
+.plg span { color: var(--muted); }
+.hcols { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 0 16px; }
+@media (max-width: 860px) { .hcols { grid-template-columns: minmax(0, 1fr); } }
+.hmore { margin-left: auto; color: var(--pri); text-decoration: none; }
+.hlist { padding: 4px 14px; margin-bottom: 0; }
+.hrow2 { display: grid; grid-template-columns: 74px minmax(60px, 1fr) auto 76px; align-items: center; gap: 10px; padding: 9px 0; color: var(--text); text-decoration: none; font-size: 14px; }
+.hrow2 + .hrow2 { border-top: 1px solid var(--line); }
+.hrow2:hover .hg { color: var(--pri); }
+.hrow2 .hg { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hrow2 .hn { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.hrow2 .hs { font-size: 12.5px; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hrow2.doc { grid-template-columns: auto minmax(0, 1fr) auto auto 64px; }
+.hrow2 .hd { justify-self: start; }
+.hrest { padding: 10px 0; }
+@media (max-width: 560px) {   /* điện thoại: biên bản mới nhất bỏ cột gói (đã có số + ngày) cho số biên bản đủ chỗ */
+  .hrow2.doc { grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 8px; }
+  .hrow2.doc .hgoi { display: none; }
+}

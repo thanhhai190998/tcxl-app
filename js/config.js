@@ -3,7 +3,7 @@
 //  (Logo: thay các file trong thư mục icons/ — xem README.md)
 // =====================================================================
 window.APP_CONFIG = {
-  appName: 'Phòng TCXL · LP1',      // tên hiển thị trên đầu app
+  appName: 'Phòng TCXL · LP1PP',      // tên hiển thị trên đầu app
   primaryColor: '#0e8a6b',          // màu chủ đạo (đổi cả theme-color trong manifest.webmanifest nếu muốn)
   primaryColor2: '#0b6b9a',         // màu thứ 2 của dải màu thanh trên
   font: 'K2D',                      // tên font trên Google Fonts (phải hỗ trợ tiếng Việt); '' = font mặc định của máy
@@ -22,5 +22,5 @@ window.APP_CONFIG = {
   // Cảnh báo vật tư (trang Thống kê tổng)
   waitOpenDays: 180,         // kiện đã kiểm đếm quá N ngày mà chưa mở kiện
   listPage: 100,             // danh sách dài (vd danh sách kiện) hiện từng trang N dòng
-  version: '0.14.3'
+  version: '0.14.4'
 };

@@ -56,12 +56,10 @@ h2, h3 { margin: 0 0 8px; }
 .is-demo .demo-pill { display: inline-block; }
 
 main { max-width: 1040px; margin: 0 auto; padding: 12px 12px 20px; overflow-x: clip;   /* chặn nội dung lỡ tràn ngang (điện thoại sẽ thu nhỏ cả trang) */
-  min-height: calc(100vh - 116px - env(safe-area-inset-top)); }   /* trang ngắn: chân trang vẫn nằm sát đáy màn hình */
-@media (max-width: 759px) {
-  main { min-height: calc(100vh - 204px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); }
-  body:has(.fab) main { min-height: calc(100vh - 270px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); }
-}
-#hero:not([hidden]) + main { min-height: 0; }   /* trang chủ đã có vùng chào phía trên → không cần kéo dài */
+  /* trang ngắn: chân trang vẫn nằm sát đáy màn hình — main.js đo thật chiều cao thanh trên / vùng chào / chân trang (đã gồm chỗ chừa
+     cho thanh điều hướng, nút + nổi trên điện thoại) → không còn số cố định phải sửa tay mỗi lần đổi chân trang */
+  min-height: calc(100vh - var(--top-h, 54px) - var(--hero-h, 0px) - var(--foot-h, 40px));
+  min-height: calc(100dvh - var(--top-h, 54px) - var(--hero-h, 0px) - var(--foot-h, 40px)); }
 
 /* ---- Chân trang: bản quyền ---- */
 .foot { max-width: 1040px; margin: 8px auto 0; padding: 0 12px calc(18px + env(safe-area-inset-bottom)); }
@@ -76,7 +74,14 @@ main { max-width: 1040px; margin: 0 auto; padding: 12px 12px 20px; overflow-x: c
 .foot a, .lfoot a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 .foot a:hover, .lfoot a:hover { color: var(--pri); }
 .lfoot { margin: 14px 0 0; font-size: 12px; color: var(--muted); }
+/* Máy tính / máy tính bảng: chân trang gọn 1 dòng (hẹp quá thì tự xuống dòng) */
+@media (min-width: 760px) {
+  .foot { margin-top: 0; padding-bottom: calc(8px + env(safe-area-inset-bottom)); }
+  .foot-in { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 0; padding-top: 8px; }
+  .foot-meta::before { content: "·"; display: inline-block; margin: 0 7px; color: var(--muted); font-weight: 400; }
+}
 @media (max-width: 759px) {
+  .foot-in { padding-top: 10px; }
   .foot-rr { display: block; }   /* điện thoại: "Bảo lưu mọi quyền" xuống dòng riêng, bỏ dấu chấm */
   .foot-rr::before { content: none; }
   .foot-meta > span:first-child { width: 100%; }   /* "Developed by …" một dòng riêng, dòng dưới: chính sách · phiên bản */

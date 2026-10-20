@@ -331,6 +331,18 @@
     navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController && !reloaded) { reloaded = true; location.reload(); } });
   }
 
+  // Chiều cao thật của thanh trên / vùng chào (trang chủ) / chân trang → biến CSS cho main (min-height): trang ngắn thì chân trang
+  // vẫn sát đáy màn hình, không dư khoảng trống, không làm trang phải cuộn
+  const sizeVars = () => {
+    const st = document.documentElement.style, top = document.querySelector('.top'), hero = document.getElementById('hero'), foot = document.getElementById('foot');
+    st.setProperty('--top-h', (top ? top.offsetHeight : 54) + 'px');
+    st.setProperty('--hero-h', (hero && !hero.hidden ? hero.offsetHeight : 0) + 'px');
+    st.setProperty('--foot-h', (foot && getComputedStyle(foot).display !== 'none' ? foot.offsetHeight + (parseFloat(getComputedStyle(foot).marginTop) || 0) : 0) + 'px');
+  };
+  if (window.ResizeObserver) { const ro = new ResizeObserver(sizeVars); ['.top', '#hero', '#foot'].forEach(s => { const el = document.querySelector(s); if (el) ro.observe(el); }); }
+  window.addEventListener('resize', sizeVars);
+  sizeVars();
+
   // Khoá phóng to / thu nhỏ cả trang (Ctrl + lăn chuột, Ctrl + / −, chụm 2 ngón trên bàn di chuột / điện thoại): bố cục bảng
   // tính theo cỡ 100%, lỡ tay thu nhỏ thì chữ bé li ti. Ctrl + 0 vẫn dùng được để đưa trang về 100%.
   // Xem ảnh lớn vẫn phóng to được (khung xem ảnh tự xử lý lăn chuột / chụm, không phải phóng to cả trang).
@@ -341,9 +353,11 @@
   ['gesturestart', 'gesturechange'].forEach(ev => document.addEventListener(ev, e => { if (!e.target.closest || !e.target.closest('.lightbox')) e.preventDefault(); }, { passive: false }));
   // Trình duyệt nhớ mức thu phóng theo trang → đã lỡ thu nhỏ / phóng to từ trước thì nhắc bấm Ctrl + 0 (máy tính; điện thoại không có)
   const zoomHint = () => {
+    // Tỉ lệ cửa sổ / vùng trang ≈ mức thu phóng; phải lệch cả chiều ngang lẫn chiều dọc (cửa sổ giả lập kích thước thì chỉ lệch 1 chiều)
     const z = window.outerWidth && window.innerWidth ? window.outerWidth / window.innerWidth : 1;
+    const zh = window.outerHeight && window.innerHeight ? window.outerHeight / window.innerHeight : 1;
     let el = document.getElementById('zhint');
-    const off = window.matchMedia('(pointer: fine)').matches && Math.abs(z - 1) > 0.12;
+    const off = window.matchMedia('(pointer: fine)').matches && ((z < 0.88 && zh < 0.97) || (z > 1.12 && zh > 1.2));
     if (!off) { if (el) el.remove(); return; }
     if (!el) { el = document.createElement('div'); el.id = 'zhint'; el.className = 'zhint'; el.setAttribute('role', 'status'); document.body.appendChild(el); }
     el.innerHTML = `Trang đang ${z < 1 ? 'thu nhỏ' : 'phóng to'} khoảng <b>${Math.round(z * 100)}%</b> — bấm <kbd>Ctrl</kbd> + <kbd>0</kbd> để về cỡ chuẩn`;

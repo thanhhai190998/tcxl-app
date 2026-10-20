@@ -22,5 +22,5 @@ window.APP_CONFIG = {
   // Cảnh báo vật tư (trang Thống kê tổng)
   waitOpenDays: 180,         // kiện đã kiểm đếm quá N ngày mà chưa mở kiện
   listPage: 100,             // danh sách dài (vd danh sách kiện) hiện từng trang N dòng
-  version: '0.14.1'
+  version: '0.14.2'
 };

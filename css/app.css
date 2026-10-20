@@ -74,11 +74,11 @@ main { max-width: 1040px; margin: 0 auto; padding: 12px 12px 20px; overflow-x: c
 .foot a, .lfoot a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 .foot a:hover, .lfoot a:hover { color: var(--pri); }
 .lfoot { margin: 14px 0 0; font-size: 12px; color: var(--muted); }
-/* Máy tính / máy tính bảng: chân trang gọn 1 dòng (hẹp quá thì tự xuống dòng) */
+/* Chân trang 2 dòng, khoảng cách gọn như ở trang bảng (trước: trang chủ / trang thường chừa ~42 px trên chữ, ~18 px dưới) */
 @media (min-width: 760px) {
+  main { padding-bottom: 10px; }
   .foot { margin-top: 0; padding-bottom: calc(8px + env(safe-area-inset-bottom)); }
-  .foot-in { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 0; padding-top: 8px; }
-  .foot-meta::before { content: "·"; display: inline-block; margin: 0 7px; color: var(--muted); font-weight: 400; }
+  .foot-in { padding-top: 10px; gap: 2px; }
 }
 @media (max-width: 759px) {
   .foot-in { padding-top: 10px; }

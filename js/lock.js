@@ -1,4 +1,5 @@
-// Khoá ứng dụng bằng mã PIN 4 số (riêng từng máy, bắt buộc) — chặn người khác cầm máy mở app.
+// Khoá ứng dụng bằng mã PIN 4 số (riêng từng máy, có công tắc bật / tắt) — chặn người khác cầm máy mở app.
+// Lần đầu mở app hỏi đặt PIN, có nút "Không dùng khoá trên máy này"; bật / tắt lại ở Cài đặt → Khoá ứng dụng.
 // Khoá khi mở app, khi rời app quá N phút, khi không thao tác quá N phút, hoặc bấm 🔒 trên thanh tiêu đề.
 // PIN chỉ lưu dạng mã băm (PBKDF2) trên máy; sai 5 lần phải chờ 30 giây, sai 10 lần tự đăng xuất + xoá dữ liệu trên máy.
 // Có thể mở bằng vân tay / khuôn mặt / Windows Hello (WebAuthn — xác thực ngay trên máy, không gửi đi đâu).
@@ -15,6 +16,7 @@
   const ITER = 150000, MAX_SOFT = 5, MAX_HARD = 10, WAIT_MS = 30000;
   const key = () => 'tcxl-pin|' + C().mode + '|' + ((App.user && App.user.email) || '');
   const rec = () => ls.get(key(), null);
+  const offKey = () => 'tcxl-lock-off|' + C().mode + '|' + ((App.user && App.user.email) || '');   // người dùng chọn không khoá máy này
   async function hash(pin, salt, iter) {
     const k = await crypto.subtle.importKey('raw', enc.encode(pin), 'PBKDF2', false, ['deriveBits']);
     return b64(await crypto.subtle.deriveBits({ name: 'PBKDF2', salt, iterations: iter, hash: 'SHA-256' }, k, 256));
@@ -64,9 +66,10 @@
     // Gọi ngay khi biết người dùng (trước khi vẽ trang): chưa có PIN → bắt đặt; có rồi → khoá
     boot() {
       if (!L._wired) wire();
-      if (!L.hasPin()) return setupScreen(false);
+      if (!L.hasPin()) return L.isOff() ? undefined : setupScreen(false);   // đã chọn không dùng khoá → vào thẳng
       L.lock();
     },
+    isOff() { return !!ls.get(offKey(), false); },
     lock() {
       if (!L.hasPin()) return;
       L.locked = true;
@@ -146,8 +149,9 @@
     const demo = C().mode === 'demo';
     const step1 = () => pad(box, {
       title: changing ? 'Mã PIN mới' : 'Đặt mã PIN cho máy này',
-      sub: changing ? 'Nhập 4 số mới' : 'Mỗi lần mở app trên máy này sẽ cần mã PIN 4 số — để người khác cầm máy không xem được dữ liệu.',
-      foot: changing ? '<button type="button" class="linkbtn" data-x>Huỷ</button>' : demo ? '<button type="button" class="linkbtn" data-skip>Bỏ qua (chỉ ở bản demo)</button>' : '',
+      sub: changing ? 'Nhập 4 số mới' : 'Mỗi lần mở app trên máy này sẽ cần mã PIN 4 số — để người khác cầm máy không xem được dữ liệu. Không cần thì bấm "Không dùng khoá" bên dưới.',
+      foot: changing ? '<button type="button" class="linkbtn" data-x>Huỷ</button>'
+        : '<button type="button" class="linkbtn" data-off>Không dùng khoá trên máy này</button>' + (demo ? ' · <button type="button" class="linkbtn" data-skip>Bỏ qua (chỉ ở bản demo)</button>' : ''),
       onDone: pin => {
         if (/^(\d)\1{3}$/.test(pin) || '0123456789'.includes(pin) || '9876543210'.includes(pin)) { box._msg('Mã quá dễ đoán (1111, 1234…) — chọn mã khác', true); return false; }
         first = pin; step2(); return true;
@@ -164,14 +168,35 @@
         return true;
       }
     });
-    box.onclick = e => {
+    box.onclick = async e => {
       if (e.target.closest('[data-back]')) step1();
       else if (e.target.closest('[data-x]')) hide();
       else if (e.target.closest('[data-skip]')) { L.locked = false; hide(); }
+      else if (e.target.closest('[data-off]')) {
+        if (!(await U.confirm('Không dùng khoá app trên máy này? Ai cầm máy cũng mở được app. Có thể bật lại bất cứ lúc nào ở Cài đặt → Khoá ứng dụng.'))) return;
+        ls.set(offKey(), true); L.locked = false; hide(); lastAct = Date.now(); if (App.lockIcon) App.lockIcon();
+        U.toast('Đã tắt khoá app trên máy này', 'ok');
+      }
     };
     step1();
   }
   L.setup = () => setupScreen(false);
+  // Bật khoá (Cài đặt): bỏ lựa chọn "không khoá", đặt mã PIN
+  L.enable = () => { ls.del(offKey()); setupScreen(false); };
+  // Tắt khoá (Cài đặt): nhập đúng mã PIN hiện tại mới tắt được (người khác cầm máy không tự tắt được) → xoá PIN + vân tay
+  L.disable = done => {
+    const finish = () => {
+      L.forget(); ls.set(offKey(), true); L.locked = false; hide(); if (App.lockIcon) App.lockIcon();
+      U.toast('Đã tắt khoá app trên máy này', 'ok'); if (done) done();
+    };
+    if (!L.hasPin()) return finish();
+    const box = el();
+    pad(box, {
+      title: 'Nhập mã PIN hiện tại', sub: 'Để tắt khoá app trên máy này', foot: '<button type="button" class="linkbtn" data-x>Huỷ</button>',
+      onDone: async pin => { if (!(await L.check(pin))) { box._msg('Mã PIN không đúng', true); return false; } finish(); return true; }
+    });
+    box.onclick = e => { if (e.target.closest('[data-x]')) { hide(); if (done) done(); } };
+  };
   L.changePin = () => {   // từ Cài đặt: xác nhận PIN cũ rồi đặt PIN mới
     const box = el();
     pad(box, {

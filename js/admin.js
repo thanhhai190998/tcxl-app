@@ -258,14 +258,16 @@
           '<button class="btn sm ghost" data-act="logoutall">Đăng xuất</button>'));
     if (sec) h += group('Bảo mật', sec);
 
-    const la = Lock.after();
+    // Công tắc khoá app (riêng máy này): bật = đặt mã PIN; tắt = nhập mã PIN hiện tại rồi bỏ khoá. Đang bật mới hiện đổi PIN / tự khoá / vân tay
+    const la = Lock.after(), lockOn = Lock.hasPin();
     h += group('Khoá ứng dụng',
-      srow('lock', 'var(--g6)', 'Mã PIN máy này', Lock.hasPin() ? 'Đã đặt · cần nhập khi mở app' : '⚠️ Chưa đặt — ai cầm máy cũng mở được app',
-        Lock.hasPin() ? '<button class="btn sm ghost" data-act="chgpin">Đổi</button>' : '<button class="btn sm" data-act="setpin">Đặt</button>')
-      + srow('clock', 'var(--g6)', 'Tự khoá khi rời app hoặc không thao tác', 'Áp dụng trên máy này',
-        `<div class="seg mini" data-act="lockafter">${[[0, 'Ngay'], [1, '1 phút'], [5, '5 phút'], [15, '15 phút']].map(([v, l]) => `<button type="button" class="segb ${v === la ? 'on' : ''}" data-v="${v}">${l}</button>`).join('')}</div>`)
-      + `<div data-biorow hidden>${srow('key', 'var(--g6)', 'Mở khoá bằng vân tay / khuôn mặt', 'Windows Hello, vân tay, Face ID của máy này — mã PIN vẫn dùng được',
-        `<input type="checkbox" class="sw" data-act="bio" ${Lock.bioOn() ? 'checked' : ''} aria-label="Mở khoá bằng vân tay / khuôn mặt">`)}</div>`);
+      srow('lock', 'var(--g6)', 'Khoá app bằng mã PIN', lockOn ? 'Đang bật · cần nhập mã PIN khi mở app trên máy này' : 'Đang tắt — ai cầm máy này cũng mở được app',
+        `<input type="checkbox" class="sw" data-act="lockon" ${lockOn ? 'checked' : ''} aria-label="Khoá app bằng mã PIN">`)
+      + (lockOn ? srow('refresh', 'var(--g6)', 'Đổi mã PIN', 'Nhập mã cũ rồi đặt mã mới', '<button class="btn sm ghost" data-act="chgpin">Đổi</button>')
+        + srow('clock', 'var(--g6)', 'Tự khoá khi rời app hoặc không thao tác', 'Áp dụng trên máy này',
+          `<div class="seg mini" data-act="lockafter">${[[0, 'Ngay'], [1, '1 phút'], [5, '5 phút'], [15, '15 phút']].map(([v, l]) => `<button type="button" class="segb ${v === la ? 'on' : ''}" data-v="${v}">${l}</button>`).join('')}</div>`)
+        + `<div data-biorow hidden>${srow('key', 'var(--g6)', 'Mở khoá bằng vân tay / khuôn mặt', 'Windows Hello, vân tay, Face ID của máy này — mã PIN vẫn dùng được',
+          `<input type="checkbox" class="sw" data-act="bio" ${Lock.bioOn() ? 'checked' : ''} aria-label="Mở khoá bằng vân tay / khuôn mặt">`)}</div>` : ''));
     h += group('Giao diện', srow(th === 'dark' ? 'moon' : 'sun', 'var(--g4)', 'Chế độ màu', 'Áp dụng trên máy này',
       `<div class="seg mini" data-act="theme">${[['', 'Theo máy'], ['light', 'Sáng'], ['dark', 'Tối']].map(([v, l]) => `<button type="button" class="segb ${v === th ? 'on' : ''}" data-v="${v}">${l}</button>`).join('')}</div>`));
 
@@ -296,6 +298,12 @@
     on('signout', () => App.signOut());
     on('setpin', () => { Lock.setup(); watchPin(); });
     on('chgpin', () => Lock.changePin());
+    const lsw = App.main.querySelector('[data-act="lockon"]');
+    if (lsw) lsw.onchange = () => {
+      if (lsw.checked) { Lock.enable(); watchPin(); return; }
+      lsw.checked = true;   // chỉ tắt khi đã nhập đúng mã PIN
+      Lock.disable(() => { if (location.hash === '#/settings') A.settings(); });
+    };
     // Đặt PIN xong (màn hình đóng) → vẽ lại Cài đặt để cập nhật trạng thái
     const watchPin = () => { const t = setInterval(() => { if (!document.body.classList.contains('locked')) { clearInterval(t); if (location.hash === '#/settings') A.settings(); App.lockIcon(); } }, 400); };
     const lab = App.main.querySelector('[data-act="lockafter"]');

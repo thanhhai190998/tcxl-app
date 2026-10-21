@@ -1055,6 +1055,9 @@ html { touch-action: manipulation; }
 .plg b { font-weight: 700; }
 .plg span { color: var(--muted); }
 .hcols { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 0 16px; }
+.hcols > .hsec { display: flex; flex-direction: column; }   /* 2 khung cạnh nhau cao bằng nhau (khung ngắn hơn kéo dài xuống) */
+.hcols > .hsec > .hlist { flex: 1; }
+.hcols .hsec-h { min-height: 24px; }   /* tiêu đề 2 khung cao bằng nhau (bên có link Xem Tổng quan) */
 @media (max-width: 860px) { .hcols { grid-template-columns: minmax(0, 1fr); } }
 .hmore { margin-left: auto; color: var(--pri); text-decoration: none; }
 .hlist { padding: 4px 14px; margin-bottom: 0; }

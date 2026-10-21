@@ -239,7 +239,7 @@
       const soon = U.isoOf(new Date(Date.now() + 31 * 864e5));
       const cnt = {}; DOC.forEach(([t]) => { cnt[t] = new Map(); kien.forEach(r => { if (r[t]) cnt[t].set(r[t], (cnt[t].get(r[t]) || 0) + 1); }); });
       const docs = DOC.flatMap(([t, l]) => DB.rows(t).filter(r => r.Ngay && String(r.Ngay) <= soon).map(r => ({ t, l, r })))
-        .sort((a, b) => String(b.r.Ngay).localeCompare(String(a.r.Ngay))).slice(0, 6);
+        .sort((a, b) => String(b.r.Ngay).localeCompare(String(a.r.Ngay))).slice(0, 8);   // 8 dòng cho cân với khung Theo gói thầu (tối đa 8 gói)
       dl.innerHTML = docs.length ? docs.map(d => { const id = d.r[DB.keyField(d.t)], n = cnt[d.t].get(id) || 0;
         return `<a class="hrow2 doc" href="#/r/${d.t}/${encodeURIComponent(id)}"><span class="badge info hd">${esc(d.l)}</span>
           <b class="hg">${esc(d.r.So || id)}</b><span class="muted hs hgoi">${esc(d.r.Goi_thau || '')}</span><span class="hn">${esc(U.fmtDate(d.r.Ngay))}</span>

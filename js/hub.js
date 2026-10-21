@@ -22,7 +22,7 @@
         { ic: 'download', l: 'Tải file mẫu', d: 'Mẫu Excel P1: trống, hoặc kèm kiện hiện có để sửa', href: '#/i/EXCEL?m=KIEN', ok: () => xl() > 0 },
         { ic: 'upload', l: 'Tải file lên', d: 'Nhập cả loạt từ file đã điền', href: '#/i/EXCEL?m=KIEN&s=up', ok: () => xl() > 1 }
       ],
-      stats: () => { const k = DB.rows('KIEN'); return lv('KIEN') ? [[k.length, 'kiện'], [k.filter(r => !r.MGMER).length, 'chưa về (chỉ thông báo)']] : []; }
+      stats: () => { const k = DB.rows('KIEN'); return lv('KIEN') ? [[k.length, 'kiện'], [k.filter(r => SCHEMA.phaseIdx(r) === 0).length, 'chưa về công trường']] : []; }
     },
     P2: {
       intro: 'Tạo biên bản kiểm đếm (MGMER) trước, rồi chọn các kiện thuộc biên bản; có thể ghi luôn vị trí lưu kho. Kiểm kho định kỳ: dùng nút Kiểm tra vị trí.',
@@ -37,7 +37,7 @@
       stats: () => {
         const out = [];
         if (lv('MGMER')) out.push([DB.rows('MGMER').length, 'biên bản MGMER']);
-        if (lv('KIEN')) { const k = DB.rows('KIEN'); out.push([k.filter(r => r.MGMER && !r.GIR).length, 'kiện đã về, chờ mở']); }
+        if (lv('KIEN')) { const k = DB.rows('KIEN'); out.push([k.filter(r => SCHEMA.phaseIdx(r) === 1).length, 'kiện đã về, chờ mở']); }
         if (lv('KIEM_TRA')) out.push([DB.rows('KIEM_TRA').length, 'lần kiểm tra vị trí']);
         return out;
       }

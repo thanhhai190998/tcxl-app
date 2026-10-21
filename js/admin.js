@@ -232,6 +232,124 @@
     load(false);
   };
 
+  // ---------------- KIỂM TRA DỮ LIỆU (quản trị viên) ----------------
+  // Tự tìm dữ liệu bất thường + nút sửa nhanh; mọi lần sửa đi qua máy chủ (kiểm quyền) và ghi Lịch sử chỉnh sửa (nguồn "Kiểm tra dữ liệu")
+  const CHK_VIA = 'Kiểm tra dữ liệu';
+  // Quy tắc gán gói theo số PKL (đã đối chiếu packing list): thiết bị tuabin hơi + máy phát GE Vernova (PO 4102913692) = gói T07
+  const GOI_RULES = [{ id: 'ge', goi: 'T07', ten: 'Gói T07 – Tuabin hơi & máy phát (GE Vernova)', l: 'Hàng GE Vernova (tuabin hơi, máy phát) chưa thuộc gói T07',
+    d: 'Số PKL 270T865, 270T866, 280T865, 280T866 — lô China 1st/2nd, US 1st–4th, Korea 1st, Antwerp 1st của GE Vernova, thuộc gói T07.', pkl: /^(270|280)T86[56]$/i }];
+  const chkSo = (t, s) => { const k = U.norm(String(s == null ? '' : s)).replace(/\s+/g, '').replace(new RegExp('^' + t.toLowerCase() + '[-_.:#]*(no\\.?)?(?=.)'), ''); return /^\d+$/.test(k) ? String(+k) : k; };
+  // Năm gõ nhầm (vd 2108) → thử đảo chữ số của năm để ra năm hợp lý (2018); không ra được thì để trống cho người dùng tự nhập
+  const fixYear = iso => {
+    const m = String(iso || '').match(/^(\d{4})(-\d{2}-\d{2})/); if (!m) return '';
+    const y = new Date().getFullYear(), perms = new Set();
+    const go = (a, s) => { if (!a.length) return perms.add(s); a.forEach((c, i) => go(a.filter((_, j) => j !== i), s + c)); };
+    go(m[1].split(''), '');
+    const ok = [...perms].map(Number).filter(n => n >= 2010 && n <= y).sort((a, b) => b - a);
+    return ok.length ? ok[0] + m[2] : '';
+  };
+  A.check = async () => {
+    if (!App.user.admin) return App.notFound();
+    App.head('Kiểm tra dữ liệu', { back: true });
+    App.loading();
+    await Promise.all(['KIEN', 'MGMER', 'GIR', 'OSD', 'KIEM_TRA', 'GOI_THAU'].map(t => DB.loadDeps(t).catch(() => {})));
+    const K = DB.rows('KIEN'), goiSet = new Set(DB.rows('GOI_THAU').map(g => String(g.MaGoi)));
+    const today = U.today(), soon = U.isoOf(new Date(Date.now() + 31 * 864e5));
+    const DOCS = [['MGMER', 'Biên bản kiểm đếm'], ['GIR', 'Biên bản mở kiện'], ['OSD', 'Biên bản OSD'], ['KIEM_TRA', 'Lần kiểm tra vị trí']];
+    const kLink = r => `<a href="#/r/KIEN/${enc(r.id)}">${esc(DB.title('KIEN', r))}</a>`;
+    const dLink = (t, r) => `<a href="#/r/${t}/${enc(r[DB.keyField(t)])}">${esc(DB.title(t, r))}</a>`;
+    const cnt = { MGMER: new Map(), GIR: new Map(), OSD: new Map() };
+    K.forEach(r => ['MGMER', 'GIR', 'OSD'].forEach(t => { if (r[t]) cnt[t].set(r[t], (cnt[t].get(r[t]) || 0) + 1); }));
+    DB.rows('OSD').forEach(o => { if (o.GIR) cnt.GIR.set(o.GIR, (cnt.GIR.get(o.GIR) || 0) + 0.0001); });   // GIR có OSD đi kèm không coi là trống
+    const checks = [];
+    // 1) Gán gói theo PKL
+    GOI_RULES.forEach(g => {
+      const rows = K.filter(r => g.pkl.test(String(r.PKL_No || '').trim()) && r.Goi_thau !== g.goi);
+      const by = {}; rows.forEach(r => { by[r.Goi_thau || '(trống)'] = (by[r.Goi_thau || '(trống)'] || 0) + 1; });
+      checks.push({ id: g.id, l: g.l, d: g.d, n: rows.length, rows, kind: 'goi', goi: g.goi, goiTen: g.ten,
+        sub: Object.entries(by).map(([k, n]) => `${esc(k)}: ${U.int(n)} kiện`).join(' · ') });
+    });
+    // 2) Kiện chưa xác định gói
+    const noGoi = K.filter(r => !r.Goi_thau || r.Goi_thau === 'KXĐ' || !goiSet.has(String(r.Goi_thau)));
+    checks.push({ id: 'nogoi', l: 'Kiện chưa xác định gói thầu', d: 'Gói trống, "KXĐ" hoặc mã gói không có trong danh sách Gói thầu. Chọn gói rồi gán cho cả nhóm, hoặc mở từng kiện để sửa.', n: noGoi.length, rows: noGoi, kind: 'pickgoi' });
+    // 3) Ngày bất thường
+    const badD = DOCS.flatMap(([t, l]) => DB.rows(t).filter(r => r.Ngay && (String(r.Ngay).slice(0, 10) > soon || String(r.Ngay).slice(0, 4) < '2010')).map(r => ({ t, l, r })));
+    checks.push({ id: 'dates', l: 'Ngày bất thường (gõ nhầm năm)', d: 'Ngày ở tương lai xa hoặc trước 2010. App gợi ý ngày đúng bằng cách đảo chữ số của năm (vd 2108 → 2018); kiểm tra lại rồi bấm Sửa.', n: badD.length, items: badD, kind: 'dates' });
+    // 4) Tình trạng kiện ngoài danh sách chuẩn
+    const STD = (DB.field('KIEM_TRA', 'Tinh_trang') || {}).opts || [];
+    const odd = new Map(); DB.rows('KIEM_TRA').forEach(r => { const v = String(r.Tinh_trang || '').trim(); if (v && !STD.includes(v)) odd.set(v, (odd.get(v) || []).concat([r])); });
+    checks.push({ id: 'status', l: 'Tình trạng kiện ngoài danh sách chuẩn', d: 'Các giá trị ghi tay khác danh sách ' + STD.join(', ') + '. Chọn giá trị chuẩn để đổi cho mọi lần kiểm tra mang giá trị đó.', n: [...odd.values()].reduce((s, a) => s + a.length, 0), groups: [...odd.entries()].sort((a, b) => b[1].length - a[1].length), kind: 'status', std: STD });
+    // 5) Kiểm đếm tại cảng (chưa về công trường)
+    const port = K.filter(r => !r.GIR && SCHEMA.atPort(r));
+    checks.push({ id: 'port', l: 'Kiện mới kiểm đếm tại cảng (chưa về công trường)', d: 'Chưa tính là đã về. Khi hàng về: tạo biên bản kiểm đếm "Tại công trường" → Chọn kiện → chế độ "Mới kiểm đếm tại cảng".', n: port.length, rows: port, kind: 'info', info: true });
+    // 6) Biên bản không có kiện nào
+    const empty = ['MGMER', 'GIR', 'OSD'].flatMap(t => DB.rows(t).filter(r => !cnt[t].get(r[DB.keyField(t)])).map(r => ({ t, r })));
+    checks.push({ id: 'empty', l: 'Biên bản không có kiện nào', d: 'Biên bản tạo nhầm / thử, hoặc chưa chọn kiện. Mở để chọn kiện, hoặc xoá nếu thừa.', n: empty.length, items: empty, kind: 'empty' });
+    // 7) Đã mở kiện nhưng chưa có biên bản kiểm đếm
+    const noMg = K.filter(r => r.GIR && !r.MGMER);
+    checks.push({ id: 'nomg', l: 'Kiện đã mở (có GIR) nhưng chưa có biên bản kiểm đếm', d: 'Thường do nhập thiếu MGMER. Mở kiện / biên bản để bổ sung.', n: noMg.length, rows: noMg, kind: 'info', info: true });
+    // 8) Số biên bản trùng trong cùng gói
+    const dup = [];
+    ['MGMER', 'GIR', 'OSD'].forEach(t => { const m = new Map(); DB.rows(t).forEach(r => { const k = (r.Goi_thau || '') + '|' + chkSo(t, r.So); if (!chkSo(t, r.So)) return; m.set(k, (m.get(k) || []).concat([r])); });
+      m.forEach(rs => { if (rs.length > 1) dup.push({ t, rs }); }); });
+    checks.push({ id: 'dup', l: 'Số biên bản trùng trong cùng gói', d: 'Thường là dữ liệu cũ (cùng số, khác ngày). Mở từng biên bản để kiểm tra, sửa số hoặc gộp kiện.', n: dup.length, items: dup, kind: 'dup', info: true });
+
+    const need = checks.filter(c => c.n && !c.info).length;
+    const LIM = 60;
+    const list = rows => `<div class="ck-list">${rows.slice(0, LIM).map(r => `<div>${kLink(r)} <span class="muted small">${esc([r.Goi_thau, r.PKL_No, r.Package_No].filter(Boolean).join(' · '))}</span></div>`).join('')}
+      ${rows.length > LIM ? `<div class="muted small">… và ${U.int(rows.length - LIM)} kiện khác</div>` : ''}</div>`;
+    const goiOpts = DB.rows('GOI_THAU').map(g => `<option value="${esc(g.MaGoi)}">${esc(g.MaGoi + (g.TenGoi ? ' – ' + g.TenGoi : ''))}</option>`).join('');
+    const body = c => {
+      if (!c.n) return '';
+      if (c.kind === 'goi') return `<div class="ck-act"><span class="muted small">${c.sub}</span><button type="button" class="btn sm" data-do="${c.id}">${Icon('check', 'sm')} Chuyển ${U.int(c.n)} kiện sang gói ${esc(c.goi)}</button></div>${list(c.rows)}`;
+      if (c.kind === 'pickgoi') return `<div class="ck-act"><select data-goi="${c.id}"><option value="">— Chọn gói thầu —</option>${goiOpts}</select><button type="button" class="btn sm" data-do="${c.id}">Gán gói cho ${U.int(c.n)} kiện</button></div>${list(c.rows)}`;
+      if (c.kind === 'dates') return `<div class="ck-list">${c.items.slice(0, LIM).map((x, i) => { const cur = String(x.r.Ngay).slice(0, 10), sug = fixYear(cur);
+        return `<div class="ck-row"><span>${esc(x.l)}: ${dLink(x.t, x.r)} <span class="muted small">${esc(x.r.Goi_thau || '')}</span></span>
+          <span class="ck-date"><s>${esc(U.fmtDate(cur))}</s> → <input type="date" data-di="${i}" value="${esc(sug)}"><button type="button" class="btn sm" data-fixdate="${i}">Sửa</button></span></div>`; }).join('')}</div>`;
+      if (c.kind === 'status') return `<div class="ck-list">${c.groups.map(([v, rs], i) => `<div class="ck-row"><span><b>${esc(v)}</b> <span class="muted small">${U.int(rs.length)} lần kiểm tra</span></span>
+          <span class="ck-date">→ <select data-si="${i}"><option value="">— Giá trị chuẩn —</option>${c.std.map(o => `<option>${esc(o)}</option>`).join('')}</select><button type="button" class="btn sm" data-fixst="${i}">Đổi</button></span></div>`).join('')}</div>`;
+      if (c.kind === 'empty') return `<div class="ck-list">${c.items.slice(0, LIM).map((x, i) => `<div class="ck-row"><span>${dLink(x.t, x.r)} <span class="muted small">${esc([x.r.Goi_thau, x.r.Ngay && U.fmtDate(x.r.Ngay), x.r.File ? 'có file' : ''].filter(Boolean).join(' · '))}</span></span>
+          <button type="button" class="btn sm danger ghost" data-del="${i}">Xoá</button></div>`).join('')}</div>`;
+      if (c.kind === 'dup') return `<div class="ck-list">${c.items.slice(0, LIM).map(x => `<div>${x.rs.map(r => dLink(x.t, r) + ` <span class="muted small">${esc([r.Goi_thau, r.Ngay && U.fmtDate(r.Ngay)].filter(Boolean).join(' · '))}</span>`).join(' · ')}</div>`).join('')}</div>`;
+      return list(c.rows);
+    };
+    App.main.innerHTML = `<div class="card ck-top"><b>${need ? need + ' nhóm cần xem' : 'Không có dữ liệu bất thường cần sửa'}</b>
+        <span class="muted small">Kiểm tra trên toàn bộ dữ liệu đang có trên máy (bấm ⟳ để lấy mới nhất). Mọi lần sửa ở đây được ghi vào Lịch sử chỉnh sửa.</span></div>
+      ${checks.map(c => `<details class="card ck" data-c="${c.id}" ${c.n && !c.info ? 'open' : ''}><summary>
+          <span class="badge ${!c.n ? 'ok' : c.info ? 'info' : 'warn'}">${c.n ? U.int(c.n) : '✓'}</span><b>${esc(c.l)}</b></summary>
+          <p class="muted small">${esc(c.d)}</p>${body(c)}</details>`).join('')}`;
+    const C = id => checks.find(c => c.id === id);
+    const busy = async (b, fn) => { const l = b.innerHTML; b.disabled = true; b.textContent = 'Đang sửa…'; try { await fn(); } catch (e) { if (e.message !== 'Đã huỷ') U.toast(e.message, 'err'); b.disabled = false; b.innerHTML = l; return; } A.check(); };
+    // Gán gói (theo quy tắc PKL / chọn tay) — tạo gói nếu chưa có trong danh sách
+    App.main.querySelectorAll('[data-do]').forEach(b => b.onclick = () => {
+      const c = C(b.dataset.do), sel = App.main.querySelector(`[data-goi="${c.id}"]`), goi = c.goi || (sel && sel.value);
+      if (!goi) return U.toast('Chọn gói thầu trước', 'err');
+      busy(b, async () => {
+        if (!(await U.confirm(`Gán gói ${goi} cho ${U.int(c.rows.length)} kiện?`))) throw new Error('Đã huỷ');
+        if (!DB.get('GOI_THAU', goi)) await DB.add('GOI_THAU', { MaGoi: goi, TenGoi: c.goiTen || 'Gói ' + goi, Tinh_trang: 'Đang thực hiện', Ghi_chu: 'Tạo từ trang Kiểm tra dữ liệu' });
+        await DB.updateMany('KIEN', c.rows.map(r => ({ id: r.id, Goi_thau: goi })), (d, n) => { b.textContent = `Đang sửa ${U.int(d)}/${U.int(n)}…`; }, CHK_VIA + ': gán gói ' + goi);
+        U.toast(`Đã gán gói ${goi} cho ${U.int(c.rows.length)} kiện`, 'ok');
+      });
+    });
+    App.main.querySelectorAll('[data-fixdate]').forEach(b => b.onclick = () => {
+      const x = C('dates').items[+b.dataset.fixdate], v = App.main.querySelector(`[data-di="${b.dataset.fixdate}"]`).value;
+      if (!v) return U.toast('Nhập ngày đúng trước', 'err');
+      busy(b, async () => { await DB.update(x.t, { [DB.keyField(x.t)]: x.r[DB.keyField(x.t)], Ngay: v }); U.toast('Đã sửa ngày thành ' + U.fmtDate(v), 'ok'); });
+    });
+    App.main.querySelectorAll('[data-fixst]').forEach(b => b.onclick = () => {
+      const [v, rs] = C('status').groups[+b.dataset.fixst], to = App.main.querySelector(`[data-si="${b.dataset.fixst}"]`).value;
+      if (!to) return U.toast('Chọn giá trị chuẩn trước', 'err');
+      busy(b, async () => { await DB.updateMany('KIEM_TRA', rs.map(r => ({ id: r.id, Tinh_trang: to })), null, CHK_VIA + ': đổi tình trạng'); U.toast(`Đã đổi "${v}" → "${to}" (${U.int(rs.length)} lần kiểm tra)`, 'ok'); });
+    });
+    App.main.querySelectorAll('[data-del]').forEach(b => b.onclick = () => {
+      const x = C('empty').items[+b.dataset.del];
+      busy(b, async () => {
+        if (!(await U.confirm(`Xoá ${DB.title(x.t, x.r)}${x.r.File ? ' (biên bản có file đính kèm)' : ''}? Biên bản không có kiện nào.`))) throw new Error('Đã huỷ');
+        await DB.remove(x.t, x.r[DB.keyField(x.t)]); U.toast('Đã xoá', 'ok');
+      });
+    });
+  };
+
   A.settings = async () => {
     App.head('Cài đặt', { back: true });
     const C = window.APP_CONFIG, demo = C.mode === 'demo';
@@ -281,6 +399,7 @@
     if (App.user.admin) {
       h += group('Quản trị', slink('#/admin', 'users', 'var(--g7)', 'Phân quyền', '<span data-ucount>Người dùng và quyền truy cập</span>')
         + (App.user.owner ? slink('#/admin/log', 'clock', 'var(--g7)', 'Lịch sử chỉnh sửa', 'Ai thêm / sửa / xoá gì, lúc nào') : '')
+        + slink('#/admin/check', 'check', 'var(--g7)', 'Kiểm tra dữ liệu', 'Kiện chưa có gói, ngày gõ nhầm, tình trạng lạ… và sửa nhanh')
         + srow('folder', 'var(--g7)', 'Kho file (PDF, ảnh tải lên)', '<span data-fstore>Đang kiểm tra…</span>'));
     }
     if (demo) {

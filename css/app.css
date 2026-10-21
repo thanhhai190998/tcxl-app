@@ -1074,3 +1074,17 @@ html { touch-action: manipulation; }
   .hrow2.doc { grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 8px; }
   .hrow2.doc .hgoi { display: none; }
 }
+
+/* Kiểm tra dữ liệu (quản trị viên) */
+.ck-top { display: flex; flex-direction: column; gap: 4px; }
+.ck summary { display: flex; align-items: center; gap: 10px; cursor: pointer; list-style: none; }
+.ck summary::-webkit-details-marker { display: none; }
+.ck summary .badge { min-width: 44px; text-align: center; }
+.ck > p { margin: 8px 0; }
+.ck-act { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin: 6px 0 8px; }
+.ck-act select { flex: 1 1 220px; max-width: 420px; }
+.ck-list { display: flex; flex-direction: column; gap: 4px; max-height: 360px; overflow: auto; font-size: 14px; padding-right: 4px; }
+.ck-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; padding: 4px 0; border-top: 1px solid var(--line); }
+.ck-row:first-child { border-top: 0; }
+.ck-date { display: inline-flex; align-items: center; gap: 6px; }
+.ck-date input, .ck-date select { width: auto; min-height: 34px; }

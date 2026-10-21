@@ -205,7 +205,7 @@
     st.g = st.g && (st.g === '*' || goiAll.includes(st.g)) ? st.g : '*';
     const inG = r => st.g === '*' || r.Goi_thau === st.g;
     const rows = all.filter(inG);
-    const ph = r => r.GIR ? 0 : r.MGMER ? 1 : 2;   // chỉ số trong SEGS
+    const ph = r => [2, 1, 0][SCHEMA.phaseIdx(r)];   // chỉ số trong SEGS (kiểm đếm tại cảng = chưa về)
     const tri = rs => { const v = [0, 0, 0]; rs.forEach(r => v[ph(r)]++); return v; };
     const link = (o = {}) => '#/i/KIEN?' + new URLSearchParams(Object.assign(st.g === '*' ? {} : { Goi_thau: st.g }, o)).toString();
     const [p3, p2, p1] = tri(rows), came = p3 + p2;
@@ -268,7 +268,7 @@
 
     // Cần chú ý
     const C = window.APP_CONFIG, waitN = C.waitOpenDays || 180;
-    const waiting = rows.filter(r => r.MGMER && !r.GIR && U.daysBetween(dDem(r), U.today()) > waitN)
+    const waiting = rows.filter(r => SCHEMA.phaseIdx(r) === 1 && U.daysBetween(dDem(r), U.today()) > waitN)
       .sort((a, b) => dDem(a).localeCompare(dDem(b)));
     const lostRows = rows.filter(r => { const c = SCHEMA.lastCheck(DB, r.id); return c && c.Tinh_trang === 'Không thấy'; });
     const part = (title, note, rs, t, href) => `<div class="att"><div class="att-h"><b>${esc(title)}</b><span class="cnt">${U.int(rs.length)}</span>

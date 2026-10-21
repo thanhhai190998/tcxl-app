@@ -61,9 +61,12 @@
     return m;
   }).get(String(kien)) || null;
 
-  // Phase của 1 kiện: có GIR → đã mở; có MGMER → đã về, đã đếm; còn lại → mới thông báo
-  const PHASES = ['P1 · Chỉ thông báo', 'P2 · Đã kiểm đếm', 'P3 · Đã mở kiện'];
-  const phaseOf = r => r.GIR ? PHASES[2] : r.MGMER ? PHASES[1] : PHASES[0];
+  // Phase của 1 kiện: có GIR → đã mở; có MGMER kiểm đếm TẠI CÔNG TRƯỜNG → đã về; còn lại → chưa về công trường.
+  // Kiểm đếm tại cảng KHÔNG tính là đã về công trường (quy định của Ban, 21/10/2026). Mọi chỗ đếm "đã về" dùng phaseIdx.
+  const PHASES = ['P1 · Chưa về công trường', 'P2 · Đã về, chưa mở', 'P3 · Đã mở kiện'];
+  const atPort = r => { const m = r && r.MGMER && window.DB && DB.get('MGMER', r.MGMER); return !!(m && m.Dia_diem === 'Tại cảng'); };
+  const phaseIdx = r => r.GIR ? 2 : r.MGMER && !atPort(r) ? 1 : 0;
+  const phaseOf = r => PHASES[phaseIdx(r)];
   const docDate = (db, t, id) => { const d = id && db.get(t, id); return d ? d.Ngay : ''; };
   const goiOpts = ['EPC', 'T09', 'T12', 'T17', 'T21', 'T22'];
 
@@ -116,7 +119,7 @@
     detail: { stats: ['Ngay_dem', 'Ngay_mo', 'Vi_tri'], hide: ['Phase'] },
     badge: (r, db) => {
       if (r.OSD && db.get('OSD', r.OSD)) return { text: 'Có OSD', cls: 'warn' };
-      return r.GIR ? { text: 'Đã mở kiện', cls: 'ok' } : r.MGMER ? { text: 'Đã kiểm đếm', cls: 'info' } : { text: 'Chưa về', cls: 'muted' };
+      return r.GIR ? { text: 'Đã mở kiện', cls: 'ok' } : r.MGMER ? (atPort(r) ? { text: 'Kiểm đếm tại cảng', cls: 'warn' } : { text: 'Đã kiểm đếm', cls: 'info' }) : { text: 'Chưa về', cls: 'muted' };
     },
     related: [{ t: 'KIEM_TRA', fk: 'Kien', l: 'Lịch sử vị trí & tình trạng' }]
   };
@@ -144,6 +147,8 @@
     // loc = cho ghi luôn vị trí lưu kho (bảng KIEM_TRA, ngày = ngày biên bản) cho các kiện vừa chọn
     assign: { field: 'MGMER', verb: 'kiểm đếm', loc: true, modes: [
       { id: 'free', l: 'Chưa có biên bản kiểm đếm', f: k => !k.MGMER },
+      // Hàng đã đếm tại cảng, nay về tới công trường → gắn sang biên bản kiểm đếm tại công trường
+      { id: 'port', l: 'Mới kiểm đếm tại cảng', when: rec => rec.Dia_diem !== 'Tại cảng', f: k => atPort(k) },
       { id: 'all', l: 'Tất cả kiện của gói', f: () => true }
     ] }
   };
@@ -372,5 +377,5 @@
   }));
   const groupsWithAlbums = () => GROUPS;   // app này không có album ảnh (giữ tên hàm cho khung chung)
 
-  window.SCHEMA = { tables: T, groups: GROUPS, groupsWithAlbums, PHASES, phaseOf, lastCheck, goiOpts };
+  window.SCHEMA = { tables: T, groups: GROUPS, groupsWithAlbums, PHASES, phaseOf, phaseIdx, atPort, lastCheck, goiOpts };
 })();

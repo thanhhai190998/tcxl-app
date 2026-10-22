@@ -132,6 +132,7 @@
       { key: '_admin', label: 'Phân quyền', ic: 'shield', desc: 'Người dùng & quyền', href: '#/admin', color: 'var(--g7)' },
       // Lịch sử chỉnh sửa (máy chủ cũng chỉ trả cho quản trị viên chính) + Kiểm tra dữ liệu: chỉ quản trị viên chính
       ...(App.user.owner ? [{ key: '_log', label: 'Lịch sử chỉnh sửa', ic: 'clock', desc: 'Ai thêm / sửa / xoá gì, lúc nào', href: '#/admin/log', color: 'var(--g7)' },
+        { key: '_online', label: 'Ai đang online', ic: 'wifi', desc: 'Tài khoản đang mở app', href: '#/admin/online', color: 'var(--g7)' },
         { key: '_check', label: 'Kiểm tra dữ liệu', ic: 'check', desc: 'Dữ liệu bất thường cần sửa', href: '#/admin/check', color: 'var(--g7)' }] : []),
       { key: '_settings', label: 'Cài đặt', ic: 'gear', desc: 'Giao diện, khoá app, cài app', href: '#/settings', color: 'var(--g7)' }
     ] });

@@ -111,6 +111,12 @@
     }).catch(() => {}).finally(() => { exchanging = null; }));
   }
 
+  // Loại máy + phiên bản app — máy chủ ghi cùng "lần cuối thấy" (trang Ai đang online của quản trị viên chính)
+  const client = () => {
+    const I = window.Install;
+    return { v: CFG().version, d: (I && I.standalone() ? 'App' : 'Trình duyệt') + ' · ' + (I && I.IOS ? 'iPhone/iPad' : I && I.ANDROID ? 'Android' : 'Máy tính') };
+  };
+
   async function call(action, payload, retry = true) {
     if (!CFG().apiUrl) throw new Error('Chưa cấu hình apiUrl trong js/config.js');
     if (!Auth.hasSession()) {
@@ -118,7 +124,7 @@
       await exchange();
     }
     const cred = Auth.hasSession() ? { session: Auth.session } : { token: Auth.token };
-    const j = await post(Object.assign({ action }, cred, payload || {}));
+    const j = await post(Object.assign({ action }, cred, { client: client() }, payload || {}));
     if (!j.ok) {
       // Phiên / token hết hạn hoặc đã bị huỷ → bỏ đi, thử lại (cần thì hiện màn hình đăng nhập Google)
       if (j.error === 'AUTH' && retry) { if (cred.session) Auth.clearSession(); else Auth.clear(); return call(action, payload, false); }
@@ -155,6 +161,9 @@
     getConfig: k => call('getConfig', { key: k }),
     setConfig: (k, v) => call('setConfig', { key: k, value: v }),
     logoutAll: () => call('logoutAll'),
+    // App đang mở trên màn hình báo máy chủ (không bật màn hình đăng nhập khi phiên đã hết)
+    ping: () => (Auth.hasSession() || Auth.tokenValid() ? call('ping', {}, false) : Promise.resolve(0)),
+    online: () => call('online'),                                         // ai đang online (chỉ quản trị viên chính)
     signOut: () => Auth.signOut()
   };
 })();

@@ -843,6 +843,17 @@ a.hb:hover { background: var(--hover); }
   background: color-mix(in srgb, var(--warn) 14%, var(--card)); border: 1px solid color-mix(in srgb, var(--warn) 45%, transparent); }
 .ins-warn .ico { flex: none; width: 18px; height: 18px; color: var(--warn); margin-top: 1px; }
 
+/* ---- Ai đang online (quản trị viên chính) ---- */
+.onl-h { align-items: center; }
+.onl-sec { margin: 18px 4px 8px; font-size: 15px; }
+.onl-av { position: relative; overflow: visible; }
+.onl-av i { position: absolute; right: -2px; bottom: -2px; width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--card); background: #9aa3b2; }
+.onl-av i.on { background: var(--ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 25%, transparent); }
+.onl-old { color: var(--warn); font-weight: 600; }
+.onl-last { white-space: nowrap; }
+.onl-none { padding: 14px 16px; }
+.onl-note { margin: 14px 4px 0; line-height: 1.5; }
+
 /* ---- App TCXL: danh sách dài, nhiều hàng lọc, thanh tiến độ 3 giai đoạn ---- */
 #chips .chips-row + .chips-row { margin-top: -4px; }
 .lmore { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; margin-top: 10px; }

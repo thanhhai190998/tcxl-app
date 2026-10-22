@@ -232,6 +232,61 @@
     load(false);
   };
 
+  // ---------------- AI ĐANG ONLINE (chỉ quản trị viên chính) ----------------
+  // Máy chủ ghi "vừa thấy" mỗi lần app gọi; app đang mở trên màn hình gửi thêm tín hiệu 2 phút/lần → gọi trong 5 phút gần nhất = đang online.
+  // Trang tự cập nhật 30 giây/lần khi đang mở.
+  const ago = ms => { const m = Math.floor(ms / 60000); return m < 1 ? 'vừa xong' : m < 60 ? m + ' phút trước' : m < 1440 ? Math.floor(m / 60) + ' giờ trước' : Math.floor(m / 1440) + ' ngày trước'; };
+  const lastSeen = t => {
+    const d = new Date(t), hm = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+    const day = U.iso(d), td = U.today(), yd = U.iso(new Date(Date.now() - 864e5));
+    return hm + ' ' + (day === td ? 'hôm nay' : day === yd ? 'hôm qua' : U.fmtDate(day));
+  };
+  const older = (a, b) => { const x = String(a).split('.').map(Number), y = String(b).split('.').map(Number); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) < (y[i] || 0); return false; };
+  A.online = async () => {
+    if (!App.user.owner) return App.notFound();
+    App.head('Ai đang online', { back: true });
+    App.loading();
+    clearInterval(A.onlTimer);
+    const draw = async () => {
+      let r;
+      try { r = await API.online(); } catch (e) {
+        if (location.hash !== '#/admin/online') return;
+        App.main.innerHTML = `<div class="xerr">${Icon('alert')}<span>${esc(/không hợp lệ/.test(e.message) ? 'Máy chủ chưa cập nhật Code.gs có tính năng "Ai đang online" — dán Code.gs mới rồi triển khai phiên bản mới' : e.message)}</span></div>`;
+        return;
+      }
+      if (location.hash !== '#/admin/online') return;
+      const on = x => x.active && x.t && r.now - x.t < r.onlineMs;
+      const us = r.users.slice().sort((a, b) => (b.active - a.active) || (b.t - a.t) || String(a.name || a.email).localeCompare(String(b.name || b.email), 'vi'));
+      const live = us.filter(on), rest = us.filter(x => !on(x));
+      const row = x => {
+        const tag = x.owner ? 'div' : 'a', href = x.owner ? '' : ` href="#/admin/u/${enc(x.email)}"`;
+        const role = x.owner ? 'Quản trị viên chính' : x.admin ? 'Quản trị viên' : 'Người dùng';
+        const ver = x.v ? `<span class="${older(x.v, window.APP_CONFIG.version) ? 'onl-old' : ''}">Bản ${esc(x.v)}${older(x.v, window.APP_CONFIG.version) ? ' · chưa cập nhật' : ''}</span>` : '';
+        const badge = !x.active ? '<span class="badge">Đã khoá</span>'
+          : on(x) ? `<span class="badge ok">${esc(ago(r.now - x.t))}</span>`
+            : x.t ? `<span class="badge onl-last">${esc(lastSeen(x.t))}</span>` : '<span class="badge onl-last">Chưa thấy</span>';
+        return `<${tag} class="row"${href} data-tone="${on(x) ? 'ok' : ''}">
+          <span class="lead av onl-av" style="--gc:${x.admin ? 'var(--g7)' : 'var(--g0)'}">${esc(initials(x.name || x.email))}<i class="${on(x) ? 'on' : ''}"></i></span>
+          <div class="row-main"><div class="row-title">${esc(x.name || x.email)}${x.email === App.user.email ? ' <span class="muted small">(bạn)</span>' : ''}</div><div class="row-sub">${esc(x.email)}</div>
+          <div class="row-meta"><span>${role}</span>${x.d ? `<span>${esc(x.d)}</span>` : ''}${ver}</div></div>${badge}</${tag}>`;
+      };
+      const at = new Date(r.now);
+      App.main.innerHTML = `<div class="card uinfo onl-h"><span class="gic" style="--gc:var(--ok)">${Icon('wifi')}</span>
+          <div><b>${live.length} người đang online</b>
+          <div class="muted small">Đang mở app trong 5 phút gần nhất · tự cập nhật 30 giây/lần · lúc ${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}:${String(at.getSeconds()).padStart(2, '0')}</div></div>
+          <button type="button" class="btn sm ghost" data-r title="Cập nhật ngay">${Icon('refresh')}</button></div>
+        <h3 class="onl-sec">Đang online <span class="muted">(${live.length})</span></h3>
+        ${live.length ? `<div class="rows">${live.map(row).join('')}</div>` : '<div class="card muted small onl-none">Không có ai đang mở app.</div>'}
+        <h3 class="onl-sec">Không online <span class="muted">(${rest.length})</span></h3>
+        ${rest.length ? `<div class="rows">${rest.map(row).join('')}</div>` : ''}
+        <p class="muted small onl-note">Tính là online khi app đang mở trên màn hình (không bị khoá PIN, không thu nhỏ / chạy nền) hoặc vừa thao tác trong 5 phút.
+          "Chưa thấy" = chưa mở app từ khi có tính năng này. Máy còn bản cũ chỉ được ghi nhận khi thao tác, cần bấm ⟳ để cập nhật.</p>`;
+      App.main.querySelector('[data-r]').onclick = e => { e.currentTarget.disabled = true; draw(); };
+    };
+    await draw();
+    A.onlTimer = setInterval(() => { if (location.hash !== '#/admin/online') return clearInterval(A.onlTimer); if (!document.hidden) draw(); }, 30000);
+  };
+
   // ---------------- KIỂM TRA DỮ LIỆU (quản trị viên) ----------------
   // Tự tìm dữ liệu bất thường + nút sửa nhanh; mọi lần sửa đi qua máy chủ (kiểm quyền) và ghi Lịch sử chỉnh sửa (nguồn "Kiểm tra dữ liệu")
   const CHK_VIA = 'Kiểm tra dữ liệu';
@@ -399,7 +454,8 @@
     if (App.user.admin) {
       h += group('Quản trị', slink('#/admin', 'users', 'var(--g7)', 'Phân quyền', '<span data-ucount>Người dùng và quyền truy cập</span>')
         + (App.user.owner ? slink('#/admin/log', 'clock', 'var(--g7)', 'Lịch sử chỉnh sửa', 'Ai thêm / sửa / xoá gì, lúc nào') : '')
-        + (App.user.owner ? slink('#/admin/check', 'check', 'var(--g7)', 'Kiểm tra dữ liệu', 'Kiện chưa có gói, ngày gõ nhầm, tình trạng lạ… và sửa nhanh') : '')
+        + (App.user.owner ? slink('#/admin/online', 'wifi', 'var(--g7)', 'Ai đang online', 'Tài khoản đang mở app, lần cuối dùng app, máy và phiên bản')
+          + slink('#/admin/check', 'check', 'var(--g7)', 'Kiểm tra dữ liệu', 'Kiện chưa có gói, ngày gõ nhầm, tình trạng lạ… và sửa nhanh') : '')
         + srow('folder', 'var(--g7)', 'Kho file (PDF, ảnh tải lên)', '<span data-fstore>Đang kiểm tra…</span>'));
     }
     if (demo) {

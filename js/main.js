@@ -149,6 +149,7 @@
       else if (p[0] === 'admin' && p[1] === 'u') await Admin.user(p[2]);
       else if (p[0] === 'admin' && p[1] === 'log') await Admin.log();
       else if (p[0] === 'admin' && p[1] === 'check') await Admin.check();
+      else if (p[0] === 'admin' && p[1] === 'online') await Admin.online();
       else if (p[0] === 'settings') await Admin.settings();
       else App.notFound();
       if (keep) window.scrollTo(0, y);
@@ -301,6 +302,14 @@
       });
     }
     Outbox.resume();   // còn thay đổi lưu nền chưa gửi xong (tắt app giữa chừng) → gửi tiếp
+    // Trang "Ai đang online": app đang mở trên màn hình (không khoá PIN) báo máy chủ 2 phút/lần; mọi lần gọi máy chủ khác cũng tính
+    let pingAt = Date.now();
+    const ping = () => {
+      if (document.hidden || Lock.locked || !navigator.onLine || Date.now() - pingAt < 60000) return;
+      pingAt = Date.now(); API.ping().catch(() => {});
+    };
+    setInterval(ping, 120000);
+    document.addEventListener('visibilitychange', ping);
     setTimeout(() => DB.prefetch(), 1200);   // tải ngầm các mục còn lại
     // Quay lại app sau hơn 5 phút (app để chạy nền trên điện thoại) → cập nhật ngầm trang đang xem
     let hiddenAt = 0;

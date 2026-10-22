@@ -404,6 +404,16 @@
     async undoData(id) { await wait(); const r = rows('NHAP_EXCEL').find(x => x.id === id); if (!r || level(me(), 'NHAP_EXCEL', r) < 2) throw new Error('Không có quyền'); return r.Hoan_tac || ''; },
     async signOut() { /* demo: không làm gì */ },
     async logoutAll() { await wait(); return 0; },
+    async ping() { await wait(); (state.seen = state.seen || {})[currentEmail()] = Date.now(); return Date.now(); },
+    // Demo: thời điểm "lần cuối thấy" giả cho các tài khoản mẫu (thật: máy chủ ghi mỗi lần app gọi)
+    async online() {
+      await wait(); const u = me(), now = Date.now();
+      if (!u.owner) throw new Error('Chỉ quản trị viên chính xem được ai đang online');
+      const fake = [[2 * 60e3, 'App · Android', '0.15.4'], [3 * 3600e3, 'Trình duyệt · Máy tính', '0.15.4'], [26 * 3600e3, 'App · iPhone/iPad', '0.14.8'], [0]];
+      return { now, onlineMs: 300000, users: [{ email: OWNER, name: 'Quản trị viên (demo)', owner: true, admin: true, active: true, t: now, v: window.APP_CONFIG.version, d: 'Trình duyệt · Máy tính' }]
+        .concat(state.users.map((x, i) => { const f = fake[i % fake.length], s = (state.seen || {})[x.Email];
+          return { email: x.Email, name: x.Ho_ten, owner: false, admin: !!x.Admin, active: !!x.Kich_hoat, t: s || (f[0] ? now - f[0] : 0), v: f[2] || '', d: f[1] || '' }; })) };
+    },
 
     // Riêng cho demo
     demo: {

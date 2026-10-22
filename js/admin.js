@@ -249,7 +249,7 @@
     return ok.length ? ok[0] + m[2] : '';
   };
   A.check = async () => {
-    if (!App.user.admin) return App.notFound();
+    if (!App.user.owner) return App.notFound();   // chỉ quản trị viên chính
     App.head('Kiểm tra dữ liệu', { back: true });
     App.loading();
     await Promise.all(['KIEN', 'MGMER', 'GIR', 'OSD', 'KIEM_TRA', 'GOI_THAU'].map(t => DB.loadDeps(t).catch(() => {})));
@@ -399,7 +399,7 @@
     if (App.user.admin) {
       h += group('Quản trị', slink('#/admin', 'users', 'var(--g7)', 'Phân quyền', '<span data-ucount>Người dùng và quyền truy cập</span>')
         + (App.user.owner ? slink('#/admin/log', 'clock', 'var(--g7)', 'Lịch sử chỉnh sửa', 'Ai thêm / sửa / xoá gì, lúc nào') : '')
-        + slink('#/admin/check', 'check', 'var(--g7)', 'Kiểm tra dữ liệu', 'Kiện chưa có gói, ngày gõ nhầm, tình trạng lạ… và sửa nhanh')
+        + (App.user.owner ? slink('#/admin/check', 'check', 'var(--g7)', 'Kiểm tra dữ liệu', 'Kiện chưa có gói, ngày gõ nhầm, tình trạng lạ… và sửa nhanh') : '')
         + srow('folder', 'var(--g7)', 'Kho file (PDF, ảnh tải lên)', '<span data-fstore>Đang kiểm tra…</span>'));
     }
     if (demo) {

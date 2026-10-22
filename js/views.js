@@ -130,9 +130,9 @@
     const groups = V.items().map(g => ({ ...g, items: g.items.filter(it => !it.hidden && canItem(it)) })).filter(g => g.items.length);
     if (App.user.admin) groups.push({ key: 'adm', label: 'Quản trị', ic: 'shield', color: 'var(--g7)', items: [
       { key: '_admin', label: 'Phân quyền', ic: 'shield', desc: 'Người dùng & quyền', href: '#/admin', color: 'var(--g7)' },
-      // Lịch sử chỉnh sửa: chỉ quản trị viên chính (máy chủ cũng chỉ trả cho quản trị viên chính)
-      ...(App.user.owner ? [{ key: '_log', label: 'Lịch sử chỉnh sửa', ic: 'clock', desc: 'Ai thêm / sửa / xoá gì, lúc nào', href: '#/admin/log', color: 'var(--g7)' }] : []),
-      { key: '_check', label: 'Kiểm tra dữ liệu', ic: 'check', desc: 'Dữ liệu bất thường cần sửa', href: '#/admin/check', color: 'var(--g7)' },
+      // Lịch sử chỉnh sửa (máy chủ cũng chỉ trả cho quản trị viên chính) + Kiểm tra dữ liệu: chỉ quản trị viên chính
+      ...(App.user.owner ? [{ key: '_log', label: 'Lịch sử chỉnh sửa', ic: 'clock', desc: 'Ai thêm / sửa / xoá gì, lúc nào', href: '#/admin/log', color: 'var(--g7)' },
+        { key: '_check', label: 'Kiểm tra dữ liệu', ic: 'check', desc: 'Dữ liệu bất thường cần sửa', href: '#/admin/check', color: 'var(--g7)' }] : []),
       { key: '_settings', label: 'Cài đặt', ic: 'gear', desc: 'Giao diện, khoá app, cài app', href: '#/settings', color: 'var(--g7)' }
     ] });
     return groups;

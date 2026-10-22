@@ -779,8 +779,12 @@ a.hb:hover { background: var(--hover); }
 .lk-in { width: 100%; max-width: 340px; display: grid; justify-items: center; gap: 4px; text-align: center; }
 .lk-who { display: grid; justify-items: center; gap: 2px; margin-bottom: 14px; }
 .lk-who img { border-radius: 14px; margin-bottom: 8px; box-shadow: 0 8px 24px rgba(0, 0, 0, .25); }
-.lk-who b { font-size: 16px; }
-.lk-who small { color: var(--muted); font-size: 12.5px; }
+.lk-app { font-size: 19px; line-height: 1.25; }
+.lk-org { color: var(--muted); font-size: 12px; line-height: 1.35; max-width: 300px; }
+.lk-user { display: grid; justify-items: center; gap: 1px; margin-top: 12px; padding: 7px 18px; border-radius: 14px;
+  border: 1px solid var(--line); background: color-mix(in srgb, var(--card) 70%, transparent); }
+.lk-user b { font-size: 14.5px; }
+.lk-user small { color: var(--muted); font-size: 12px; }
 .lk-in h2 { margin: 0; font-size: 19px; }
 .lk-sub { margin: 2px 0 0; color: var(--muted); font-size: 13.5px; line-height: 1.45; min-height: 1em; }
 .lk-dots { display: flex; gap: 16px; margin: 18px 0 6px; }
@@ -802,7 +806,8 @@ a.hb:hover { background: var(--hover); }
 @media (max-height: 640px) {
   .lk-keys { grid-template-columns: repeat(3, 62px); gap: 10px 18px; }
   .lk-keys button { width: 62px; height: 62px; font-size: 22px; }
-  .lk-who { margin-bottom: 6px; } .lk-who img { width: 44px; height: 44px; }
+  .lk-who { margin-bottom: 6px; } .lk-who img { width: 44px; height: 44px; margin-bottom: 4px; }
+  .lk-app { font-size: 17px; } .lk-org { display: none; } .lk-user { margin-top: 8px; padding: 5px 14px; }
 }
 #lock .ico { display: block; width: 21px; height: 21px; margin: auto; }
 #lock.vopen { color: #ffd54a; }   /* chưa đặt PIN: nút khoá dữ liệu mã hoá, vàng = đang mở */

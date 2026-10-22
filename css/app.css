@@ -812,6 +812,37 @@ a.hb:hover { background: var(--hover); }
 #lock .ico { display: block; width: 21px; height: 21px; margin: auto; }
 #lock.vopen { color: #ffd54a; }   /* chưa đặt PIN: nút khoá dữ liệu mã hoá, vàng = đang mở */
 
+/* ---- Hướng dẫn cài app (js/install.js) ---- */
+.ins { max-width: 460px; max-height: calc(100dvh - 32px); overflow-y: auto; gap: 10px; }
+.ins-h { display: flex; gap: 12px; align-items: flex-start; }
+.ins-h img { border-radius: 10px; flex: none; }
+.ins-h h3 { margin: 2px 0 2px; }
+.ins h4 { margin: 0 0 6px; font-size: 14.5px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.ins-tag { font-size: 11px; font-weight: 600; color: var(--pri); background: color-mix(in srgb, var(--pri) 13%, transparent); padding: 2px 8px; border-radius: 99px; }
+.ins-me { border: 1px solid color-mix(in srgb, var(--pri) 45%, var(--line)); background: color-mix(in srgb, var(--pri) 6%, var(--card)); border-radius: 12px; padding: 12px 14px 6px; }
+.ins-ol { margin: 0; padding-left: 20px; display: grid; gap: 7px; font-size: 13.5px; line-height: 1.5; }
+.ins-ol li::marker { color: var(--pri); font-weight: 700; }
+.ins-me .ins-ol { padding-bottom: 6px; }
+.ins-k { font-weight: 600; background: var(--hover); border: 1px solid var(--line); border-radius: 6px; padding: 0 5px; white-space: nowrap; }
+.ins-i { display: inline-grid; place-items: center; width: 22px; height: 22px; vertical-align: -6px; border-radius: 6px; color: #0a84ff; background: color-mix(in srgb, #0a84ff 12%, transparent); }
+.ins-i .ico { width: 16px; height: 16px; }
+.ins-o { border: 1px solid var(--line); border-radius: 12px; padding: 0 14px; }
+.ins-o summary { padding: 10px 0; font-weight: 600; font-size: 13.5px; cursor: pointer; }
+.ins-o[open] .ins-ol { padding-bottom: 12px; }
+.ins-url { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border-radius: 10px; background: var(--hover); }
+.ins-url > span { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.ins-url code { font-size: 12.5px; overflow-wrap: anywhere; }
+.ins-url .ico, .ins > .btn .ico, .ins-url .btn .ico { width: 16px; height: 16px; }
+.ins > .btn { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.ins-ok { display: flex; align-items: center; gap: 8px; color: var(--ok); font-weight: 600; font-size: 13.5px; }
+.ins-ok .ico { width: 18px; height: 18px; }
+.ins-login { margin-top: 10px; display: inline-flex; align-items: center; gap: 6px; background: none; border: 0; padding: 6px 8px; font: inherit; font-size: 13.5px;
+  color: var(--pri); font-weight: 600; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.ins-login .ico { width: 17px; height: 17px; }
+.ins-warn { display: flex; gap: 8px; text-align: left; font-size: 13px; line-height: 1.45; padding: 10px 12px; margin: 4px 0 6px; border-radius: 10px;
+  background: color-mix(in srgb, var(--warn) 14%, var(--card)); border: 1px solid color-mix(in srgb, var(--warn) 45%, transparent); }
+.ins-warn .ico { flex: none; width: 18px; height: 18px; color: var(--warn); margin-top: 1px; }
+
 /* ---- App TCXL: danh sách dài, nhiều hàng lọc, thanh tiến độ 3 giai đoạn ---- */
 #chips .chips-row + .chips-row { margin-top: -4px; }
 .lmore { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; margin-top: 10px; }

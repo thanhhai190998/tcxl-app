@@ -61,6 +61,7 @@
       this._waiting = new Promise((resolve, reject) => {
         const box = document.getElementById('login');
         box.hidden = false;
+        if (window.Install) Install.login();   // hướng dẫn cài app + cảnh báo mở trong Zalo/Facebook
         const start = () => {
           google.accounts.id.initialize({
             client_id: CFG().googleClientId,

@@ -390,8 +390,8 @@
       `<div class="seg mini" data-act="theme">${[['', 'Theo máy'], ['light', 'Sáng'], ['dark', 'Tối']].map(([v, l]) => `<button type="button" class="segb ${v === th ? 'on' : ''}" data-v="${v}">${l}</button>`).join('')}</div>`));
 
     h += group('Ứng dụng',
-      (App.installPrompt ? srow('download', 'var(--g0)', 'Cài app vào máy này', 'Mở như app riêng, có biểu tượng trên màn hình', '<button class="btn sm" data-act="install">Cài</button>')
-        : srow('download', 'var(--g0)', 'Cài app vào máy', 'Android/PC: menu ⋮ → <b>Cài đặt ứng dụng</b> · iPhone (Safari): Chia sẻ → <b>Thêm vào MH chính</b>'))
+      srow('download', 'var(--g0)', 'Cài app vào máy', esc(Install.hint()),
+        `<button class="btn sm${App.installPrompt ? '' : ' ghost'}" data-act="install">${App.installPrompt ? 'Cài' : 'Hướng dẫn'}</button>`)
       + srow('refresh', 'var(--g0)', 'Phiên bản ' + esc(C.version), demo ? 'Chế độ DEMO — dữ liệu giả' : 'Dữ liệu trên Google Sheets', '<button class="btn sm ghost" data-act="update">Kiểm tra</button>')
       + srow('saved', 'var(--g0)', 'Dữ liệu lưu tạm trên máy', '<span data-disk>Giúp mở app nhanh và xem được khi mất mạng</span>', '<button class="btn sm ghost" data-act="wipe">Xoá</button>')
       + slink('privacy.html', 'shield', 'var(--g0)', 'Chính sách bảo mật', ''));
@@ -460,7 +460,7 @@
     if (du) DB.diskUsage().then(b => { if (du.isConnected && b) du.textContent = 'Đang dùng ' + (b / 1048576).toFixed(1).replace('.', ',') + ' MB trên máy'; });
     on('unlock', async () => { if (await Vault.ensureOpen()) A.settings(); });
     on('lock', () => { Vault.lock(); A.settings(); });
-    on('install', async () => { App.installPrompt.prompt(); App.installPrompt = null; });
+    on('install', () => Install.prompt());
     on('switch', e => { API.demo.switchUser(e.target.value); DB.clear(); location.hash = '#/'; location.reload(); });
     on('reset', async () => { if (await U.confirm('Xoá toàn bộ dữ liệu demo (kể cả dữ liệu đã nạp thử) và tạo lại dữ liệu mẫu?')) { await API.demo.reset(); await DB.wipe(); localStorage.removeItem('tcxl-demo-user'); location.hash = '#/'; location.reload(); } });
     const tb = App.main.querySelector('[data-act="theme"]');

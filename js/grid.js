@@ -227,9 +227,11 @@
       const ks = qv ? keys.filter(k => U.match(G.label(t, n, k), qv)) : keys, show = ks.slice(0, 300);
       const allOn = show.length && show.every(k => sel.has(k));
       box.innerHTML = (show.length ? `<label class="gp-it all"><input type="checkbox" data-all ${allOn ? 'checked' : ''}><span>(Chọn tất cả${qv ? ' đang tìm' : ''})</span></label>` : '<div class="muted small">Không có giá trị nào khớp</div>')
-        + show.map(k => `<label class="gp-it"><input type="checkbox" data-k="${esc(k)}" ${sel.has(k) ? 'checked' : ''}><span>${esc(G.label(t, n, k))}</span><i>${U.int(cnt.get(k))}</i></label>`).join('');
+        + show.map((k, i) => `<label class="gp-it"><input type="checkbox" data-i="${i}" ${sel.has(k) ? 'checked' : ''}><span>${esc(G.label(t, n, k))}</span><i>${U.int(cnt.get(k))}</i></label>`).join('');
       q$('[data-more]').textContent = ks.length > show.length ? `Còn ${U.int(ks.length - show.length)} giá trị khác — gõ để tìm` : (qv && !ks.length ? '' : '');
-      box.querySelectorAll('[data-k]').forEach(c => c.onchange = () => { if (c.checked) sel.add(c.dataset.k); else sel.delete(c.dataset.k); drawList(); });
+      // Ô tick trỏ tới giá trị theo số thứ tự — không ghi giá trị vào thuộc tính HTML: trình duyệt đổi ký tự ô trống (\u0000)
+      // thành \uFFFD và \r\n thành \n → giá trị đọc lại bị sai, bỏ tick "(trống)" không được
+      box.querySelectorAll('[data-i]').forEach(c => c.onchange = () => { const k = show[+c.dataset.i]; if (c.checked) sel.add(k); else sel.delete(k); drawList(); });
       const all = box.querySelector('[data-all]'); if (all) all.onchange = () => { show.forEach(k => all.checked ? sel.add(k) : sel.delete(k)); drawList(); };
     };
     if (!range) { const qi = q$('[data-q]'); qi.oninput = drawList; drawList(); }

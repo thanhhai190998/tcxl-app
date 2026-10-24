@@ -523,7 +523,7 @@
           ${canUp ? `<label class="upbox xdrop" id="xdrop">${Icon('upload')}<span><b>Chọn file .xlsx</b> hoặc kéo thả vào đây</span><input type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden id="xfile"></label>
             <div id="xprev"></div>` : '<div class="muted small">Bạn chỉ có quyền tải mẫu — cần quyền "Sửa" ở mục Nhập / xuất Excel để tải file lên.</div>'}
         </section>
-        <section class="card xstep"><div class="fsec"><span class="xn">${Icon('clock', 'sm')}</span>Lịch sử nhập</div><div id="xlog"></div></section>
+        ${logSec()}
       </div>`;
       const $ = s => App.main.querySelector(s);
       bindMods();
@@ -578,7 +578,7 @@
             cột No. (A) không cần điền, xoá / chèn dòng không sao.</p>
           <label class="upbox xdrop" id="tdrop">${Icon('upload')}<span><b>Chọn file Total .xlsx</b> hoặc kéo thả vào đây</span><input type="file" accept=".xlsx" hidden id="tfile"></label>
           <div id="tprev"></div></section>` : ''}
-        <section class="card xstep"><div class="fsec"><span class="xn">${Icon('clock', 'sm')}</span>Lịch sử nhập</div><div id="xlog"></div></section></div>`;
+        ${logSec()}</div>`;
       const $ = s => App.main.querySelector(s);
       bindMods();
       $('[data-tgoi]').onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; st.tx.goi = b.dataset.v; paintTotal(); };
@@ -747,7 +747,8 @@
     async function writeIt() {
       const btn = App.main.querySelector('[data-write]'), lbl = btn.innerHTML;
       const msg = [`Ghi ${U.int(P.n.new + P.n.upd)} dòng từ file "${fileName}" vào app`, P.newDocs.length ? `tạo ${P.newDocs.length} biên bản mới` : '',
-        P.n.err ? `bỏ qua ${P.n.err} dòng lỗi` : '', P.n.warn ? `${P.n.warn} dòng có cảnh báo — đã xem chưa?` : ''].filter(Boolean).join(', ') + '. Có thể hoàn tác cả lô trong "Lịch sử nhập".';
+        P.n.err ? `bỏ qua ${P.n.err} dòng lỗi` : '', P.n.warn ? `${P.n.warn} dòng có cảnh báo — đã xem chưa?` : ''].filter(Boolean).join(', ')
+        + (App.user.admin ? '. Có thể hoàn tác cả lô trong "Lịch sử nhập".' : '. Nhập nhầm cần hoàn tác cả lô thì báo quản trị viên.');
       if (!(await U.confirm(msg))) return;
       btn.disabled = true;
       try {
@@ -756,13 +757,17 @@
         U.toast(`Đã ghi: ${log.So_moi} kiện mới, ${log.So_cap_nhat} kiện cập nhật${log.So_bien_ban ? ', ' + log.So_bien_ban + ' biên bản mới' : ''}`, 'ok');
         paint();
       } catch (e) {
-        U.toast('Lỗi khi ghi: ' + e.message + ' — xem Lịch sử nhập / dữ liệu trước khi thử lại', 'err');
+        U.toast('Lỗi khi ghi: ' + e.message + (App.user.admin ? ' — xem Lịch sử nhập / dữ liệu trước khi thử lại' : ' — xem lại dữ liệu, cần thì báo quản trị viên'), 'err');
         btn.disabled = false; btn.innerHTML = lbl;
       }
     }
 
+    // Lịch sử nhập + nút Hoàn tác cả lô: chỉ quản trị viên (chính + thường) — người dùng thường không thấy, tránh bấm nhầm hoàn tác
+    function logSec() {
+      return App.user.admin ? `<section class="card xstep"><div class="fsec"><span class="xn">${Icon('clock', 'sm')}</span>Lịch sử nhập</div><div id="xlog"></div></section>` : '';
+    }
     function drawLog() {
-      const box = App.main.querySelector('#xlog'); if (!box) return;
+      const box = App.main.querySelector('#xlog'); if (!box || !App.user.admin) return;
       const logs = DB.rows('NHAP_EXCEL').slice().sort((a, b) => String(b.Thoi_gian).localeCompare(String(a.Thoi_gian))).slice(0, 30);
       // Hoàn tác được: lần nhập còn "Đã ghi" và có dữ liệu hoàn tác (lần nạp lại toàn bộ thì không; lần nhập trước đó thành "Hết hiệu lực")
       const live = l => (l.Trang_thai || 'Đã ghi') === 'Đã ghi' && !!l.Hoan_tac;

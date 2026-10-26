@@ -186,7 +186,7 @@
     }
     // Hoàn thiện biên bản
     out.GIR.forEach(d => { const m = [...d.mgs].filter(Boolean); d.MGMER = m.length === 1 ? m[0] : ''; delete d.mgs; });
-    out.OSD.forEach(d => { const g = [...d.girs].filter(Boolean); d.GIR = g.length === 1 ? g[0] : ''; delete d.girs; });
+    out.OSD.forEach(d => { d.GIR = [...d.girs].filter(Boolean).join(', '); delete d.girs; });   // OSD gồm kiện của nhiều GIR → lưu đủ mã các GIR
     const multi = m => [...m].filter(([, s]) => s.size > 1).map(([k, s]) => `${k.split('|')[1]} (${k.split('|')[0]}): ${[...s].map(x => x ? U.fmtDate(x) : 'không ngày').join(', ')}`);
 
     // So với dữ liệu đang có: thêm / cập nhật / không đổi. Chỉ so các cột lấy từ file — cột nhập trên app (file đính kèm,

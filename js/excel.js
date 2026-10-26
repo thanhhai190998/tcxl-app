@@ -366,7 +366,8 @@
         if (oso && !x.msgs.length) {
           const girD = d || (cur ? { id: cur.id, ngay: cur.Ngay } : null);
           if (!girD) x.warns.push('Có OSD nhưng kiện chưa có biên bản mở kiện (GIR)');
-          const od = doc('OSD', oso, (d && (ng || ymd(d.ngay))) || ymd(cur && cur.Ngay) || U.today(), x, { loai, nd: asText(r.osd_nd), gir: girD });
+          const od = doc('OSD', oso, (d && (ng || ymd(d.ngay))) || ymd(cur && cur.Ngay) || U.today(), x, { loai, nd: asText(r.osd_nd) });
+          if (od && od.isNew && girD) (od.girs = od.girs || new Map()).set(String(girD.id || girD.so || ''), girD);   // 1 OSD có thể gồm kiện của nhiều GIR
           const curO = docOf('OSD', k.OSD);
           if (od && !(curO && !od.isNew && String(curO.id) === String(od.id))) {
             x.chg.push({ f: 'OSD', o: curO ? curO.So : '', n: od.so + (od.isNew ? ' (mới)' : ''), l: 'OSD' });
@@ -397,7 +398,7 @@
       ds.forEach(d => { d.id = U.uid(); });
       const rows = ds.map(d => t === 'MGMER' ? { id: d.id, So: d.so, Ngay: d.ngay, Goi_thau: P.goi, Dia_diem: 'Tại công trường', Thanh_phan: '', File: '', Thu_muc: '', Ghi_chu: note }
         : t === 'GIR' ? { id: d.id, So: d.so, Ngay: d.ngay, Goi_thau: P.goi, MGMER: d.mg && d.mg.size === 1 ? [...d.mg][0] : '', Thanh_phan: '', File: '', Ghi_chu: note }
-        : { id: d.id, So: d.so, Ngay: d.ngay, Goi_thau: P.goi, GIR: d.gir ? d.gir.id : '', Loai: d.loai || '', Noi_dung: d.nd || '', File: '' });
+        : { id: d.id, So: d.so, Ngay: d.ngay, Goi_thau: P.goi, GIR: [...new Set([...(d.girs || new Map()).values()].map(g => g.id).filter(Boolean))].join(', '), Loai: d.loai || '', Noi_dung: d.nd || '', File: '' });
       step('Đang tạo ' + ds.length + ' biên bản ' + t + '…');
       await DB.addMany(t, rows, null, via);
       add[t] = rows.map(r => r.id);
@@ -463,7 +464,7 @@
     }
     for (const t of ['OSD', 'GIR', 'MGMER']) {
       if (!(add[t] || []).length) continue;
-      const refBy = new Set(DB.rows('KIEN').map(k => String(k[t] || '')).concat(t === 'GIR' ? DB.rows('OSD').map(o => String(o.GIR || '')) : [], t === 'MGMER' ? DB.rows('GIR').map(g => String(g.MGMER || '')) : []));
+      const refBy = new Set(DB.rows('KIEN').map(k => String(k[t] || '')).concat(t === 'GIR' ? DB.rows('OSD').flatMap(o => U.splitList(o.GIR)) : [], t === 'MGMER' ? DB.rows('GIR').map(g => String(g.MGMER || '')) : []));
       const live = add[t].filter(x => DB.get(t, x)), keep = live.filter(x => refBy.has(String(x)));   // biên bản đã được dùng tiếp → giữ
       step('Đang xoá biên bản ' + t + '…');
       await DB.removeMany(t, live.filter(x => !keep.includes(x)), null, 1000, UVIA);

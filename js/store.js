@@ -229,7 +229,10 @@
         case 'expiry': return U.esc(U.parseDate(v) ? U.fmtDate(v) : v);
         case 'price': return U.esc(U.money(v));
         case 'number': return U.esc(U.int(v));
-        case 'ref': { const rr = this.get(f.ref, v); return U.esc(rr ? this.title(f.ref, rr) : v); }
+        case 'ref': {
+          if (f.multi) return U.esc(U.splitList(v).map(x => { const rr = this.get(f.ref, x); return rr ? this.title(f.ref, rr) : x; }).join(', '));
+          const rr = this.get(f.ref, v); return U.esc(rr ? this.title(f.ref, rr) : v);
+        }
         case 'email': return `<a href="mailto:${U.esc(v)}">${U.esc(v)}</a>`;
         case 'phone': return `<a href="tel:${U.esc(String(v).replace(/\s/g, ''))}">${U.esc(v)}</a>`;
         case 'url': { const u = /^https?:\/\//i.test(v) ? v : 'https://' + v; return `<a href="${U.esc(u)}" target="_blank" rel="noopener">${U.esc(v)}</a>`; }

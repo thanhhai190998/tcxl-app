@@ -3,7 +3,8 @@
 //
 //  Cột (field):  n = tên cột trong Sheet, l = nhãn hiển thị, t = kiểu:
 //    text | longtext | number | price | date | datetime | expiry
-//    enum (opts, other=true cho phép gõ giá trị khác, multi=true chọn nhiều — lưu "A, B") | ref (ref = bảng tham chiếu)
+//    enum (opts, other=true cho phép gõ giá trị khác, multi=true chọn nhiều — lưu "A, B")
+//    ref (ref = bảng tham chiếu; multi=true chọn nhiều bản ghi — lưu mã "id1, id2")
 //    image | file | email | url | phone
 //  Danh sách (list): group = nhóm theo cột, filter = cột (hoặc mảng cột) làm nút lọc nhanh,
 //    sort/desc = sắp xếp mặc định, cols = cột hiện thêm trong mỗi dòng, avatar: 'initials' = chữ cái đầu,
@@ -220,7 +221,8 @@
       // Gói không bắt buộc (kiện gắn vào OSD đã mang gói) — app tự điền khi biết: theo lần mở kiện, theo gói duy nhất
       // của người lập (beforeSave), hoặc theo các kiện được chọn (pick.js). Vẫn cần gói để phân quyền cán bộ / nhà thầu theo gói.
       { n: 'Goi_thau', l: 'Gói thầu', t: 'ref', ref: 'GOI_THAU' },
-      { n: 'GIR', l: 'Phát sinh từ lần mở kiện', t: 'ref', ref: 'GIR' },
+      // multi: 1 biên bản OSD có thể tổng hợp kiện của nhiều lần mở kiện (user 26/10/2026) → lưu mã các GIR "id1, id2"
+      { n: 'GIR', l: 'Phát sinh từ lần mở kiện', t: 'ref', ref: 'GIR', multi: true },
       // multi: 1 kiện có thể vừa thiếu vừa hỏng → chọn nhiều, lưu "A, B" trong cùng cột
       { n: 'Loai', l: 'Loại', t: 'enum', multi: true, opts: ['Thiếu (Shortage)', 'Hư hỏng (Damage)', 'Dư (Overage)', 'Khác'] },
       { n: 'Noi_dung', l: 'Ghi chú', t: 'longtext', ph: 'Dư / thiếu / hỏng gì, biện pháp xử lý (bù hàng, thay thế, chấp nhận, bảo hiểm…) — cập nhật dần' },
@@ -231,7 +233,7 @@
     detail: { stats: ['Ngay', 'Loai', 'So_kien'], hide: [] },
     // Trước khi lưu form: điền gói còn trống; trả { f, msg } nếu không lưu được
     beforeSave: (o, { db, user }) => {
-      if (!o.Goi_thau && o.GIR) { const g = db.get('GIR', o.GIR); if (g && g.Goi_thau) o.Goi_thau = g.Goi_thau; }
+      if (!o.Goi_thau && o.GIR) { const g = db.get('GIR', U.splitList(o.GIR)[0]); if (g && g.Goi_thau) o.Goi_thau = g.Goi_thau; }
       const goi = !user.admin && user.goi && user.goi.length ? user.goi : null;   // người chỉ được làm một số gói
       if (!o.Goi_thau && goi && goi.length === 1) o.Goi_thau = goi[0];
       if (!o.Goi_thau && goi) return { f: 'Goi_thau', msg: 'Bạn phụ trách nhiều gói — chọn gói thầu hoặc lần mở kiện để app biết OSD thuộc gói nào' };
@@ -239,7 +241,7 @@
     },
     related: [{ t: 'KIEN', fk: 'OSD', l: 'Các kiện liên quan', pick: true }],
     assign: { field: 'OSD', verb: 'lập OSD', modes: [
-      { id: 'gir', l: 'Thuộc lần mở kiện phát sinh OSD', when: rec => rec.GIR, f: (k, rec) => k.GIR === rec.GIR },
+      { id: 'gir', l: 'Thuộc các lần mở kiện phát sinh OSD', when: rec => rec.GIR, f: (k, rec) => !!k.GIR && U.splitList(rec.GIR).includes(String(k.GIR)) },
       { id: 'open', l: 'Đã mở kiện', f: k => !!k.GIR },
       { id: 'all', l: 'Tất cả kiện của gói', f: () => true }
     ] }

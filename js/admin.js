@@ -315,7 +315,7 @@
     const dLink = (t, r) => `<a href="#/r/${t}/${enc(r[DB.keyField(t)])}">${esc(DB.title(t, r))}</a>`;
     const cnt = { MGMER: new Map(), GIR: new Map(), OSD: new Map() };
     K.forEach(r => ['MGMER', 'GIR', 'OSD'].forEach(t => { if (r[t]) cnt[t].set(r[t], (cnt[t].get(r[t]) || 0) + 1); }));
-    DB.rows('OSD').forEach(o => { if (o.GIR) cnt.GIR.set(o.GIR, (cnt.GIR.get(o.GIR) || 0) + 0.0001); });   // GIR có OSD đi kèm không coi là trống
+    DB.rows('OSD').forEach(o => U.splitList(o.GIR).forEach(g => cnt.GIR.set(g, (cnt.GIR.get(g) || 0) + 0.0001)));   // GIR có OSD đi kèm không coi là trống
     const checks = [];
     // 1) Gán gói theo PKL
     GOI_RULES.forEach(g => {

@@ -855,17 +855,6 @@ a.hb:hover { background: var(--hover); }
 .onl-none { padding: 14px 16px; }
 .onl-note { margin: 14px 4px 0; line-height: 1.5; }
 
-/* ---- Ô chọn nhiều bản ghi (ref multi, vd OSD ← nhiều GIR) ---- */
-.mpick { display: grid; gap: 8px; }
-.mp-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.mp-chips:empty { display: none; }
-.mp-chip { display: inline-flex; align-items: center; gap: 2px; max-width: 100%; padding: 4px 4px 4px 12px; border-radius: 99px; font-size: 14px; font-weight: 600;
-  background: color-mix(in srgb, var(--pri) 13%, transparent); color: var(--pri); border: 1px solid color-mix(in srgb, var(--pri) 30%, transparent); }
-.mp-chip > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mp-chip button { display: grid; place-items: center; width: 26px; height: 26px; border: 0; border-radius: 50%; background: none; color: inherit; cursor: pointer; }
-.mp-chip button:hover { background: color-mix(in srgb, var(--pri) 18%, transparent); }
-.mp-chip .ico { width: 14px; height: 14px; }
-
 /* ---- App TCXL: danh sách dài, nhiều hàng lọc, thanh tiến độ 3 giai đoạn ---- */
 #chips .chips-row + .chips-row { margin-top: -4px; }
 .lmore { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; margin-top: 10px; }
@@ -895,7 +884,8 @@ a.hb:hover { background: var(--hover); }
 .phead { display: flex; align-items: center; gap: 12px; padding: 12px 14px; margin-bottom: 10px; }
 .pmode { margin: 0 0 10px; }
 .pfil { display: grid; grid-template-columns: 1fr minmax(180px, 300px); gap: 8px; margin-bottom: 10px; align-items: start; }
-@media (max-width: 600px) { .pfil { grid-template-columns: 1fr; } }
+.pfil:has(#pgir) { grid-template-columns: 1fr minmax(160px, 260px) minmax(160px, 260px); }   /* chọn kiện cho OSD: thêm ô lọc GIR */
+@media (max-width: 600px) { .pfil, .pfil:has(#pgir) { grid-template-columns: 1fr; } }
 .pfil .lsearch { min-height: 44px; }
 .ponly { margin-left: 10px; white-space: nowrap; font-size: 13px; color: var(--text); }
 .prow { cursor: pointer; user-select: none; }

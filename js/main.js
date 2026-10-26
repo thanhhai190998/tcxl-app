@@ -144,7 +144,7 @@
       else if (p[0] === 'i') await Views.list(p[1]);
       else if (p[0] === 'r') await Views.detail(p[1], p[2]);
       else if (p[0] === 'f') await Views.form(p[1], p[2], params);
-      else if (p[0] === 'pick') await Pick.render(p[1], p[2]);
+      else if (p[0] === 'pick') await Pick.render(p[1], p[2], params);
       else if (p[0] === 'admin' && !p[1]) await Admin.users();
       else if (p[0] === 'admin' && p[1] === 'u') await Admin.user(p[2]);
       else if (p[0] === 'admin' && p[1] === 'log') await Admin.log();

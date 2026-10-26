@@ -440,7 +440,7 @@
     return (f.multi ? U.splitList(v) : [v]).map(x => { const rr = x && DB.get(f.ref, x); return rr ? DB.title(f.ref, rr) : (x || ''); }).join(', ');
   }
   // Dòng con có trỏ về khoá này không (ref nhiều giá trị: khoá nằm trong danh sách)
-  const refHas = (ct, fk, x, key) => { const f = DB.field(ct, fk); return f && f.multi ? U.splitList(x[fk]).includes(String(key)) : String(x[fk]) === String(key); };
+  const refHas = (ct, fk, x, key) => { const f = DB.field(ct, fk), v = DB.val(ct, x, fk); return f && f.multi ? U.splitList(v).includes(String(key)) : String(v) === String(key); };
 
   function groupValue(t, r, g) {
     const f = DB.field(t, g), v = DB.val(t, r, g);
@@ -785,64 +785,8 @@
     pop.addEventListener('click', e => { const b = e.target.closest('[data-i]'); if (b) pick(+b.dataset.i); });
   });
 
-  // Ô chọn NHIỀU bản ghi có sẵn (field ref multi, vd 1 OSD phát sinh từ nhiều GIR): giá trị đã chọn hiện thành thẻ có nút ×,
-  // gõ để tìm thêm, bấm lại giá trị đang chọn = bỏ chọn. Lưu "id1, id2" trong ô ẩn như các field multi khác.
-  V.multiPick = (nm, v, opts) => `<div class="mpick" data-opts="${esc(JSON.stringify(opts))}"><input type="hidden" ${nm} value="${esc(U.splitList(v).join(', '))}">
-      <div class="mp-chips"></div>
-      <div class="cbx mp-in"><input type="text" class="ptxt" placeholder="Bấm để chọn (chọn được nhiều) hoặc gõ để tìm" autocomplete="off" role="combobox" aria-expanded="false">
-      <button type="button" class="cbx-tg" tabindex="-1" aria-label="Mở danh sách">${Icon('chevron')}</button><div class="cbx-pop" role="listbox" aria-multiselectable="true" hidden></div></div></div>`;
-  V.multiPickers = root => root.querySelectorAll('.mpick').forEach(box => {
-    const hid = box.querySelector('input[type=hidden]'), chips = box.querySelector('.mp-chips'), wrap = box.querySelector('.mp-in');
-    const txt = wrap.querySelector('.ptxt'), pop = wrap.querySelector('.cbx-pop'), opts = JSON.parse(box.dataset.opts || '[]'), MAX = 200;
-    let act = -1, items = [];
-    const cur = () => U.splitList(hid.value);
-    const labelOf = v => { const o = opts.find(x => String(x.v) === v); return o ? o.l : v; };
-    const paint = () => {
-      chips.innerHTML = cur().map((v, i) => `<span class="mp-chip"><span>${esc(labelOf(v))}</span><button type="button" data-rm="${i}" aria-label="Bỏ ${esc(labelOf(v))}">${Icon('x', 'sm')}</button></span>`).join('');
-    };
-    const setList = list => {
-      const s = list.join(', ');
-      if (hid.value !== s) { hid.value = s; hid.dispatchEvent(new Event('input', { bubbles: true })); hid.dispatchEvent(new Event('change', { bubbles: true })); }
-      paint();
-    };
-    const draw = () => {
-      const sel = new Set(cur()), q = txt.value.trim();
-      const found = q ? opts.filter(o => U.match(o.l + ' ' + (o.s || '') + ' ' + o.v, q)) : opts;
-      items = found.slice(0, MAX);
-      pop.innerHTML = items.length ? items.map((o, i) => { const on = sel.has(String(o.v));
-        return `<button type="button" class="cbx-o ${i === act ? 'on' : ''} ${on ? 'sel' : ''}" data-i="${i}" role="option" aria-selected="${on}">
-          <span>${esc(o.l)}${o.s ? `<small>${esc(o.s)}</small>` : ''}</span>${on ? Icon('check', 'sm') : ''}</button>`; }).join('')
-          + (found.length > MAX ? `<div class="cbx-empty">Còn ${U.int(found.length - MAX)} lựa chọn nữa — gõ thêm để tìm</div>` : '')
-        : '<div class="cbx-empty">Không có lựa chọn nào khớp</div>';
-    };
-    const open = () => {
-      draw();
-      if (pop.hidden) { pop.hidden = false; wrap.classList.add('open'); txt.setAttribute('aria-expanded', 'true'); requestAnimationFrame(() => pop.scrollIntoView({ block: 'nearest' })); }
-    };
-    const close = () => { pop.hidden = true; wrap.classList.remove('open'); txt.setAttribute('aria-expanded', 'false'); };
-    const toggle = i => { const o = items[i]; if (!o) return; const v = String(o.v), l = cur(); setList(l.includes(v) ? l.filter(x => x !== v) : l.concat(v)); draw(); };
-    txt.addEventListener('focus', () => { act = -1; open(); });
-    txt.addEventListener('click', () => { if (pop.hidden) open(); });
-    txt.addEventListener('input', () => { act = -1; open(); });
-    txt.addEventListener('keydown', e => {
-      if (e.key === 'Backspace' && !txt.value && cur().length) { setList(cur().slice(0, -1)); if (!pop.hidden) draw(); return; }
-      if (pop.hidden) { if (e.key === 'ArrowDown') { e.preventDefault(); open(); } return; }
-      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-        e.preventDefault(); act = Math.max(0, Math.min(items.length - 1, act + (e.key === 'ArrowDown' ? 1 : -1))); draw();
-        const on = pop.querySelector('.on'); if (on) on.scrollIntoView({ block: 'nearest' });
-      } else if (e.key === 'Enter') { e.preventDefault(); toggle(act >= 0 ? act : 0); }
-      else if (e.key === 'Escape' || e.key === 'Tab') close();
-    });
-    txt.addEventListener('blur', () => setTimeout(() => { close(); txt.value = ''; }, 150));
-    wrap.querySelector('.cbx-tg').addEventListener('click', () => { if (pop.hidden) { txt.focus(); open(); } else close(); });
-    pop.addEventListener('mousedown', e => e.preventDefault());   // bấm chọn không làm mất con trỏ → chọn liền nhiều giá trị
-    pop.addEventListener('click', e => { const b = e.target.closest('[data-i]'); if (b) { act = +b.dataset.i; toggle(act); } });
-    chips.addEventListener('click', e => { const b = e.target.closest('[data-rm]'); if (b) { const l = cur(); l.splice(+b.dataset.rm, 1); setList(l); } });
-    paint();
-  });
-
   // Ô chọn có thể gõ giá trị mới (thay <datalist> — trình duyệt hiện lẫn thành "Saved data", thiếu ô tìm)
-  V.combo = root => root.querySelectorAll('.cbx:not(.pick):not(.mp-in)').forEach(box => {
+  V.combo = root => root.querySelectorAll('.cbx:not(.pick)').forEach(box => {
     const inp = box.querySelector('input'), pop = box.querySelector('.cbx-pop'), opts = JSON.parse(box.dataset.opts || '[]');
     const subs = JSON.parse(box.dataset.subs || '{}'), addl = box.dataset.addl || 'Thêm mới';   // dòng phụ (vd chức vụ · đơn vị), nhãn khi gõ giá trị mới
     let act = -1, items = [], all = true;
@@ -924,12 +868,6 @@
         break;
       case 'ref': {
         const rows = DB.rows(f.ref).slice().sort((a, b) => DB.title(f.ref, a).localeCompare(DB.title(f.ref, b), 'vi', { numeric: true }));
-        if (f.multi) {   // chọn nhiều bản ghi (vd OSD từ nhiều GIR) — giữ cả mã không còn trong bảng để không mất khi lưu
-          const cur = U.splitList(v), opts = rows.map(x => ({ v: String(DB.keyOf(f.ref, x)), l: DB.title(f.ref, x), s: DB.sub(f.ref, x) }));
-          cur.filter(x => !DB.get(f.ref, x)).forEach(x => opts.push({ v: x, l: x }));
-          input = opts.length <= SEG_MAX ? seg(opts, v, true) : V.multiPick(nm, v, opts);
-          break;
-        }
         if (rows.length && rows.length <= SEG_MAX && (!v || DB.get(f.ref, v))) {
           input = seg(rows.map(x => ({ v: String(DB.keyOf(f.ref, x)), l: DB.title(f.ref, x) })), v);
         } else {
@@ -1005,7 +943,6 @@
     V.hydrate(form);
     V.combo(form);
     V.pickers(form);
-    V.multiPickers(form);
     V.dates(form);
     const q = sel => form.querySelector(sel);
     const byName = n => q(`[name="${CSS.escape(n)}"]`);
@@ -1191,7 +1128,9 @@
         Files.forget(t, k);
         dirty = false;
         if (isNew && def.assign) U.toast('Đã tạo biên bản — chọn các kiện thuộc biên bản', 'ok');
-        location.replace((isNew && def.assign ? '#/pick/' : '#/r/') + t + '/' + enc(k));
+        // OSD tạo từ trang 1 GIR (?GIR=…): màn hình Chọn kiện lọc sẵn kiện của GIR đó
+        const carry = isNew && def.assign && def.assign.girFilter && params.get('GIR') ? '?GIR=' + enc(params.get('GIR')) : '';
+        location.replace((isNew && def.assign ? '#/pick/' : '#/r/') + t + '/' + enc(k) + carry);
       } catch (err) {
         if (err.message !== 'Đã huỷ') U.toast(err.message, 'err');
         btn.disabled = false; btn.innerHTML = label;

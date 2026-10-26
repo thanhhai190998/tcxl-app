@@ -2,8 +2,9 @@
 //  CHỌN NHIỀU KIỆN CHO 1 BIÊN BẢN (MGMER / GIR / OSD) — "nhập theo biên bản"
 //  Biên bản nhập 1 lần (số, ngày, file), rồi tick chọn các kiện thuộc biên bản đó; lưu 1 lần cho cả loạt.
 //  Cấu hình ở schema.js → assign của bảng biên bản: field = cột của kiện trỏ tới biên bản,
-//  modes = các cách lọc sẵn danh sách kiện, loc = cho ghi luôn vị trí lưu kho (MGMER).
-//  Địa chỉ: #/pick/<bảng biên bản>/<id>
+//  modes = các cách lọc sẵn danh sách kiện, loc = cho ghi luôn vị trí lưu kho (MGMER),
+//  girFilter = thêm ô lọc theo lần mở kiện (OSD: chọn GIR rồi tick đúng các kiện dư / thiếu / hỏng).
+//  Địa chỉ: #/pick/<bảng biên bản>/<id>[?GIR=<mã GIR lọc sẵn>]
 // =====================================================================
 (function () {
   const esc = U.esc, enc = encodeURIComponent;
@@ -12,7 +13,7 @@
   const rowLv = (t, r) => permRowLevel(App.user, t, r, (pt, k) => DB.get(pt, k));
   const num = v => { const n = parseFloat(v); return isNaN(n) ? Infinity : n; };
 
-  P.render = async (t, id) => {
+  P.render = async (t, id, params) => {
     const def = SCHEMA.tables[t], A = def && def.assign;
     if (!A) return App.notFound();
     App.head('Chọn kiện', { back: true });
@@ -34,7 +35,7 @@
     const orig = new Set(pool.filter(k => String(k[F] || '') === recId).map(k => String(k.id)));
     const sel = new Set(orig);
     const modes = A.modes.filter(m => !m.when || m.when(rec)).map(m => noGoi ? { ...m, l: m.l.replace(/ của gói$/, '') } : m);
-    const st = { mode: modes[0].id, pkl: '*', q: '', only: false, lim: PAGE };
+    const st = { mode: modes[0].id, pkl: '*', gir: (A.girFilter && params && params.get('GIR')) || '*', q: '', only: false, lim: PAGE };
     const dirty = () => sel.size !== orig.size || [...sel].some(x => !orig.has(x));
     App.guard = async () => !dirty() || U.confirm('Bỏ các kiện vừa chọn mà chưa lưu?');
 
@@ -44,6 +45,7 @@
     const shown = () => {
       let rs = cands();
       if (st.pkl !== '*') rs = rs.filter(k => String(k.PKL_No || '') === st.pkl);
+      if (st.gir !== '*') rs = rs.filter(k => String(k.GIR || '') === st.gir);
       if (st.only) rs = rs.filter(k => sel.has(String(k.id)));
       if (st.q) rs = rs.filter(k => U.match(text(k), st.q));
       return rs;
@@ -62,6 +64,15 @@
       return [{ v: '*', l: 'Tất cả PKL', s: m.size + ' PKL' }, ...[...m].sort((a, b) => a[0].localeCompare(b[0], 'vi', { numeric: true }))
         .map(([p, o]) => ({ v: p, l: p ? 'PKL ' + p : '(chưa có PKL)', s: o.n + ' kiện' + (o.s ? ' · đã chọn ' + o.s : '') }))];
     };
+    // Lần mở kiện có trong danh sách đang lọc (OSD): mỗi GIR kèm số kiện, số đã chọn
+    const girName = g => { const x = g && DB.get('GIR', g); return x ? DB.title('GIR', x) : g ? 'GIR ' + g : '(chưa mở kiện)'; };
+    const girOpts = () => {
+      const m = new Map();
+      cands().forEach(k => { const g = String(k.GIR || ''); const o = m.get(g) || { n: 0, s: 0 }; o.n++; if (sel.has(String(k.id))) o.s++; m.set(g, o); });
+      if (st.gir !== '*' && !m.has(st.gir)) m.set(st.gir, { n: 0, s: 0 });
+      return [{ v: '*', l: 'Mọi lần mở kiện', s: [...m.keys()].filter(Boolean).length + ' GIR' }, ...[...m].sort((a, b) => girName(a[0]).localeCompare(girName(b[0]), 'vi', { numeric: true }))
+        .map(([g, o]) => ({ v: g, l: girName(g), s: o.n + ' kiện' + (o.s ? ' · đã chọn ' + o.s : '') }))];
+    };
     const locOpts = () => V.enumOpts('KIEM_TRA', DB.field('KIEM_TRA', 'Vi_tri'));
     const V = Views;
 
@@ -73,7 +84,7 @@
       <div class="seg pmode">${modes.map(m => `<button type="button" class="segb ${m.id === st.mode ? 'on' : ''}" data-mode="${m.id}">${esc(m.l)}</button>`).join('')}</div>
       <div class="pfil">
         <label class="lsearch">${Icon('search')}<input type="search" id="pq" placeholder="Tìm mô tả, số kiện, PKL, bản vẽ…" autocomplete="off"></label>
-        <div id="ppkl"></div>
+        <div id="ppkl"></div>${A.girFilter ? '<div id="pgir"></div>' : ''}
       </div>
       <div class="lsum" id="psum"></div>
       <div id="plist"></div>
@@ -94,6 +105,13 @@
       V.pickers(box);
       const hid = box.querySelector('[data-pkl]');
       hid.addEventListener('change', () => { st.pkl = hid.value || '*'; st.lim = PAGE; draw(); });
+    };
+    const drawGir = () => {
+      const box = $('#pgir'); if (!box) return;
+      box.innerHTML = V.pickInput('data-gir', st.gir, girOpts());
+      V.pickers(box);
+      const hid = box.querySelector('[data-gir]');
+      hid.addEventListener('change', () => { st.gir = hid.value || '*'; st.lim = PAGE; draw(); });
     };
     // Thanh dưới: số đã chọn (+ thêm / − bỏ) và nút chọn / bỏ cả loạt đang lọc
     const drawBar = rs => {
@@ -117,7 +135,7 @@
       cur = shown();
       const pool2 = cands().length;
       $('#psum').innerHTML = `${Icon('box', 'sm')}<span><b>${U.int(cur.length)}</b> kiện đang hiện
-        <span class="muted">· trong ${U.int(pool2)} kiện phù hợp${esc(ofGoi)}${st.pkl !== '*' ? ' · PKL ' + esc(st.pkl || '(trống)') : ''}${st.q ? ' · khớp "' + esc(st.q) + '"' : ''}</span>
+        <span class="muted">· trong ${U.int(pool2)} kiện phù hợp${esc(ofGoi)}${st.pkl !== '*' ? ' · PKL ' + esc(st.pkl || '(trống)') : ''}${st.gir !== '*' ? ' · ' + esc(girName(st.gir)) : ''}${st.q ? ' · khớp "' + esc(st.q) + '"' : ''}</span>
         <label class="chk ponly"><input type="checkbox" id="ponly" ${st.only ? 'checked' : ''}> Chỉ kiện đã chọn</label></span>`;
       $('#ponly').onchange = e => { st.only = e.target.checked; st.lim = PAGE; draw(); };
       const lim = Math.min(st.lim, cur.length);
@@ -138,13 +156,13 @@
       box.classList.toggle('on', e.target.checked);
       drawBar(cur);
     });
-    const bulk = on => { cur.forEach(k => { if (on) sel.add(String(k.id)); else sel.delete(String(k.id)); }); draw(); drawPkl(); };
+    const bulk = on => { cur.forEach(k => { if (on) sel.add(String(k.id)); else sel.delete(String(k.id)); }); draw(); drawPkl(); drawGir(); };
     $('[data-all]').onclick = () => bulk(true);
     $('[data-none]').onclick = () => bulk(false);
     App.main.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => {
       st.mode = b.dataset.mode; st.pkl = '*'; st.lim = PAGE;
       App.main.querySelectorAll('[data-mode]').forEach(x => x.classList.toggle('on', x === b));
-      drawPkl(); draw();
+      drawPkl(); drawGir(); draw();
     });
     let qt = null;
     $('#pq').oninput = e => { clearTimeout(qt); qt = setTimeout(() => { st.q = e.target.value; st.lim = PAGE; draw(); }, pool.length > 2000 ? 200 : 0); };
@@ -177,6 +195,6 @@
       orig.clear(); sel.forEach(x => orig.add(x));   // đã ghi → không hỏi lại khi rời trang
       location.replace('#/r/' + t + '/' + enc(rec.id));
     };
-    drawPkl(); draw();
+    drawPkl(); drawGir(); draw();
   };
 })();

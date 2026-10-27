@@ -419,7 +419,7 @@
       });
       rows('GIR').forEach((g, i) => { const k = rows('KIEN').find(x => x.GIR === g.id), m = k && mg.get(String(k.MGMER)); if (m && i % 7 !== 3) add((m.Goi_thau && m.Goi_thau !== 'EPC' ? m.Goi_thau + '/' : '') + 'MGMER ' + m.So, 'GIR ' + g.So + '.PDF'); });
       rows('OSD').forEach(o => { const k = rows('KIEN').find(x => x.OSD === o.id), m = k && mg.get(String(k.MGMER)); if (m) add((m.Goi_thau && m.Goi_thau !== 'EPC' ? m.Goi_thau + '/' : '') + 'MGMER ' + m.So, o.So + '.pdf'); });
-      return { root: 'Goods delivered to Site', folders: new Set(files.map(f => f.p)).size, files };
+      return { root: 'Goods delivered to Site', folders: new Set(files.map(f => f.p)).size, files, pending: [] };
     },
     // Demo: thời điểm "lần cuối thấy" giả cho các tài khoản mẫu (thật: máy chủ ghi mỗi lần app gọi)
     async online() {

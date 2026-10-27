@@ -382,7 +382,17 @@
     let idx = null;
     btn.onclick = async () => {
       btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Đang đọc danh mục file trên Drive (khoảng 10–60 giây)…';
-      try { idx = await API.srcIndex(); }
+      try {
+        // Máy chủ đọc từng phần (~25 giây / lần) → gọi lại kèm các thư mục còn dở tới khi hết
+        let pending = null, n = 0;
+        idx = { root: '', folders: 0, files: [] };
+        do {
+          const r = await API.srcIndex(pending);
+          idx.root = r.root; idx.files = idx.files.concat(r.files || []); idx.folders += r.folders || 0;
+          pending = r.pending && r.pending.length ? r.pending : null;
+          btn.innerHTML = `<span class="spin"></span> Đang đọc danh mục file trên Drive… ${U.int(idx.files.length)} file, ${U.int(idx.folders)} thư mục${pending ? ' (còn ' + U.int(pending.length) + ' thư mục)' : ''}`;
+        } while (pending && ++n < 60);
+      }
       catch (e) {
         box.innerHTML = `<div class="xerr">${Icon('alert')}<span>${esc(/không hợp lệ/.test(e.message) ? 'Máy chủ / kho file chưa cập nhật bản có "Gắn file từ Drive" — dán Code.gs và FileService.gs mới rồi triển khai phiên bản mới' : e.message)}</span></div>`;
         btn.disabled = false; btn.innerHTML = `${Icon('search')} Dò file trên Drive phòng`; return;

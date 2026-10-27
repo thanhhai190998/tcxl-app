@@ -371,7 +371,8 @@
   const sizeVars = () => {
     const st = document.documentElement.style, top = document.querySelector('.top'), hero = document.getElementById('hero'), foot = document.getElementById('foot');
     st.setProperty('--top-h', (top ? top.offsetHeight : 54) + 'px');
-    st.setProperty('--hero-h', (hero && !hero.hidden ? hero.offsetHeight : 0) + 'px');
+    // vùng chào trang chủ kéo lên dưới thanh trên (margin-top âm) → chỉ tính phần thật sự chiếm chỗ
+    st.setProperty('--hero-h', (hero && !hero.hidden ? hero.offsetHeight + (parseFloat(getComputedStyle(hero).marginTop) || 0) : 0) + 'px');
     st.setProperty('--foot-h', (foot && getComputedStyle(foot).display !== 'none' ? foot.offsetHeight + (parseFloat(getComputedStyle(foot).marginTop) || 0) : 0) + 'px');
   };
   if (window.ResizeObserver) { const ro = new ResizeObserver(sizeVars); ['.top', '#hero', '#foot'].forEach(s => { const el = document.querySelector(s); if (el) ro.observe(el); }); }

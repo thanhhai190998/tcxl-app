@@ -220,35 +220,63 @@
     // Thanh 3 Phase nhỏ trong dòng gói thầu (dòng đã là liên kết → các đoạn dùng <span>, không lồng <a> trong <a>)
     const bar = (c, tot) => [0, 1, 2].filter(i => c[i]).map(i =>
       `<span class="p${i + 1}" style="width:${c[i] / tot * 100}%" title="${esc(PNAME[i])}: ${fmt(c[i])} kiện (${pct(c[i], tot)}%)"></span>`).join('');
-    if (kienOk) {
+    const gl = App.main.querySelector('#hgoi'), dl = App.main.querySelector('#hdocs');
+    let drawGoi = () => {}, drawDocs = () => {}, nGoi = 0, nDoc = 0;
+    if (kienOk && gl) {
       // Theo gói thầu: tổng kiện + thanh 3 Phase nhỏ, nhiều kiện trước
       const by = new Map();
       kien.forEach(r => { const k = String(r.Goi_thau || '(chưa có gói)'); if (!by.has(k)) by.set(k, [0, 0, 0]); by.get(k)[phOf(r)]++; });
       const goi = [...by.entries()].map(([k, x]) => ({ k, x, n: x[0] + x[1] + x[2] })).sort((a, b) => b.n - a.n);
-      const LIM = 10, gl = App.main.querySelector('#hgoi');
-      if (gl) gl.innerHTML = goi.length ? `<div class="hrow2 goi hth"><span>Gói<i class="hlong"> thầu</i></span><span>3 Phase</span><span class="hn">Tổng<i class="hlong"> kiện</i></span><span class="hn">Đã về</span><span class="hn">Đã mở</span></div>`
+      nGoi = Math.min(goi.length, 20);
+      drawGoi = LIM => { gl.innerHTML = goi.length ? `<div class="hrow2 goi hth"><span>Gói<i class="hlong"> thầu</i></span><span>3 Phase</span><span class="hn">Tổng<i class="hlong"> kiện</i></span><span class="hn">Đã về</span><span class="hn">Đã mở</span></div>`
         + goi.slice(0, LIM).map(o => {
           const gr = DB.get('GOI_THAU', o.k);
           return `<a class="hrow2 goi" href="#/i/KIEN?Goi_thau=${encodeURIComponent(o.k)}" title="${esc(gr ? gr.TenGoi || o.k : o.k)}">
             <b class="hg">${esc(o.k)}</b><span class="pbar3 sm">${bar(o.x, o.n)}</span><span class="hn">${fmt(o.n)}</span><span class="hn">${fmt(o.x[1] + o.x[2])}</span><span class="hn">${fmt(o.x[2])}</span></a>`;
         }).join('') + (goi.length > LIM ? `<div class="muted small hrest">+ ${goi.length - LIM} gói khác — xem ở Tổng quan</div>` : '')
-        : '<div class="muted small hrest">Chưa có kiện nào</div>';
+        : '<div class="muted small hrest">Chưa có kiện nào</div>'; };
     }
 
     // Biên bản mới nhất (theo ngày biên bản; bỏ ngày gõ nhầm ở tương lai xa) + số kiện của từng biên bản
-    const dl = App.main.querySelector('#hdocs');
     if (dl) {
       const soon = U.isoOf(new Date(Date.now() + 31 * 864e5));
       const cnt = {}; DOC.forEach(([t]) => { cnt[t] = new Map(); kien.forEach(r => { if (r[t]) cnt[t].set(r[t], (cnt[t].get(r[t]) || 0) + 1); }); });
       const docs = DOC.flatMap(([t, l]) => DB.rows(t).filter(r => r.Ngay && String(r.Ngay) <= soon).map(r => ({ t, l, r })))
-        .sort((a, b) => String(b.r.Ngay).localeCompare(String(a.r.Ngay))).slice(0, 6);   // 6 dòng: cột phải (thao tác nhanh + biên bản) ≈ cột trái (tiến độ + 8 gói)
-      dl.innerHTML = docs.length ? `<div class="hrow2 doc hth"><span>Số biên bản</span><span>Loại</span><span class="hgoi">Gói</span><span>Ngày</span><span class="hn">Kiện</span></div>`
-        + docs.map(d => { const id = d.r[DB.keyField(d.t)], n = cnt[d.t].get(id) || 0;
+        .sort((a, b) => String(b.r.Ngay).localeCompare(String(a.r.Ngay))).slice(0, 12);
+      nDoc = docs.length;
+      drawDocs = m => { dl.innerHTML = docs.length ? `<div class="hrow2 doc hth"><span>Số biên bản</span><span>Loại</span><span class="hgoi">Gói</span><span>Ngày</span><span class="hn">Kiện</span></div>`
+        + docs.slice(0, m).map(d => { const id = d.r[DB.keyField(d.t)], n = cnt[d.t].get(id) || 0;
           return `<a class="hrow2 doc" href="#/r/${d.t}/${encodeURIComponent(id)}" title="${esc(d.l + ' ' + (d.r.So || id))}"><b class="hg">${esc(d.r.So || id)}</b>
             <span class="htag t-${d.t}">${d.t}</span><span class="hs hgoi">${esc(d.r.Goi_thau || '')}</span><span class="hs">${esc(U.fmtDate(d.r.Ngay))}</span>
             <span class="hn">${n ? fmt(n) : ''}</span></a>`; }).join('')
-        : '<div class="muted small hrest">Chưa có biên bản nào</div>';
+        : '<div class="muted small hrest">Chưa có biên bản nào</div>'; };
     }
+
+    // Vừa 1 màn hình (máy tính, 2 cột — user 27/10: trang chủ khỏi cuộn): vẽ tối đa 20 gói / 12 biên bản rồi bớt dần dòng ở cột
+    // cao hơn tới khi cả trang kể cả chân trang không phải cuộn → màn hình cao hiện nhiều dòng, thấp hiện ít (tối thiểu 3 dòng mỗi
+    // bảng; gói bị bớt → dòng "+ N gói khác"). Điện thoại / cửa sổ hẹp (1 cột) cuộn bình thường, 10 gói / 6 biên bản.
+    // Đổi cỡ cửa sổ thì tính lại.
+    const fit = () => {
+      if (!document.body.contains(gl || dl)) return;   // đã sang trang khác
+      const cols = App.main.querySelector('.hcols'), wide = cols && innerWidth > 860;
+      let g = wide ? nGoi : Math.min(nGoi, 10), d = wide ? nDoc : Math.min(nDoc, 6);
+      drawGoi(g); drawDocs(d);
+      if (!wide) return;
+      const colH = el => el ? el.closest('.hcol').offsetHeight : 0;
+      cols.classList.add('fit');   // đo chiều cao tự nhiên từng cột (không kéo giãn cho bằng nhau)
+      for (let i = 0; i < 40 && document.documentElement.scrollHeight - innerHeight > 1; i++) {
+        if (g > 3 && (colH(gl) >= colH(dl) || d <= 3)) drawGoi(--g);
+        else if (d > 3) drawDocs(--d);
+        else break;
+      }
+      // màn hình quá thấp, bớt tới tối thiểu vẫn phải cuộn → thôi bớt, hiện như điện thoại (10 gói / 6 biên bản)
+      if (document.documentElement.scrollHeight - innerHeight > 1) { drawGoi(Math.min(nGoi, 10)); drawDocs(Math.min(nDoc, 6)); }
+      cols.classList.remove('fit');
+    };
+    V._homeFit = fit;
+    fit();
+    if (document.fonts) document.fonts.ready.then(fit);
+    if (!V._homeFitBound) { V._homeFitBound = true; let tm; window.addEventListener('resize', () => { clearTimeout(tm); tm = setTimeout(() => V._homeFit(), 150); }); }
   };
 
   // ---------------- DANH SÁCH ----------------

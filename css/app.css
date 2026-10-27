@@ -101,8 +101,8 @@ main { max-width: 1040px; margin: 0 auto; padding: 12px 12px 20px; overflow-x: c
 #hero:has(.hero-img) .hero-in { position: relative; z-index: 1; padding-top: 16px; padding-bottom: 24px; }
 /* Ảnh đầu trang tràn lên dưới thanh tiêu đề: thanh trong suốt khi đang ở đầu trang chủ, cuộn xuống thì hiện lại nền màu
    (main.js thêm .solid khi cuộn) → chữ trên thanh luôn đọc được. Lớp tối mỏng phía trên ảnh cho chữ trắng nổi trên nền trời sáng. */
-body:has(#hero:not([hidden]) .hero-img):has(#syncbar[hidden]) #hero { margin-top: calc(-1 * var(--top-h, 54px)); padding-top: var(--top-h, 54px); }
-body:has(#hero:not([hidden]) .hero-img):has(#syncbar[hidden]) .top:not(.solid) { background: transparent; box-shadow: none; }
+body:has(#hero:not([hidden]) .hero-img) #hero { margin-top: calc(-1 * var(--top-h, 54px)); padding-top: var(--top-h, 54px); }
+body:has(#hero:not([hidden]) .hero-img) .top:not(.solid) { background: transparent; box-shadow: none; }
 #hero:has(.hero-img)::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: calc(var(--top-h, 54px) + 28px); pointer-events: none;
   background: linear-gradient(180deg, rgba(4, 32, 44, .45), rgba(4, 32, 44, 0)); }
 #hero:has(.hero-img) .hero-in.with-kpi { padding-bottom: 72px; }

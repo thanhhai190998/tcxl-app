@@ -18,7 +18,7 @@
       App.navActive();
     },
     // Vùng nền màu phía trên (chỉ trang chủ)
-    hero(html) { const h = document.getElementById('hero'); h.innerHTML = html; h.hidden = !html; },
+    hero(html) { const h = document.getElementById('hero'); h.innerHTML = html; h.hidden = !html; if (App.topTint) App.topTint(); },
     // Thanh điều hướng dưới cùng (điện thoại) + menu trượt (máy tính: cố định bên trái)
     buildNav() {
       const q = App.user.quyen || {}, can = k => App.user.admin || Perm.rank(q[k]) > 0;
@@ -357,11 +357,17 @@
 
   // Chiều cao thật của thanh trên / vùng chào (trang chủ) / chân trang → biến CSS cho main (min-height): trang ngắn thì chân trang
   // vẫn sát đáy màn hình, không dư khoảng trống, không làm trang phải cuộn
-  // Trang chủ: thanh tiêu đề trong suốt trên ảnh đầu trang (css) — cuộn xuống thì hiện lại nền màu cho chữ dễ đọc
-  const topBar = document.querySelector('.top');
-  const solidTop = () => topBar.classList.toggle('solid', window.scrollY > 4);
-  window.addEventListener('scroll', solidTop, { passive: true });
-  solidTop();
+  // Trang chủ: thanh tiêu đề trong suốt trên ảnh đầu trang (css) — cuộn xuống thì hiện lại nền màu cho chữ dễ đọc.
+  // Thanh tiêu đề cửa sổ (app đã cài trên máy tính / thanh trạng thái điện thoại) theo màu theme-color: trên ảnh thì đổi màu sẫm
+  // giống mép trên ảnh cho liền một khối, trang khác / đã cuộn thì về màu chính.
+  const topBar = document.querySelector('.top'), tcMeta = document.querySelector('meta[name="theme-color"]'), TC = tcMeta && tcMeta.content;
+  App.topTint = () => {
+    const solid = window.scrollY > 4, tc = !solid && document.querySelector('#hero:not([hidden]) .hero-img') ? '#0a5b55' : TC;
+    topBar.classList.toggle('solid', solid);
+    if (tcMeta && tcMeta.content !== tc) tcMeta.content = tc;
+  };
+  window.addEventListener('scroll', App.topTint, { passive: true });
+  App.topTint();
   const sizeVars = () => {
     const st = document.documentElement.style, top = document.querySelector('.top'), hero = document.getElementById('hero'), foot = document.getElementById('foot');
     st.setProperty('--top-h', (top ? top.offsetHeight : 54) + 'px');

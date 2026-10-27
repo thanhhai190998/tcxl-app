@@ -264,6 +264,9 @@
       if (!wide) return;
       const colH = el => el ? el.closest('.hcol').offsetHeight : 0;
       cols.classList.add('fit');   // đo chiều cao tự nhiên từng cột (không kéo giãn cho bằng nhau)
+      // Đo theo chiều cao thật của nội dung, bỏ min-height của main: min-height tính từ --hero-h mà biến này chỉ cập nhật ở khung
+      // hình sau (ResizeObserver, main.js) → quay lại trang chủ từ trang khác lúc này vẫn là 0 → tưởng trang luôn tràn.
+      App.main.style.minHeight = '0px';
       for (let i = 0; i < 40 && document.documentElement.scrollHeight - innerHeight > 1; i++) {
         if (g > 3 && (colH(gl) >= colH(dl) || d <= 3)) drawGoi(--g);
         else if (d > 3) drawDocs(--d);
@@ -271,6 +274,7 @@
       }
       // màn hình quá thấp, bớt tới tối thiểu vẫn phải cuộn → thôi bớt, hiện như điện thoại (10 gói / 6 biên bản)
       if (document.documentElement.scrollHeight - innerHeight > 1) { drawGoi(Math.min(nGoi, 10)); drawDocs(Math.min(nDoc, 6)); }
+      App.main.style.minHeight = '';
       cols.classList.remove('fit');
     };
     V._homeFit = fit;

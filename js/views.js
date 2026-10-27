@@ -159,39 +159,47 @@
     const can = t => permTableLevel(App.user, t);
     const PH = SCHEMA.PHASES, kl = '#/i/KIEN?Phase=';
     const kpis = [
-      { id: 'tot', ts: ['KIEN'], label: 'Tổng số kiện', ic: 'box', href: '#/i/KIEN' },
-      { id: 've', ts: ['KIEN'], label: 'Đã về, chưa mở kiện', ic: 'inspect', href: kl + encodeURIComponent(PH[1]) },
-      { id: 'mo', ts: ['KIEN'], label: 'Đã mở kiện', ic: 'open', href: kl + encodeURIComponent(PH[2]) },
-      { id: 'osd', ts: ['OSD'], label: 'Biên bản OSD', ic: 'alert', href: '#/i/OSD' }
+      { id: 'tot', ts: ['KIEN'], label: 'Tổng số kiện', ic: 'box', c: 'var(--g0)', href: '#/i/KIEN' },
+      { id: 've', ts: ['KIEN'], label: 'Đã về, chưa mở kiện', ic: 'inspect', c: 'var(--warn)', href: kl + encodeURIComponent(PH[1]) },
+      { id: 'mo', ts: ['KIEN'], label: 'Đã mở kiện', ic: 'open', c: 'var(--pri)', href: kl + encodeURIComponent(PH[2]) },
+      { id: 'osd', ts: ['OSD'], label: 'Biên bản OSD', ic: 'alert', c: 'var(--bad)', href: '#/i/OSD' }
     ].filter(k => k.ts.some(t => can(t) > 0));
-    const quick = [
-      { t: 'KIEN', label: 'Kiện mới' }, { t: 'MGMER', label: 'Biên bản kiểm đếm' },
-      { t: 'KIEM_TRA', label: 'Kiểm tra vị trí' }, { t: 'GIR', label: 'Mở kiện' }
-    ].filter(q => can(q.t) === 2);
+    // Thao tác nhanh (3 thẻ lớn): chỉ hiện việc người dùng được làm
+    const acts = [
+      { ok: can('KIEN') === 2, href: '#/i/P1', ic: 'truck', c: 'var(--pri)', l: 'Nhập vật tư', d: 'Thêm kiện, tải file packing list' },
+      { ok: can('MGMER') === 2, href: '#/f/MGMER/new', ic: 'inspect', c: 'var(--g0)', l: 'Kiểm đếm', d: 'Lập biên bản MGMER, chọn kiện, vị trí' },
+      { ok: can('GIR') === 2, href: '#/f/GIR/new', ic: 'open', c: 'var(--g7)', l: 'Mở kiện', d: 'Lập biên bản GIR, OSD nếu dư / thiếu / hỏng' }
+    ].filter(a => a.ok);
     const DOC = [['MGMER', 'Kiểm đếm'], ['GIR', 'Mở kiện'], ['OSD', 'OSD']].filter(([t]) => can(t) > 0);
     const kienOk = can('KIEN') > 0;
 
     const g = greeting();
-    App.hero(`<div class="hero-in ${kpis.length ? 'with-kpi' : ''}">
+    // Ảnh nhà máy bên phải, mờ dần vào nền màu (css .hero-img)
+    App.hero(`<div class="hero-img" aria-hidden="true"></div><div class="hero-in ${kpis.length ? 'with-kpi' : ''}">
       <div class="hday">${esc(g.day)}</div>
       <h1 class="hhello">${esc(g.hello)}, ${esc(g.name)}</h1>
+      <p class="hsub">Theo dõi vật tư về công trường — nhập, kiểm đếm, mở kiện, OSD</p>
     </div>`);
 
     let html = '';
-    if (kpis.length) html += `<div class="kpi-row">${kpis.map(k => `<a class="kcard" href="${k.href}" data-k="${k.id}">
-      <span class="kic">${Icon(k.ic)}</span><span class="kn"><span class="skel"></span></span><span class="kl">${esc(k.label)}</span></a>`).join('')}</div>`;
-    if (quick.length) html += `<div class="quick"><span class="qt">Thêm nhanh</span>${quick.map(q =>
-      `<a class="qbtn" href="#/f/${q.t}/new">${Icon('plus')}${esc(q.label)}</a>`).join('')}</div>`;
+    if (kpis.length) html += `<div class="kpi-row home">${kpis.map(k => `<a class="kcard" href="${k.href}" data-k="${k.id}" style="--kc:${k.c}">
+      <span class="kic">${Icon(k.ic)}</span><span class="kl">${esc(k.label)}</span><span class="kn"><span class="skel"></span></span></a>`).join('')}</div>`;
     if (!groups.length) html += '<div class="empty">Tài khoản của bạn chưa được cấp quyền mục nào. Hãy liên hệ quản trị viên.</div>';
     else {
-      if (kienOk) html += `<section class="hsec"><div class="hsec-h"><h2>${Icon('table', 'sm')} Tiến độ 3 Phase</h2><span class="muted small" id="hpsum"></span></div>
-        <div class="card hprog"><div class="pbar3" id="hpbar"></div><div class="plg" id="hplg"><span class="skel"></span></div></div></section>`;
-      if (kienOk || DOC.length) html += `<div class="hcols">
-        ${kienOk ? `<section class="hsec"><div class="hsec-h"><h2>${Icon('folder', 'sm')} Theo gói thầu</h2>
-          ${can('DASH_VATTU') > 0 || App.user.admin ? '<a class="small hmore" href="#/i/DASH_VATTU">Xem Tổng quan</a>' : ''}</div>
-          <div class="card hlist" id="hgoi"><span class="skel"></span></div></section>` : ''}
-        ${DOC.length ? `<section class="hsec"><div class="hsec-h"><h2>${Icon('clock', 'sm')} Biên bản mới nhất</h2></div>
-          <div class="card hlist" id="hdocs"><span class="skel"></span></div></section>` : ''}</div>`;
+      // 2 cột: trái = Tiến độ 3 Phase + Theo gói thầu; phải = Thao tác nhanh + Biên bản mới nhất.
+      // Thẻ cuối mỗi cột kéo dài, các dòng giãn đều → đáy 2 cột luôn bằng nhau (css .hcols)
+      const L = [], R = [];
+      if (kienOk) L.push(`<section class="card hcard"><div class="hch"><h2>${Icon('table', 'sm')} Tiến độ 3 Phase</h2><span class="muted small" id="hpsum"></span></div>
+        <div class="pbar3" id="hpbar"></div><div class="plg" id="hplg"><span class="skel"></span></div></section>`);
+      if (kienOk) L.push(`<section class="card hcard"><div class="hch"><h2>${Icon('folder', 'sm')} Theo gói thầu</h2>
+        ${can('DASH_VATTU') > 0 || App.user.admin ? '<a class="small hmore" href="#/i/DASH_VATTU">Xem Tổng quan →</a>' : ''}</div>
+        <div class="hlist" id="hgoi"><span class="skel"></span></div></section>`);
+      if (acts.length) R.push(`<section class="card hcard hq"><div class="hch"><h2>${Icon('box', 'sm')} Thao tác nhanh</h2></div>
+        ${acts.map(a => `<a class="hact" href="${a.href}" style="--ac:${a.c}"><span class="hai">${Icon(a.ic)}</span>
+          <span class="hat"><b>${esc(a.l)}</b><small>${esc(a.d)}</small></span>${Icon('chevron', 'sm')}</a>`).join('')}</section>`);
+      if (DOC.length) R.push(`<section class="card hcard"><div class="hch"><h2>${Icon('clock', 'sm')} Biên bản mới nhất</h2></div>
+        <div class="hlist" id="hdocs"><span class="skel"></span></div></section>`);
+      if (L.length || R.length) html += `<div class="hcols${L.length && R.length ? '' : ' one'}">${[L, R].filter(c => c.length).map(c => `<div class="hcol">${c.join('')}</div>`).join('')}</div>`;
     }
     App.main.innerHTML = html;
 
@@ -199,7 +207,7 @@
     const need = [...new Set([...kpis.flatMap(k => k.ts), ...(kienOk ? ['KIEN'] : []), ...DOC.map(d => d[0])])].filter(t => can(t) > 0);
     if (!need.length) return;
     await Promise.all(need.map(t => DB.loadDeps(t).catch(() => {})));
-    if (!App.main.querySelector('.kpi-row, .hsec')) return;   // đã sang trang khác trong lúc chờ
+    if (!App.main.querySelector('.kpi-row, .hcard')) return;   // đã sang trang khác trong lúc chờ
     const kien = DB.rows('KIEN'), fmt = n => U.int(n);
     const set = (id, n) => { const card = App.main.querySelector(`[data-k="${id}"]`); if (card) card.querySelector('.kn').textContent = n; };
     set('tot', fmt(kien.length));
@@ -228,12 +236,13 @@
       const by = new Map();
       kien.forEach(r => { const k = String(r.Goi_thau || '(chưa có gói)'); if (!by.has(k)) by.set(k, [0, 0, 0]); by.get(k)[phOf(r)]++; });
       const goi = [...by.entries()].map(([k, x]) => ({ k, x, n: x[0] + x[1] + x[2] })).sort((a, b) => b.n - a.n);
-      const LIM = 8, gl = App.main.querySelector('#hgoi');
-      if (gl) gl.innerHTML = goi.length ? goi.slice(0, LIM).map(o => {
-        const gr = DB.get('GOI_THAU', o.k), state = o.x[2] ? `mở ${pct(o.x[2], o.n)}%` : o.x[1] ? `đã về ${pct(o.x[1], o.n)}%` : 'chờ về';
-        return `<a class="hrow2" href="#/i/KIEN?Goi_thau=${encodeURIComponent(o.k)}" title="${esc(gr ? gr.TenGoi || o.k : o.k)}">
-          <b class="hg">${esc(o.k)}</b><span class="pbar3 sm">${bar(o.x, o.n)}</span><span class="hn">${fmt(o.n)} kiện</span><span class="hs muted">${state}</span></a>`;
-      }).join('') + (goi.length > LIM ? `<div class="muted small hrest">+ ${goi.length - LIM} gói khác — xem ở Tổng quan</div>` : '')
+      const LIM = 10, gl = App.main.querySelector('#hgoi');
+      if (gl) gl.innerHTML = goi.length ? `<div class="hrow2 goi hth"><span>Gói thầu</span><span>3 Phase</span><span class="hn">Tổng kiện</span><span class="hn">Đã về</span><span class="hn">Đã mở</span></div>`
+        + goi.slice(0, LIM).map(o => {
+          const gr = DB.get('GOI_THAU', o.k);
+          return `<a class="hrow2 goi" href="#/i/KIEN?Goi_thau=${encodeURIComponent(o.k)}" title="${esc(gr ? gr.TenGoi || o.k : o.k)}">
+            <b class="hg">${esc(o.k)}</b><span class="pbar3 sm">${bar(o.x, o.n)}</span><span class="hn">${fmt(o.n)}</span><span class="hn">${fmt(o.x[1] + o.x[2])}</span><span class="hn">${fmt(o.x[2])}</span></a>`;
+        }).join('') + (goi.length > LIM ? `<div class="muted small hrest">+ ${goi.length - LIM} gói khác — xem ở Tổng quan</div>` : '')
         : '<div class="muted small hrest">Chưa có kiện nào</div>';
     }
 
@@ -244,10 +253,11 @@
       const cnt = {}; DOC.forEach(([t]) => { cnt[t] = new Map(); kien.forEach(r => { if (r[t]) cnt[t].set(r[t], (cnt[t].get(r[t]) || 0) + 1); }); });
       const docs = DOC.flatMap(([t, l]) => DB.rows(t).filter(r => r.Ngay && String(r.Ngay) <= soon).map(r => ({ t, l, r })))
         .sort((a, b) => String(b.r.Ngay).localeCompare(String(a.r.Ngay))).slice(0, 8);   // 8 dòng cho cân với khung Theo gói thầu (tối đa 8 gói)
-      dl.innerHTML = docs.length ? docs.map(d => { const id = d.r[DB.keyField(d.t)], n = cnt[d.t].get(id) || 0;
-        return `<a class="hrow2 doc" href="#/r/${d.t}/${encodeURIComponent(id)}"><span class="badge info hd">${esc(d.l)}</span>
-          <b class="hg">${esc(d.r.So || id)}</b><span class="muted hs hgoi">${esc(d.r.Goi_thau || '')}</span><span class="hn">${esc(U.fmtDate(d.r.Ngay))}</span>
-          <span class="hs muted">${n ? fmt(n) + ' kiện' : ''}</span></a>`; }).join('')
+      dl.innerHTML = docs.length ? `<div class="hrow2 doc hth"><span>Số biên bản</span><span>Loại</span><span class="hgoi">Gói</span><span>Ngày</span><span class="hn">Kiện</span></div>`
+        + docs.map(d => { const id = d.r[DB.keyField(d.t)], n = cnt[d.t].get(id) || 0;
+          return `<a class="hrow2 doc" href="#/r/${d.t}/${encodeURIComponent(id)}" title="${esc(d.l + ' ' + (d.r.So || id))}"><b class="hg">${esc(d.r.So || id)}</b>
+            <span class="htag t-${d.t}">${d.t}</span><span class="hs hgoi">${esc(d.r.Goi_thau || '')}</span><span class="hs">${esc(U.fmtDate(d.r.Ngay))}</span>
+            <span class="hn">${n ? fmt(n) : ''}</span></a>`; }).join('')
         : '<div class="muted small hrest">Chưa có biên bản nào</div>';
     }
   };

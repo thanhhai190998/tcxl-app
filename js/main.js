@@ -54,12 +54,14 @@
           <div class="dr-items">${g.items.map(it => `<a class="dr-i" href="${Views.hrefOf(it)}" data-s="${esc(U.norm(it.label + ' ' + (it.desc || '')))}">
             <span class="dr-ic">${Icon(it.ic, 'sm')}</span><span>${esc(it.label)}</span></a>`).join('')}</div></div>`).join('')}
         </nav>
+        <div class="dr-art" aria-hidden="true"></div>
         <div class="dr-f"><a class="dr-i" href="#/settings"><span class="dr-ic">${Icon('gear', 'sm')}</span><span>Cài đặt</span></a></div>`;
       dr.querySelector('.dr-x').onclick = () => App.closeDrawer();
       dr.querySelectorAll('.dr-gh').forEach(b => b.onclick = () => {
         const g = b.closest('.dr-g'), open = !g.classList.toggle('closed');
         const now = App.drOpened().filter(k => k !== g.dataset.g).concat(open ? [g.dataset.g] : []);
         try { localStorage.setItem('tcxl-drawer-open', JSON.stringify(now)); } catch (e) { /* bỏ qua */ }
+        App.drArt();
       });
       const inp = dr.querySelector('.dr-search input');
       inp.oninput = () => {
@@ -70,9 +72,20 @@
           g.querySelectorAll('.dr-i').forEach(a => { const on = !s || U.match(a.dataset.s, s); a.hidden = !on; if (on) n++; });
           g.hidden = !n;
         });
+        App.drArt();
       };
       dr.querySelectorAll('a.dr-i').forEach(a => a.addEventListener('click', () => { inp.value = ''; inp.oninput(); App.closeDrawer(); }));
       App.navActive();
+      App.drArt();
+      if (!App._artBound) { App._artBound = true; let tm; window.addEventListener('resize', () => { clearTimeout(tm); tm = setTimeout(App.drArt, 150); }); }
+    },
+    // Ảnh góc dưới menu (bãi container): chỉ hiện khi dưới các mục menu còn đủ chỗ trống — mở nhiều nhóm thì ẩn, không đè lên chữ
+    drArt() {
+      const dr = document.getElementById('drawer'), art = dr && dr.querySelector('.dr-art'), nav = dr && dr.querySelector('.dr-nav'), f = dr && dr.querySelector('.dr-f');
+      if (!art || !nav) return;
+      art.style.bottom = (f ? f.offsetHeight : 0) + 'px';
+      const last = [...nav.children].filter(x => !x.hidden).pop(), used = last ? last.offsetTop + last.offsetHeight : 0;
+      art.classList.toggle('off', nav.clientHeight - used < art.offsetHeight * 0.62);
     },
     // Nhóm trong menu người dùng tự mở (mặc định gập hết cho gọn)
     drOpened() { try { return JSON.parse(localStorage.getItem('tcxl-drawer-open') || '[]'); } catch (e) { return []; } },

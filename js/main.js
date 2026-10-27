@@ -357,6 +357,11 @@
 
   // Chiều cao thật của thanh trên / vùng chào (trang chủ) / chân trang → biến CSS cho main (min-height): trang ngắn thì chân trang
   // vẫn sát đáy màn hình, không dư khoảng trống, không làm trang phải cuộn
+  // Trang chủ: thanh tiêu đề trong suốt trên ảnh đầu trang (css) — cuộn xuống thì hiện lại nền màu cho chữ dễ đọc
+  const topBar = document.querySelector('.top');
+  const solidTop = () => topBar.classList.toggle('solid', window.scrollY > 4);
+  window.addEventListener('scroll', solidTop, { passive: true });
+  solidTop();
   const sizeVars = () => {
     const st = document.documentElement.style, top = document.querySelector('.top'), hero = document.getElementById('hero'), foot = document.getElementById('foot');
     st.setProperty('--top-h', (top ? top.offsetHeight : 54) + 'px');

@@ -186,11 +186,10 @@
       <span class="kic">${Icon(k.ic)}</span><span class="kl">${esc(k.label)}</span><span class="kn"><span class="skel"></span></span></a>`).join('')}</div>`;
     if (!groups.length) html += '<div class="empty">Tài khoản của bạn chưa được cấp quyền mục nào. Hãy liên hệ quản trị viên.</div>';
     else {
-      // 2 cột: trái = Tiến độ 3 Phase + Theo gói thầu; phải = Thao tác nhanh + Biên bản mới nhất.
+      // 2 cột: trái = Theo gói thầu (mỗi gói có thanh 3 Phase); phải = Thao tác nhanh + Biên bản mới nhất.
+      // (Bỏ khung "Tiến độ 3 Phase" riêng — user 27/10: trang chủ gọn, khỏi cuộn.)
       // Thẻ cuối mỗi cột kéo dài, các dòng giãn đều → đáy 2 cột luôn bằng nhau (css .hcols)
       const L = [], R = [];
-      if (kienOk) L.push(`<section class="card hcard"><div class="hch"><h2>${Icon('table', 'sm')} Tiến độ 3 Phase</h2><span class="muted small" id="hpsum"></span></div>
-        <div class="pbar3" id="hpbar"></div><div class="plg" id="hplg"><span class="skel"></span></div></section>`);
       if (kienOk) L.push(`<section class="card hcard"><div class="hch"><h2>${Icon('folder', 'sm')} Theo gói thầu</h2>
         ${can('DASH_VATTU') > 0 || App.user.admin ? '<a class="small hmore" href="#/i/DASH_VATTU">Xem Tổng quan →</a>' : ''}</div>
         <div class="hlist" id="hgoi"><span class="skel"></span></div></section>`);
@@ -218,26 +217,16 @@
     const pct = (n, tot) => tot ? Math.round(n / tot * 100) : 0;
     const phOf = SCHEMA.phaseIdx;   // kiểm đếm tại cảng vẫn tính là chưa về
     const PNAME = ['P1 · Chưa về', 'P2 · Đã về, chưa mở', 'P3 · Đã mở kiện'];
-    // Thanh tiến độ: 3 đoạn, bấm vào đoạn nào thì mở danh sách kiện của Phase đó
-    // big = thanh lớn (mỗi đoạn là liên kết); thanh nhỏ trong dòng gói thầu (đã là liên kết) dùng <span> — không lồng <a> trong <a>
-    const bar = (c, tot, big) => [0, 1, 2].filter(i => c[i]).map(i => big
-      ? `<a class="p${i + 1}" href="${kl + encodeURIComponent(PH[i])}" style="width:${c[i] / tot * 100}%" title="${esc(PNAME[i])}: ${fmt(c[i])} kiện (${pct(c[i], tot)}%)"></a>`
-      : `<span class="p${i + 1}" style="width:${c[i] / tot * 100}%"></span>`).join('');
+    // Thanh 3 Phase nhỏ trong dòng gói thầu (dòng đã là liên kết → các đoạn dùng <span>, không lồng <a> trong <a>)
+    const bar = (c, tot) => [0, 1, 2].filter(i => c[i]).map(i =>
+      `<span class="p${i + 1}" style="width:${c[i] / tot * 100}%" title="${esc(PNAME[i])}: ${fmt(c[i])} kiện (${pct(c[i], tot)}%)"></span>`).join('');
     if (kienOk) {
-      const c = [0, 0, 0]; kien.forEach(r => { c[phOf(r)]++; });
-      const tot = kien.length;
-      const pb = App.main.querySelector('#hpbar'), lg = App.main.querySelector('#hplg'), sm = App.main.querySelector('#hpsum');
-      if (pb) pb.innerHTML = tot ? bar(c, tot, true) : '';
-      if (lg) lg.innerHTML = tot ? [0, 1, 2].map(i => `<a class="p${i + 1}" href="${kl + encodeURIComponent(PH[i])}"><i></i>${esc(PNAME[i])}
-        <b>${fmt(c[i])}</b><span>${pct(c[i], tot)}%</span></a>`).join('') : '<span class="muted small">Chưa có kiện nào</span>';
-      if (sm) sm.textContent = tot ? `${fmt(tot)} kiện · đã mở ${pct(c[2], tot)}%` : '';
-
       // Theo gói thầu: tổng kiện + thanh 3 Phase nhỏ, nhiều kiện trước
       const by = new Map();
       kien.forEach(r => { const k = String(r.Goi_thau || '(chưa có gói)'); if (!by.has(k)) by.set(k, [0, 0, 0]); by.get(k)[phOf(r)]++; });
       const goi = [...by.entries()].map(([k, x]) => ({ k, x, n: x[0] + x[1] + x[2] })).sort((a, b) => b.n - a.n);
       const LIM = 10, gl = App.main.querySelector('#hgoi');
-      if (gl) gl.innerHTML = goi.length ? `<div class="hrow2 goi hth"><span>Gói thầu</span><span>3 Phase</span><span class="hn">Tổng kiện</span><span class="hn">Đã về</span><span class="hn">Đã mở</span></div>`
+      if (gl) gl.innerHTML = goi.length ? `<div class="hrow2 goi hth"><span>Gói<i class="hlong"> thầu</i></span><span>3 Phase</span><span class="hn">Tổng<i class="hlong"> kiện</i></span><span class="hn">Đã về</span><span class="hn">Đã mở</span></div>`
         + goi.slice(0, LIM).map(o => {
           const gr = DB.get('GOI_THAU', o.k);
           return `<a class="hrow2 goi" href="#/i/KIEN?Goi_thau=${encodeURIComponent(o.k)}" title="${esc(gr ? gr.TenGoi || o.k : o.k)}">
@@ -252,7 +241,7 @@
       const soon = U.isoOf(new Date(Date.now() + 31 * 864e5));
       const cnt = {}; DOC.forEach(([t]) => { cnt[t] = new Map(); kien.forEach(r => { if (r[t]) cnt[t].set(r[t], (cnt[t].get(r[t]) || 0) + 1); }); });
       const docs = DOC.flatMap(([t, l]) => DB.rows(t).filter(r => r.Ngay && String(r.Ngay) <= soon).map(r => ({ t, l, r })))
-        .sort((a, b) => String(b.r.Ngay).localeCompare(String(a.r.Ngay))).slice(0, 8);   // 8 dòng cho cân với khung Theo gói thầu (tối đa 8 gói)
+        .sort((a, b) => String(b.r.Ngay).localeCompare(String(a.r.Ngay))).slice(0, 6);   // 6 dòng: cột phải (thao tác nhanh + biên bản) ≈ cột trái (tiến độ + 8 gói)
       dl.innerHTML = docs.length ? `<div class="hrow2 doc hth"><span>Số biên bản</span><span>Loại</span><span class="hgoi">Gói</span><span>Ngày</span><span class="hn">Kiện</span></div>`
         + docs.map(d => { const id = d.r[DB.keyField(d.t)], n = cnt[d.t].get(id) || 0;
           return `<a class="hrow2 doc" href="#/r/${d.t}/${encodeURIComponent(id)}" title="${esc(d.l + ' ' + (d.r.So || id))}"><b class="hg">${esc(d.r.So || id)}</b>

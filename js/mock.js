@@ -374,6 +374,7 @@
       await wait(); const u = me();
       const r = rows(t).find(x => String(x[kf]) === String(key));
       if (!r || level(u, t, r) < 1) throw new Error('Không có quyền xem file');
+      if (/^fsg:/.test(String(r[field] || ''))) return { mime: 'text/plain', data: btoa('File goc tren Drive phong (demo): ' + String(r[field]).slice(4)) };
       const du = files[r[field]]; if (!du) return null;
       return U.dataUrlParts(du);
     },
@@ -405,6 +406,21 @@
     async signOut() { /* demo: không làm gì */ },
     async logoutAll() { await wait(); return 0; },
     async ping() { await wait(); (state.seen = state.seen || {})[currentEmail()] = Date.now(); return Date.now(); },
+    // Demo: thư mục "Goods delivered to Site" giả — phần lớn biên bản MGMER có thư mục + file MGMER / GIR, vài thư mục có 2 file, vài biên bản không có
+    async srcIndex() {
+      await wait(); if (!me().owner) throw new Error('Chỉ quản trị viên chính được gắn file biên bản từ Drive phòng');
+      const files = [], add = (p, n) => files.push({ id: 'SRC' + files.length, n, s: 150000 + files.length * 731 % 900000, p });
+      const mg = new Map(rows('MGMER').map(m => [String(m.id), m]));
+      rows('MGMER').forEach((m, i) => {
+        if (i % 9 === 4) return;   // không có thư mục
+        const p = (m.Goi_thau && m.Goi_thau !== 'EPC' ? m.Goi_thau + '/' : '') + 'MGMER ' + m.So;
+        add(p, 'MGMER ' + m.So + '.PDF'); add(p, 'PL No. ' + (i + 3) + '.PDF');
+        if (i % 11 === 2) add(p, 'MGMER ' + m.So + ' at port.PDF');
+      });
+      rows('GIR').forEach((g, i) => { const k = rows('KIEN').find(x => x.GIR === g.id), m = k && mg.get(String(k.MGMER)); if (m && i % 7 !== 3) add((m.Goi_thau && m.Goi_thau !== 'EPC' ? m.Goi_thau + '/' : '') + 'MGMER ' + m.So, 'GIR ' + g.So + '.PDF'); });
+      rows('OSD').forEach(o => { const k = rows('KIEN').find(x => x.OSD === o.id), m = k && mg.get(String(k.MGMER)); if (m) add((m.Goi_thau && m.Goi_thau !== 'EPC' ? m.Goi_thau + '/' : '') + 'MGMER ' + m.So, o.So + '.pdf'); });
+      return { root: 'Goods delivered to Site', folders: new Set(files.map(f => f.p)).size, files };
+    },
     // Demo: thời điểm "lần cuối thấy" giả cho các tài khoản mẫu (thật: máy chủ ghi mỗi lần app gọi)
     async online() {
       await wait(); const u = me(), now = Date.now();

@@ -9,9 +9,10 @@
   const canItem = it => App.user.admin || (it.type === 'hub' ? it.tables.some(t => tableLv(t) > 0) : Perm.rank(quyen()[it.perm]) > 0);
   const tableLv = t => permTableLevel(App.user, t);
   const rowLv = (t, r) => permRowLevel(App.user, t, r, (pt, k) => DB.get(pt, k));
-  // File tải lên qua app lưu dạng "pwa:<mã Drive>" (Drive tài khoản chính) hoặc "fs:<mã>" (kho file Drive của phòng), không kèm tên
+  // File tải lên qua app lưu dạng "pwa:<mã Drive>" (Drive tài khoản chính) hoặc "fs:<mã>" (kho file Drive của phòng), không kèm tên;
+  // "fsg:<mã>" = file biên bản gốc có sẵn trên Drive phòng (gắn ở Quản trị → Gắn file từ Drive, chỉ đọc)
   // → trả '' để nơi gọi hiện nhãn dễ đọc thay cho dãy mã
-  const fileName = p => /^(pwa|fs|@up):/.test(String(p || '')) ? '' : String(p || '').split('/').pop().replace(/^[0-9a-f]{8}\./, '');
+  const fileName = p => /^(pwa|fs|fsg|@up):/.test(String(p || '')) ? '' : String(p || '').split('/').pop().replace(/^[0-9a-f]{8}\./, '');
 
   V.items = () => S().groupsWithAlbums(DB);
   V.findItem = key => {
@@ -133,6 +134,7 @@
       // Lịch sử chỉnh sửa (máy chủ cũng chỉ trả cho quản trị viên chính) + Kiểm tra dữ liệu: chỉ quản trị viên chính
       ...(App.user.owner ? [{ key: '_log', label: 'Lịch sử chỉnh sửa', ic: 'clock', desc: 'Ai thêm / sửa / xoá gì, lúc nào', href: '#/admin/log', color: 'var(--g7)' },
         { key: '_online', label: 'Ai đang online', ic: 'wifi', desc: 'Tài khoản đang mở app', href: '#/admin/online', color: 'var(--g7)' },
+        { key: '_srcfiles', label: 'Gắn file từ Drive', ic: 'file', desc: 'Ghép file biên bản có sẵn trên Drive phòng', href: '#/admin/srcfiles', color: 'var(--g7)' },
         { key: '_check', label: 'Kiểm tra dữ liệu', ic: 'check', desc: 'Dữ liệu bất thường cần sửa', href: '#/admin/check', color: 'var(--g7)' }] : []),
       { key: '_settings', label: 'Cài đặt', ic: 'gear', desc: 'Giao diện, khoá app, cài app', href: '#/settings', color: 'var(--g7)' }
     ] });

@@ -855,6 +855,34 @@ a.hb:hover { background: var(--hover); }
 .onl-none { padding: 14px 16px; }
 .onl-note { margin: 14px 4px 0; line-height: 1.5; }
 
+/* ---- Gắn file biên bản từ Drive phòng ---- */
+.sfi p { margin: 0 0 8px; line-height: 1.5; }
+.sf-sum { width: 100%; border-collapse: collapse; font-size: 14px; }
+.sf-sum th, .sf-sum td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: right; }
+.sf-sum th:first-child, .sf-sum td:first-child { text-align: left; }
+.sf-sum td.ok { color: var(--ok); font-weight: 700; } .sf-sum td.warn { color: var(--warn); font-weight: 700; }
+.sf-g { padding: 0; overflow: hidden; }
+.sf-g > summary { padding: 12px 16px; cursor: pointer; list-style: none; }
+.sf-g > summary::-webkit-details-marker { display: none; }
+.sf-g > summary::before { content: '▸ '; color: var(--muted); } .sf-g[open] > summary::before { content: '▾ '; }
+.sf-g .cnt { display: inline-block; min-width: 26px; padding: 1px 8px; border-radius: 99px; background: var(--hover); font-size: 12.5px; text-align: center; }
+.sf-list { border-top: 1px solid var(--line); max-height: 60vh; overflow-y: auto; }
+.sf-r { display: grid; grid-template-columns: auto minmax(140px, 1fr) auto minmax(0, 2fr); gap: 10px; align-items: center; padding: 8px 16px; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+.sf-r.none { grid-template-columns: minmax(140px, 1fr) minmax(0, 2fr); }
+.sf-r:hover { background: var(--hover); }
+.sf-r select { width: 100%; min-width: 0; }
+.sf-doc a { font-weight: 600; }
+.sf-f { overflow-wrap: anywhere; }
+.sf-arr { color: var(--muted); }
+.sf-bar { position: sticky; bottom: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; margin-top: 10px;
+  background: var(--card); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); }
+@media (max-width: 640px) { .sf-r { grid-template-columns: auto 1fr; } .sf-r .sf-arr { display: none; } .sf-r select, .sf-r .sf-f { grid-column: 2; } }
+@media (max-width: 759px) {   /* điện thoại: thanh "Gắn file" thay chỗ thanh điều hướng dưới (giống màn hình Chọn kiện) */
+  .sf-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 8; margin: 0; border-radius: 0; border-width: 1px 0 0; padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
+  body.has-bnav:has(.sf-bar) .bnav { display: none; }
+  #sfbox:has(.sf-bar) { padding-bottom: 80px; }
+}
+
 /* ---- App TCXL: danh sách dài, nhiều hàng lọc, thanh tiến độ 3 giai đoạn ---- */
 #chips .chips-row + .chips-row { margin-top: -4px; }
 .lmore { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; margin-top: 10px; }

@@ -287,6 +287,163 @@
     A.onlTimer = setInterval(() => { if (location.hash !== '#/admin/online') return clearInterval(A.onlTimer); if (!document.hidden) draw(); }, 30000);
   };
 
+  // ---------------- GẮN FILE BIÊN BẢN TỪ DRIVE PHÒNG (chỉ quản trị viên chính) ----------------
+  // File PDF có sẵn trong "Goods delivered to Site" (Drive phòng — mỗi biên bản kiểm đếm 1 thư mục "MGMER <số>", chứa luôn GIR / OSD):
+  // máy chủ đọc danh mục file (chỉ đọc), app ghép file với biên bản còn trống theo thư mục + loại file + số biên bản, người dùng xem lại
+  // rồi gắn → ô File ghi "fsg:<mã file>": mở thẳng file gốc, không chép, không tải lên, không đổi tên / xoá file gốc.
+  const SF_VIA = 'Gắn file từ Drive phòng';
+  // Loại file theo đầu tên (bỏ số / ký hiệu đứng trước: "142 MGMER+GIR…"; nhận cả "MGMER_246", gõ nhầm "MGMEC", "MEMGR");
+  // file ghép "MGMER+GIR…" dùng được cho cả GIR (ưu tiên thấp hơn file GIR riêng)
+  const sfHead = n => n.replace(/^[\d\s._-]+(?=[a-z])/, '');
+  const SF_MG = n => /^(mgme[rc]|memgr)(?![a-z])/.test(sfHead(n)), SF_GIR = n => /^gir(?![a-z])/.test(sfHead(n));
+  const SF_KIND = { MGMER: SF_MG, GIR: n => SF_GIR(n) || (SF_MG(n) && /(^|[^a-z])gir(?![a-z])/.test(n)), OSD: n => /(^|[^a-z])(os ?& ?d|osd)/.test(n) };
+  // Tên file → chữ thường không dấu, bỏ đuôi, bỏ số thứ tự đầu ("055. OSD-0055…" → "osd-0055…")
+  const sfBase = n => U.norm(String(n).replace(/\.[a-z0-9]{1,5}$/i, '')).replace(/^\d+\s*\.\s*/, '').replace(/\s+/g, ' ').trim();
+  const sfNums = s => (String(s).match(/\d+/g) || []).map(x => String(+x));
+  // Các số trong số biên bản có mặt đúng thứ tự trong tên file: "807-2" khớp "GIR 807-2", không khớp "GIR 807-1"; "1" khớp "MGMER AI.1-0001"
+  const sfHas = (name, so) => { const b = sfNums(so); if (!b.length) return false; let i = 0; for (const x of sfNums(name)) if (x === b[i] && ++i === b.length) return true; return false; };
+  // Mức khớp số: 3 = đúng hẳn ("GIR 381" ~ "GIR 381.pdf"), 2 = số biên bản là phần đầu ("639-1" ~ "GIR 639-1 (DPL 07…)"), 1 = có đủ số theo thứ tự, 0 = không
+  const sfRank = (name, so) => {
+    const a = sfNums(name), b = sfNums(so);
+    if (!b.length) return 0;
+    if (a.length === b.length && a.every((x, i) => x === b[i])) return 3;
+    if (b.every((x, i) => a[i] === x)) return 2;
+    return sfHas(name, so) ? 1 : 0;
+  };
+  // Điểm ưu tiên: mức khớp số trước; MGMER ưu tiên bản "at Site" (biên bản ghi Tại cảng thì "at Port") và file riêng hơn file ghép MGMER+GIR;
+  // bản gốc hơn bản sao "- Copy"
+  const sfScore = (t, r, n) => {
+    let s = sfRank(n, r.So) * 10;
+    if (t === 'MGMER') {
+      const port = /(^|[^a-z])(port|cang)(?![a-z])/.test(n), site = /(^|[^a-z])site(?![a-z])/.test(n), atPort = r.Dia_diem === 'Tại cảng';
+      if (port || site) s += (atPort ? port : site) ? 0.3 : -0.3;
+      if (!/(^|[^a-z])gir(?![a-z])/.test(n)) s += 0.5;
+    }
+    if (t === 'GIR' && SF_GIR(n)) s += 0.5;
+    if (/(^|[^a-z])copy(?![a-z])/.test(n) || /\.pdf$/.test(n)) s -= 0.2;   // bản sao "… - Copy", tên thừa đuôi ".pdf.pdf"
+    return s;
+  };
+  const sfSize = n => n >= 1048576 ? (n / 1048576).toFixed(1).replace('.', ',') + ' MB' : n ? Math.max(1, Math.round(n / 1024)) + ' KB' : '';
+  // Kế hoạch ghép: mỗi biên bản → { t, r, folders, c: file ứng viên, pick, st: ok (khớp 1 file) | check (cần xem) | none | has (đã có file) }
+  A.srcPlan = (idx, rowsOf) => {
+    const root = U.norm(idx.root || 'Goods delivered to Site');
+    const inF = new Map();   // thư mục (chữ thường, tính từ thư mục nguồn) → file PDF trong thư mục đó và các thư mục con
+    idx.files.forEach(f => {
+      if (!/\.pdf$/i.test(f.n)) return;
+      const segs = String(f.p || '').split('/');
+      for (let i = 1; i <= segs.length; i++) { const k = segs.slice(0, i).join('/').toLowerCase(); if (!inF.has(k)) inF.set(k, []); inF.get(k).push(f); }
+    });
+    const MG = new Map(rowsOf('MGMER').map(r => [String(r.id), r]));
+    // Đường dẫn thư mục lấy từ link cột R của file Total ("Goods delivered to Site/MGMER 100") → phần sau thư mục nguồn
+    const rel = d => { const s = String(d || '').replace(/\\/g, '/'), i = U.norm(s).indexOf(root + '/'); return i < 0 ? '' : s.slice(i + root.length + 1).replace(/\/+$/, ''); };
+    // Không có link: EPC → "MGMER <số>" ở thư mục nguồn; gói khác → "<gói>/MGMER <số>" (vd T12)
+    const fold = (goi, so) => so ? (goi && goi !== 'EPC' ? goi + '/' : '') + 'MGMER ' + String(so).trim() : '';
+    const mgFolders = m => [rel(m.Duong_dan), fold(m.Goi_thau, m.So)];
+    const viaK = { GIR: new Map(), OSD: new Map() };   // GIR / OSD → các biên bản kiểm đếm của kiện thuộc nó
+    rowsOf('KIEN').forEach(k => ['GIR', 'OSD'].forEach(t => {
+      if (k[t] && k.MGMER) { const s = viaK[t].get(String(k[t])) || new Set(); s.add(String(k.MGMER)); viaK[t].set(String(k[t]), s); }
+    }));
+    const foldersOf = (t, r) => {
+      const mgs = t === 'MGMER' ? [r] : [...(viaK[t].get(String(r.id)) || [])].concat(t === 'GIR' && r.MGMER ? [String(r.MGMER)] : []).map(id => MG.get(id)).filter(Boolean);
+      const out = mgs.flatMap(mgFolders);
+      if (t === 'GIR' && !out.filter(Boolean).length) out.push(fold(r.Goi_thau, sfNums(r.So)[0]));   // GIR chưa có kiện: thư mục MGMER cùng số
+      return [...new Set(out.filter(Boolean).map(x => x.toLowerCase()))];
+    };
+    const plan = [], used = new Map();
+    for (const t of ['MGMER', 'GIR', 'OSD']) for (const r of rowsOf(t)) {
+      const x = { t, r, folders: foldersOf(t, r), c: [], pick: null, st: 'none' };
+      plan.push(x);
+      if (String(r.File || '').trim()) { x.st = 'has'; continue; }
+      const seen = new Set();
+      x.folders.forEach(fd => (inF.get(fd) || []).forEach(f => { if (!seen.has(f.id) && SF_KIND[t](sfBase(f.n))) { seen.add(f.id); x.c.push(f); } }));
+      // Xếp ứng viên theo điểm; khớp chắc chắn = điểm cao nhất duy nhất và có khớp số biên bản
+      const sc = new Map(x.c.map(f => [f, sfScore(t, r, sfBase(f.n))]));
+      x.c.sort((a, b) => sc.get(b) - sc.get(a));
+      if (x.c.length) {
+        x.pick = x.c[0];
+        x.st = sc.get(x.c[0]) >= 10 && !(x.c[1] && sc.get(x.c[1]) === sc.get(x.c[0])) ? 'ok' : 'check';
+      }
+      if (x.pick && sc.get(x.pick) >= 10) used.set(t + '|' + x.pick.id, (used.get(t + '|' + x.pick.id) || 0) + 1);
+    }
+    // 1 file ghép cho 2 biên bản cùng loại → để người dùng xem (file ghép "MGMER, GIR 348" gắn cho cả MGMER 348 lẫn GIR 348 thì được)
+    plan.forEach(x => { if (x.st === 'ok' && used.get(x.t + '|' + x.pick.id) > 1) x.st = 'check'; });
+    return plan;
+  };
+  A.srcFiles = async () => {
+    if (!App.user.owner) return App.notFound();
+    App.head('Gắn file biên bản từ Drive', { back: true });
+    App.loading();
+    await Promise.all(['KIEN', 'MGMER', 'GIR', 'OSD'].map(t => DB.loadDeps(t).catch(() => {})));
+    App.main.innerHTML = `<div class="card sfi"><p>App đọc danh mục file trong thư mục <b>Goods delivered to Site</b> trên Drive phòng (mỗi biên bản kiểm đếm một thư mục
+        <b>MGMER &lt;số&gt;</b>, chứa luôn file GIR, OSD), rồi tự ghép file với các biên bản <b>chưa có file</b> theo thư mục, loại file và số biên bản.</p>
+        <p class="muted small">Chỉ đọc: file gốc <b>không bị chép, tải lên, đổi tên hay xoá</b>. Biên bản gắn xong mở thẳng file gốc. Biên bản đã có file thì giữ nguyên.</p>
+        <button type="button" class="btn" data-scan>${Icon('search')} Dò file trên Drive phòng</button></div><div id="sfbox"></div>`;
+    const box = App.main.querySelector('#sfbox'), btn = App.main.querySelector('[data-scan]');
+    let idx = null;
+    btn.onclick = async () => {
+      btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Đang đọc danh mục file trên Drive (khoảng 10–60 giây)…';
+      try { idx = await API.srcIndex(); }
+      catch (e) {
+        box.innerHTML = `<div class="xerr">${Icon('alert')}<span>${esc(/không hợp lệ/.test(e.message) ? 'Máy chủ / kho file chưa cập nhật bản có "Gắn file từ Drive" — dán Code.gs và FileService.gs mới rồi triển khai phiên bản mới' : e.message)}</span></div>`;
+        btn.disabled = false; btn.innerHTML = `${Icon('search')} Dò file trên Drive phòng`; return;
+      }
+      btn.disabled = false; btn.innerHTML = `${Icon('refresh')} Dò lại`;
+      draw();
+    };
+    const T3 = [['MGMER', 'Biên bản kiểm đếm (MGMER)'], ['GIR', 'Biên bản mở kiện (GIR)'], ['OSD', 'Biên bản OSD']];
+    const draw = () => {
+      const plan = A.srcPlan(idx, t => DB.rows(t));
+      const on = new Set(plan.map((x, i) => x.st === 'ok' ? i : -1).filter(i => i >= 0));   // mặc định: gắn các biên bản khớp chắc chắn
+      const n = (t, st) => plan.filter(x => x.t === t && x.st === st).length;
+      const docT = x => `<a href="#/r/${x.t}/${enc(x.r.id)}" target="_blank">${esc(DB.title(x.t, x.r))}</a>${x.r.Goi_thau ? ` <span class="muted">· ${esc(x.r.Goi_thau)}</span>` : ''}`;
+      const fileT = f => `${esc(f.n)} <small class="muted">${esc([f.p, sfSize(f.s)].filter(Boolean).join(' · '))}</small>`;
+      const row = i => {
+        const x = plan[i];
+        if (x.st === 'none') return `<div class="sf-r none"><span class="sf-doc">${docT(x)}</span><span class="muted small">${x.folders.length ? 'Không thấy file trong ' + esc(x.folders.join(', ')) : 'Không biết thư mục (biên bản chưa có số / chưa gắn kiện)'}</span></div>`;
+        const pickSel = x.c.length > 1 ? `<select data-pk="${i}">${x.c.map(f => `<option value="${esc(f.id)}" ${f === x.pick ? 'selected' : ''}>${esc(f.n)}${f.p ? ' — ' + esc(f.p) : ''}</option>`).join('')}</select>` : `<span class="sf-f">${fileT(x.pick)}</span>`;
+        return `<label class="sf-r"><input type="checkbox" data-i="${i}" ${on.has(i) ? 'checked' : ''}><span class="sf-doc">${docT(x)}</span><span class="sf-arr">→</span>${pickSel}</label>`;
+      };
+      const grp = (st, title, open, note) => {
+        const ids = plan.map((x, i) => x.st === st ? i : -1).filter(i => i >= 0);
+        if (!ids.length) return '';
+        return `<details class="card sf-g" data-st="${st}" ${open ? 'open' : ''}><summary><b>${title}</b> <span class="cnt">${U.int(ids.length)}</span>${note ? `<span class="muted small"> · ${note}</span>` : ''}</summary>
+          <div class="sf-list" data-ids="${ids.join(',')}"></div></details>`;
+      };
+      box.innerHTML = `<div class="card"><p class="muted small">Đã đọc ${U.int(idx.files.length)} file trong ${U.int(idx.folders || 0)} thư mục của "${esc(idx.root)}".</p>
+        <table class="sf-sum"><thead><tr><th></th><th>Khớp</th><th>Cần xem</th><th>Không thấy</th><th>Đã có file</th></tr></thead>
+        <tbody>${T3.map(([t, l]) => `<tr><td>${l}</td><td class="ok">${U.int(n(t, 'ok'))}</td><td class="warn">${U.int(n(t, 'check'))}</td><td>${U.int(n(t, 'none'))}</td><td class="muted">${U.int(n(t, 'has'))}</td></tr>`).join('')}</tbody></table></div>
+        ${grp('check', 'Cần xem lại', true, 'nhiều file hoặc tên file không có số biên bản — chọn đúng file rồi tick')}
+        ${grp('ok', 'Khớp chắc chắn', false, 'đúng thư mục, đúng loại, tên file có số biên bản — đã tick sẵn')}
+        ${grp('none', 'Không thấy file', false, 'gắn tay ở trang biên bản')}
+        <div class="sf-bar"><span id="sfn"></span><button type="button" class="btn" data-go>${Icon('link')} Gắn file</button></div>`;
+      // Danh sách dài (hàng nghìn biên bản): chỉ vẽ khi mở nhóm
+      const fill = d => { const l = d.querySelector('.sf-list'); if (l.dataset.done) return; l.dataset.done = 1; l.innerHTML = l.dataset.ids.split(',').map(Number).map(row).join(''); };
+      box.querySelectorAll('details.sf-g').forEach(d => { if (d.open) fill(d); d.addEventListener('toggle', () => { if (d.open) fill(d); }); });
+      const count = () => { box.querySelector('#sfn').innerHTML = `<b>${U.int(on.size)}</b> biên bản sẽ được gắn file`; box.querySelector('[data-go]').disabled = !on.size; };
+      count();
+      box.addEventListener('change', e => {
+        const c = e.target.closest('[data-i]'), s = e.target.closest('[data-pk]');
+        if (c) { if (c.checked) on.add(+c.dataset.i); else on.delete(+c.dataset.i); count(); }
+        if (s) { const x = plan[+s.dataset.pk]; x.pick = x.c.find(f => f.id === s.value) || x.pick; const cb = s.closest('.sf-r').querySelector('[data-i]'); if (!cb.checked) { cb.checked = true; on.add(+s.dataset.pk); count(); } }
+      });
+      box.querySelector('[data-go]').onclick = async e => {
+        const go = e.currentTarget, list = [...on].map(i => plan[i]).filter(x => x.pick);
+        if (!(await U.confirm(`Gắn file cho ${list.length} biên bản? Ô File sẽ trỏ tới file gốc trên Drive phòng (không chép, không đổi file gốc).`))) return;
+        go.disabled = true;
+        try {
+          for (const [t] of T3) {
+            const kf = DB.keyField(t), rows = list.filter(x => x.t === t).map(x => ({ [kf]: x.r[kf], File: 'fsg:' + x.pick.id }));
+            if (!rows.length) continue;
+            go.innerHTML = `<span class="spin"></span> Đang gắn ${U.int(rows.length)} biên bản ${t}…`;
+            await DB.updateMany(t, rows, (d, m) => { go.innerHTML = `<span class="spin"></span> ${t}: ${U.int(d)}/${U.int(m)}…`; }, SF_VIA);
+          }
+          U.toast(`Đã gắn file cho ${list.length} biên bản`, 'ok');
+          draw();
+        } catch (er) { U.toast('Gắn file lỗi: ' + er.message, 'err'); go.disabled = false; go.innerHTML = `${Icon('link')} Gắn file`; }
+      };
+    };
+  };
+
   // ---------------- KIỂM TRA DỮ LIỆU (quản trị viên) ----------------
   // Tự tìm dữ liệu bất thường + nút sửa nhanh; mọi lần sửa đi qua máy chủ (kiểm quyền) và ghi Lịch sử chỉnh sửa (nguồn "Kiểm tra dữ liệu")
   const CHK_VIA = 'Kiểm tra dữ liệu';
@@ -455,6 +612,7 @@
       h += group('Quản trị', slink('#/admin', 'users', 'var(--g7)', 'Phân quyền', '<span data-ucount>Người dùng và quyền truy cập</span>')
         + (App.user.owner ? slink('#/admin/log', 'clock', 'var(--g7)', 'Lịch sử chỉnh sửa', 'Ai thêm / sửa / xoá gì, lúc nào') : '')
         + (App.user.owner ? slink('#/admin/online', 'wifi', 'var(--g7)', 'Ai đang online', 'Tài khoản đang mở app, lần cuối dùng app, máy và phiên bản')
+          + slink('#/admin/srcfiles', 'file', 'var(--g7)', 'Gắn file biên bản từ Drive', 'Ghép file MGMER / GIR / OSD có sẵn trên Drive phòng vào biên bản, không phải tải lên')
           + slink('#/admin/check', 'check', 'var(--g7)', 'Kiểm tra dữ liệu', 'Kiện chưa có gói, ngày gõ nhầm, tình trạng lạ… và sửa nhanh') : '')
         + srow('folder', 'var(--g7)', 'Kho file (PDF, ảnh tải lên)', '<span data-fstore>Đang kiểm tra…</span>'));
     }

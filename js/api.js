@@ -164,6 +164,7 @@
     // App đang mở trên màn hình báo máy chủ (không bật màn hình đăng nhập khi phiên đã hết)
     ping: () => (Auth.hasSession() || Auth.tokenValid() ? call('ping', {}, false) : Promise.resolve(0)),
     online: () => call('online'),                                         // ai đang online (chỉ quản trị viên chính)
+    srcIndex: () => call('srcIndex'),                                     // danh mục file biên bản gốc trên Drive phòng (chỉ quản trị viên chính)
     signOut: () => Auth.signOut()
   };
 })();

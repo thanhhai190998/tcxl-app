@@ -150,6 +150,7 @@
       else if (p[0] === 'admin' && p[1] === 'log') await Admin.log();
       else if (p[0] === 'admin' && p[1] === 'check') await Admin.check();
       else if (p[0] === 'admin' && p[1] === 'online') await Admin.online();
+      else if (p[0] === 'admin' && p[1] === 'srcfiles') await Admin.srcFiles();
       else if (p[0] === 'settings') await Admin.settings();
       else App.notFound();
       if (keep) window.scrollTo(0, y);

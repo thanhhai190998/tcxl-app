@@ -57,6 +57,7 @@
   U.isDateLike = v => /^\d{4}-\d{2}-\d{2}|^\d{1,2}\/\d{1,2}\/\d{4}|^\d{1,2}\/\d{4}$/.test(String(v ?? '').trim());
 
   U.toast = (msg, kind) => {
+    if (kind === 'err' && window.App && App.inMaint) return;   // màn hình bảo trì đang che app: khỏi báo lỗi tải dữ liệu ngầm
     const t = document.createElement('div');
     t.className = 'toast ' + (kind || '');
     t.textContent = msg;

@@ -202,11 +202,15 @@
   const clone = o => JSON.parse(JSON.stringify(o));
   const currentEmail = () => localStorage.getItem(UKEY) || OWNER;
 
+  const maintOn = () => (state.maint && state.maint.on ? state.maint : null);
   function me() {
     const email = currentEmail();
-    if (email === OWNER) return { email, name: 'Quản trị viên (demo)', admin: true, owner: true, goi: [], quyen: {} };
+    if (email === OWNER) return { email, name: 'Quản trị viên (demo)', admin: true, owner: true, goi: [], quyen: {}, maint: maintOn() && clone(maintOn()) };
     const u = state.users.find(x => x.Email === email && x.Kich_hoat);
     if (!u) { const e = new Error('Tài khoản ' + email + ' chưa được cấp quyền dùng app'); e.code = 'NOT_ALLOWED'; throw e; }
+    // Giống máy chủ (Code.gs doPost): đang bảo trì → mọi yêu cầu của người không phải quản trị viên chính bị chặn
+    const m = maintOn();
+    if (m) { const e = new Error('App đang bảo trì'); e.code = 'MAINT'; e.maint = { msg: m.msg || '', t: m.t }; if (window.App && App.maintenance) App.maintenance(e.maint); throw e; }
     return { email, name: u.Ho_ten, admin: !!u.Admin, owner: false, goi: (u.Goi_thau || '').split(',').map(s => s.trim()).filter(Boolean), quyen: u.Quyen || {} };
   }
   const rows = t => { if (!T()[t]) throw new Error('Sai bảng'); return (state.tables[t] = state.tables[t] || []); };
@@ -251,6 +255,17 @@
 
   window.MockAPI = {
     async me() { await wait(); return me(); },
+    async maint() { await wait(); if (!me().owner) throw new Error('Chỉ quản trị viên chính xem được chế độ bảo trì'); return clone(maintOn() || { on: false }); },
+    async setMaint(on, msg) {
+      await wait(); const u = me();
+      if (!u.owner) throw new Error('Chỉ quản trị viên chính được bật / tắt chế độ bảo trì');
+      const old = maintOn(); msg = String(msg || '').trim().slice(0, 500);
+      state.maint = on ? { on: true, msg, t: old ? old.t : Date.now(), by: u.email } : null;
+      const ch = { Bao_tri: [old ? 'Bật' : 'Tắt', on ? 'Bật' : 'Tắt'] };
+      if (on && (old ? old.msg : '') !== msg) ch.Loi_nhan = [old ? old.msg : '', msg];
+      audit(u, 'update', '_BAOTRI', '', 1, ch, 'Cài đặt');
+      await persist(); return clone(maintOn() || { on: false });
+    },
     async list(t) { await wait(); const u = me(); return clone(rows(t).filter(r => level(u, t, r) >= 1)); },
     async batch(ts) {
       await wait(); const u = me(), out = {};
@@ -405,7 +420,7 @@
     async undoData(id) { await wait(); const r = rows('NHAP_EXCEL').find(x => x.id === id); if (!r || level(me(), 'NHAP_EXCEL', r) < 2) throw new Error('Không có quyền'); return r.Hoan_tac || ''; },
     async signOut() { /* demo: không làm gì */ },
     async logoutAll() { await wait(); return 0; },
-    async ping() { await wait(); (state.seen = state.seen || {})[currentEmail()] = Date.now(); return Date.now(); },
+    async ping() { await wait(); (state.seen = state.seen || {})[currentEmail()] = Date.now(); me(); return Date.now(); },   // me(): đang bảo trì thì chặn như máy chủ
     // Demo: thư mục "Goods delivered to Site" giả — phần lớn biên bản MGMER có thư mục + file MGMER / GIR, vài thư mục có 2 file, vài biên bản không có
     async srcIndex() {
       await wait(); if (!me().owner) throw new Error('Chỉ quản trị viên chính được gắn file biên bản từ Drive phòng');

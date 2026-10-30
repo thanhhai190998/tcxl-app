@@ -207,7 +207,7 @@
       API.getConfig('vault').then(setVault).catch(() => {});
       const u = await API.me();
       lsSet(ME_KEY, u);
-      if (JSON.stringify(u) !== JSON.stringify(App.user)) { App.user = u; App.buildNav(); }
+      if (JSON.stringify(u) !== JSON.stringify(App.user)) { App.user = u; App.buildNav(); App.maintPill(); }
       const n = await DB.refresh();
       U.toast(n ? 'Đã cập nhật dữ liệu mới' : 'Dữ liệu đã là mới nhất', 'ok');
     } catch (e) { U.toast('Không làm mới được: ' + e.message, 'err'); }
@@ -228,12 +228,67 @@
   const whoAmI = () => (C.mode === 'live' ? (window.Auth && Auth.hint) || '' : API.demo.current()).toLowerCase();
   function setVault(v) { if (v) { Vault.cfg = typeof v === 'string' ? JSON.parse(v) : v; lsSet(VAULT_KEY, Vault.cfg); App.lockIcon(); } }
   function failStart(e) {
+    if (e && e.code === 'MAINT') return;   // màn hình "App đang bảo trì" đã che app (App.maintenance)
     try { Lock.unlock(); } catch (er) { /* bỏ qua */ }
     App.head(C.appName, { home: true });
     App.main.innerHTML = `<div class="empty err">⚠️ ${U.esc(e.message)}<br><br>
       ${C.mode === 'demo' ? '<button class="btn" onclick="localStorage.removeItem(\'tcxl-demo-user\');location.reload()">Quay lại tài khoản quản trị viên (demo)</button>'
         : '<button class="btn" onclick="location.reload()">Thử lại</button> <button class="btn ghost" onclick="App.signOut()">Đăng nhập tài khoản khác</button>'}</div>`;
   }
+  // Chế độ bảo trì (quản trị viên chính bật ở Cài đặt; máy chủ chặn mọi yêu cầu của người khác, kể cả quản trị viên): che cả app
+  // bằng màn hình "App đang bảo trì" + lời nhắn. Tự hỏi lại máy chủ mỗi phút (và khi bấm Thử lại) — hết bảo trì thì tải lại app.
+  // Thay đổi lưu nền chưa gửi vẫn nằm trên máy (outbox.js chờ), hết bảo trì thì gửi tiếp.
+  App.maintenance = m => {
+    m = m || {};
+    App.inMaint = true;
+    let box = document.getElementById('maintscr');
+    if (!box) {
+      box = document.createElement('div'); box.id = 'maintscr'; box.className = 'lockscr maintscr';
+      box.setAttribute('role', 'alertdialog'); box.setAttribute('aria-modal', 'true'); box.setAttribute('aria-labelledby', 'mt-h');
+      box.innerHTML = `<div class="lk-in"><div class="lk-who"><img src="icons/icon.svg" alt="" width="56" height="56"><b class="lk-app">${U.esc(C.appName)}</b>
+          ${C.copyright ? `<span class="lk-org">${U.esc(C.copyright)}</span>` : ''}</div>
+        <span class="mt-ic">${Icon('tool')}</span><h2 id="mt-h">App đang bảo trì</h2>
+        <p class="lk-sub">Quản trị viên đang bảo trì app nên tạm thời chưa dùng được. Vui lòng quay lại sau.</p>
+        <div data-mt="msg"></div>
+        <button type="button" class="btn mt-retry" data-mt="retry">${Icon('refresh')} Thử lại</button>
+        <p class="lk-msg" data-mt="st" role="status">App tự kiểm tra lại mỗi phút.</p>
+        <div class="lk-foot">${C.mode === 'demo' ? '<button type="button" class="btn ghost sm" data-mt="demo">Quay lại tài khoản quản trị viên (demo)</button>'
+          : '<button type="button" class="btn ghost sm" data-mt="out">Đăng nhập tài khoản khác</button>'}</div></div>`;
+      document.body.appendChild(box);
+      const st = box.querySelector('[data-mt="st"]');
+      let busy = false;
+      const check = async manual => {
+        if (busy) return; busy = true;
+        if (manual) st.textContent = 'Đang kiểm tra…';
+        try { await API.me(); st.textContent = 'Đã hết bảo trì — đang mở app…'; location.reload(); }
+        catch (e) { st.textContent = e.code === 'MAINT' ? 'Vẫn đang bảo trì — app tự kiểm tra lại mỗi phút.' : 'Chưa kiểm tra được: ' + e.message; }
+        finally { busy = false; }
+      };
+      box.querySelector('[data-mt="retry"]').onclick = () => check(true);
+      const out = box.querySelector('[data-mt="out"]'); if (out) out.onclick = () => App.signOut();
+      const dm = box.querySelector('[data-mt="demo"]'); if (dm) dm.onclick = () => { localStorage.removeItem('tcxl-demo-user'); location.hash = '#/'; location.reload(); };
+      setInterval(() => { if (!document.hidden) check(false); }, 60000);
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) check(false); });
+    }
+    box.querySelector('[data-mt="msg"]').innerHTML = (m.msg ? `<div class="mt-msg">${U.esc(m.msg)}</div>` : '')
+      + (m.t ? `<p class="lk-msg">Bắt đầu lúc ${U.esc(U.fmtDateTime(new Date(m.t)))}</p>` : '');
+    box.hidden = false; document.body.classList.add('locked');
+  };
+  // Quản trị viên chính đang bật bảo trì → nhãn "Đang bảo trì" trên thanh trên (bấm mở Cài đặt) cho khỏi quên tắt
+  App.maintPill = () => {
+    const on = !!(App.user && App.user.owner && App.user.maint && App.user.maint.on);
+    let p = document.getElementById('maintpill');
+    if (!on) { if (p) p.hidden = true; return; }
+    if (!p) {
+      p = document.createElement('a'); p.id = 'maintpill'; p.className = 'maint-pill'; p.href = '#/settings'; p.textContent = 'Đang bảo trì';
+      p.title = 'Đang bật chế độ bảo trì — người dùng khác (kể cả quản trị viên) không vào được app. Bấm để mở Cài đặt';
+      document.getElementById('update').before(p);
+    }
+    p.hidden = false;
+  };
+  // Cài đặt vừa bật / tắt / sửa lời nhắn bảo trì → cập nhật thông tin tài khoản lưu trên máy + nhãn trên thanh trên
+  App.setMaint = m => { if (!App.user) return; App.user.maint = m && m.on ? m : null; lsSet(ME_KEY, App.user); App.maintPill(); };
+
   // Đăng xuất: xoá cả dữ liệu lưu tạm trên máy (bảng, ảnh, thông tin tài khoản)
   App.signOut = async () => {
     if (Outbox.pending() && !(await U.confirm(`Còn ${Outbox.pending()} thay đổi chưa lưu lên máy chủ — đăng xuất bây giờ sẽ mất các thay đổi này. Vẫn đăng xuất?`))) return;
@@ -290,6 +345,7 @@
     API.getConfig('vault').then(setVault).catch(() => {});
     document.getElementById('avatar').textContent = ((window.Auth && Auth.name) || App.user.name || App.user.email || '?').trim().charAt(0).toUpperCase();
     App.buildNav();
+    App.maintPill();
     // Rời trang bằng menu / liên kết khi trang đang có thay đổi chưa lưu (App.guard) → hỏi; không đồng ý thì ở lại
     let lastHash = location.hash, asking = false;
     window.addEventListener('hashchange', async () => {
@@ -308,7 +364,7 @@
         lsSet(ME_KEY, u);
         if (JSON.stringify(u) === JSON.stringify(App.user)) return;
         App.user = u;   // quyền vừa được đổi → dựng lại menu và trang đang xem
-        App.buildNav(); route(true);
+        App.buildNav(); App.maintPill(); route(true);
       }).catch(async e => {
         if (e.code !== 'NOT_ALLOWED') return;   // mất mạng: vẫn dùng dữ liệu đã lưu trên máy
         await DB.wipe(); try { localStorage.removeItem(ME_KEY); } catch (er) { /* bỏ qua */ }

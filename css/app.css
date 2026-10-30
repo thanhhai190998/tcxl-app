@@ -856,6 +856,18 @@ a.hb:hover { background: var(--hover); }
 #lock .ico { display: block; width: 21px; height: 21px; margin: auto; }
 #lock.vopen { color: #ffd54a; }   /* chưa đặt PIN: nút khoá dữ liệu mã hoá, vàng = đang mở */
 
+/* ---- Chế độ bảo trì: màn hình che app (người dùng) + nhãn trên thanh trên (quản trị viên chính) ---- */
+.maintscr { z-index: 97; }   /* trên màn hình khoá PIN; hộp xác nhận (.locked .modal-bg 100) vẫn nằm trên */
+.mt-ic { display: grid; place-items: center; width: 56px; height: 56px; margin: 4px 0 8px; border-radius: 50%; color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 16%, transparent); }
+.mt-ic .ico { width: 28px; height: 28px; }
+.mt-msg { margin: 12px 0 4px; padding: 10px 14px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--warn) 40%, var(--line));
+  background: color-mix(in srgb, var(--warn) 10%, var(--card)); font-size: 14px; font-weight: 600; line-height: 1.45; white-space: pre-line; text-align: left; }
+.mt-retry { margin-top: 16px; }
+.maint-pill { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 800; letter-spacing: .3px; white-space: nowrap;
+  text-decoration: none; background: #ffb74a; color: #4a2a00; }
+.maint-pill[hidden] { display: none; }
+
 /* ---- Hướng dẫn cài app (js/install.js) ---- */
 .ins { max-width: 460px; max-height: calc(100dvh - 32px); overflow-y: auto; gap: 10px; }
 .ins-h { display: flex; gap: 12px; align-items: flex-start; }

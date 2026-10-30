@@ -128,6 +128,8 @@
     if (!j.ok) {
       // Phiên / token hết hạn hoặc đã bị huỷ → bỏ đi, thử lại (cần thì hiện màn hình đăng nhập Google)
       if (j.error === 'AUTH' && retry) { if (cred.session) Auth.clearSession(); else Auth.clear(); return call(action, payload, false); }
+      // Quản trị viên chính đang bật bảo trì → che app bằng màn hình "App đang bảo trì" (main.js)
+      if (j.error === 'MAINT') { const e = new Error('App đang bảo trì'); e.code = 'MAINT'; e.maint = j.maint || {}; if (window.App && App.maintenance) App.maintenance(e.maint); throw e; }
       const err = new Error(j.error === 'NOT_ALLOWED' ? 'Tài khoản ' + (j.email || '') + ' chưa được cấp quyền dùng app' : j.error);
       err.code = j.error; throw err;
     }
@@ -164,6 +166,8 @@
     // App đang mở trên màn hình báo máy chủ (không bật màn hình đăng nhập khi phiên đã hết)
     ping: () => (Auth.hasSession() || Auth.tokenValid() ? call('ping', {}, false) : Promise.resolve(0)),
     online: () => call('online'),                                         // ai đang online (chỉ quản trị viên chính)
+    maint: () => call('maint'),                                           // chế độ bảo trì: xem / bật / tắt (chỉ quản trị viên chính)
+    setMaint: (on, msg) => call('setMaint', { on: !!on, msg: msg || '', via: 'Cài đặt' }),
     srcIndex: pending => call('srcIndex', { pending: pending || null }),   // danh mục file biên bản gốc trên Drive phòng (chỉ QTV chính) — đọc từng phần
     signOut: () => Auth.signOut()
   };

@@ -44,6 +44,7 @@
       while (q.length && !err) {
         try { const j = await send(q[0]); q.shift(); save(); upClean(j); }
         catch (e) {
+          if (e && e.code === 'MAINT') { net = 'maint'; netT = setTimeout(run, 60000); break; }   // đang bảo trì: giữ thay đổi trên máy, 1 phút sau gửi lại
           if (isNet(e)) { net = true; netT = setTimeout(run, 15000); break; }   // mất mạng: 15 giây sau / khi có mạng thử lại
           err = { label: q[0].label, msg: e.message };
         }
@@ -127,7 +128,7 @@
       el.innerHTML = `<div class="ob-t"><b>Chưa lưu được lên máy chủ</b> · ${U.esc(err.label)}${more}<div class="ob-m">${U.esc(err.msg)}</div></div>
         <div class="ob-a"><button type="button" class="btn sm" data-ob="retry">Thử lại</button><button type="button" class="btn sm ghost" data-ob="drop">Bỏ thay đổi</button></div>`;
     } else if (net) {
-      el.innerHTML = `<div class="ob-t">Mất kết nối — sẽ tự lưu lại khi có mạng${more}</div><div class="ob-a"><button type="button" class="btn sm ghost" data-ob="retry">Thử ngay</button></div>`;
+      el.innerHTML = `<div class="ob-t">${net === 'maint' ? 'App đang bảo trì — thay đổi giữ trên máy, hết bảo trì sẽ tự lưu' : 'Mất kết nối — sẽ tự lưu lại khi có mạng'}${more}</div><div class="ob-a"><button type="button" class="btn sm ghost" data-ob="retry">Thử ngay</button></div>`;
     } else {
       el.innerHTML = `<span class="ob-spin"></span><div class="ob-t">${U.esc(stage || 'Đang lưu lên máy chủ…')}${more}</div>`;
     }

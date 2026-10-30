@@ -165,7 +165,7 @@
 
   // ---------------- LỊCH SỬ CHỈNH SỬA (chỉ quản trị viên chính — máy chủ cũng chỉ trả cho quản trị viên chính) ----------------
   const ACT = { add: ['Thêm', 'ok'], update: ['Sửa', 'info'], remove: ['Xoá', 'bad'], clear: ['Xoá cả bảng', 'bad'] };
-  const tblName = t => t === '_NGUOIDUNG' ? 'Người dùng / phân quyền' : t === '_CAUHINH' ? 'Cấu hình' : (SCHEMA.tables[t] ? SCHEMA.tables[t].label : t);
+  const tblName = t => t === '_NGUOIDUNG' ? 'Người dùng / phân quyền' : t === '_CAUHINH' ? 'Cấu hình' : t === '_BAOTRI' ? 'Bảo trì app' : (SCHEMA.tables[t] ? SCHEMA.tables[t].label : t);
   const fDef = (t, f) => { const d = SCHEMA.tables[t]; return d && d.fields.find(y => y.n === f); };
   const fLabel = (t, f) => { const x = fDef(t, f); return x ? x.l : ({ Ho_ten: 'Họ tên', Kich_hoat: 'Kích hoạt', Admin: 'Quản trị viên', Goi_thau: 'Gói thầu', Quyen: 'Quyền' }[f] || f); };
   const fVal = (t, f, v) => {
@@ -200,7 +200,7 @@
     if (!App.user.owner) return App.notFound();
     App.head('Lịch sử chỉnh sửa', { back: true });
     const st = A.logSt = A.logSt || { table: '', act: '', q: '' };
-    const TB = ['KIEN', 'MGMER', 'KIEM_TRA', 'GIR', 'OSD', 'GOI_THAU', 'NHAN_SU', 'LINK', 'NHAP_EXCEL', '_NGUOIDUNG'];
+    const TB = ['KIEN', 'MGMER', 'KIEM_TRA', 'GIR', 'OSD', 'GOI_THAU', 'NHAN_SU', 'LINK', 'NHAP_EXCEL', '_NGUOIDUNG', '_BAOTRI'];
     App.main.innerHTML = `<div class="card hlog"><p class="muted small">Máy chủ tự ghi mỗi lần thêm / sửa / xoá trên app: thời gian, tài khoản Google của người làm,
         giá trị cũ → mới (dòng bị xoá giữ lại nội dung). <b>Chỉ quản trị viên chính</b> xem được. Lần nhập / nạp file lớn (hơn 200 dòng) ghi 1 dòng tóm tắt.</p>
         <div class="hfilter">
@@ -572,6 +572,16 @@
     });
   };
 
+  // Dòng "Bảo trì app" trong Cài đặt (quản trị viên chính): công tắc + lời nhắn đang hiện cho người dùng; err = máy chủ chưa hỗ trợ / lỗi
+  const maintRows = (m, err) => {
+    const on = !!(m && m.on);
+    return srow('tool', on ? 'var(--warn)' : 'var(--g7)', 'Bảo trì app', err ? esc(err)
+        : on ? `<b>Đang bật</b>${m.t ? ' từ ' + esc(U.fmtDateTime(new Date(m.t))) : ''} — người dùng khác, kể cả quản trị viên, không vào được app`
+        : 'Đang tắt · bật lên để tạm ngắt mọi người dùng khác (kể cả quản trị viên) khỏi app, vd khi nạp lại dữ liệu',
+        `<input type="checkbox" class="sw" data-act="maint" ${on ? 'checked' : ''} ${err ? 'disabled' : ''} aria-label="Bật chế độ bảo trì">`)
+      + (on && !err ? srow('edit', 'var(--warn)', 'Lời nhắn bảo trì', m.msg ? esc(m.msg) : '<span class="muted">(không có — chỉ hiện câu thông báo chung)</span>', '<button class="btn sm ghost" data-act="maintmsg">Sửa</button>') : '');
+  };
+
   A.settings = async () => {
     App.head('Cài đặt', { back: true });
     const C = window.APP_CONFIG, demo = C.mode === 'demo';
@@ -623,7 +633,9 @@
         + (App.user.owner ? slink('#/admin/log', 'clock', 'var(--g7)', 'Lịch sử chỉnh sửa', 'Ai thêm / sửa / xoá gì, lúc nào') : '')
         + (App.user.owner ? slink('#/admin/online', 'wifi', 'var(--g7)', 'Ai đang online', 'Tài khoản đang mở app, lần cuối dùng app, máy và phiên bản')
           + slink('#/admin/srcfiles', 'file', 'var(--g7)', 'Gắn file biên bản từ Drive', 'Ghép file MGMER / GIR / OSD có sẵn trên Drive phòng vào biên bản, không phải tải lên')
-          + slink('#/admin/check', 'check', 'var(--g7)', 'Kiểm tra dữ liệu', 'Kiện chưa có gói, ngày gõ nhầm, tình trạng lạ… và sửa nhanh') : '')
+          + slink('#/admin/check', 'check', 'var(--g7)', 'Kiểm tra dữ liệu', 'Kiện chưa có gói, ngày gõ nhầm, tình trạng lạ… và sửa nhanh')
+          // Bảo trì: bật = máy chủ chặn mọi người khác (kể cả quản trị viên), họ chỉ thấy màn hình "App đang bảo trì"
+          + `<div data-maint>${maintRows(App.user.maint)}</div>` : '')
         + srow('folder', 'var(--g7)', 'Kho file (PDF, ảnh tải lên)', '<span data-fstore>Đang kiểm tra…</span>'));
     }
     if (demo) {
@@ -682,6 +694,29 @@
     }).catch(e => { if (fsEl.isConnected) fsEl.textContent = /không hợp lệ/.test(e.message) ? 'Máy chủ chưa cập nhật Code.gs mới' : e.message; });
     const du = App.main.querySelector('[data-disk]');
     if (du) DB.diskUsage().then(b => { if (du.isConnected && b) du.textContent = 'Đang dùng ' + (b / 1048576).toFixed(1).replace('.', ',') + ' MB trên máy'; });
+    // Bảo trì (chỉ quản trị viên chính): trạng thái mới nhất lấy từ máy chủ; bật thì hỏi lời nhắn, tắt thì xác nhận
+    const mBox = App.main.querySelector('[data-maint]');
+    if (mBox) {
+      const draw = m => { if (!mBox.isConnected) return; mBox.innerHTML = maintRows(m); bindMaint(); };
+      const save = async (on, msg) => {
+        try { const m = await API.setMaint(on, msg); App.setMaint(m); draw(m); U.toast(on ? 'Đã bật bảo trì — người dùng khác sẽ thấy thông báo "App đang bảo trì"' : 'Đã tắt bảo trì — mọi người dùng lại được app', 'ok'); }
+        catch (e) { U.toast(/không hợp lệ/.test(e.message) ? 'Máy chủ chưa cập nhật Code.gs mới — dán Code.gs rồi triển khai phiên bản mới' : e.message, 'err'); draw(App.user.maint); }
+      };
+      const askMsg = (title, ok, cur) => U.ask({ title, ok, message: 'Người dùng khác — kể cả quản trị viên — sẽ không vào được app cho tới khi tắt, chỉ thấy màn hình "App đang bảo trì" kèm lời nhắn này. App đang mở trên máy họ sẽ bị chặn trong khoảng 2 phút.',
+        fields: [{ name: 'msg', label: 'Lời nhắn cho người dùng (không bắt buộc)', type: 'textarea', rows: 3, required: false, value: cur || '', placeholder: 'Vd: Đang nạp lại dữ liệu file Total, dự kiến xong lúc 15:00' }] });
+      const bindMaint = () => {
+        const sw = mBox.querySelector('[data-act="maint"]'), ed = mBox.querySelector('[data-act="maintmsg"]');
+        if (sw) sw.onchange = async () => {
+          const turnOn = sw.checked; sw.checked = !turnOn;   // chỉ đổi khi máy chủ đã lưu
+          if (turnOn) { const v = await askMsg('Bật chế độ bảo trì?', 'Bật bảo trì'); if (v) save(true, v.msg); return; }
+          if (await U.confirm('Tắt chế độ bảo trì? Mọi người dùng sẽ vào lại được app.')) save(false);
+        };
+        if (ed) ed.onclick = async () => { const v = await askMsg('Sửa lời nhắn bảo trì', 'Lưu', (App.user.maint || {}).msg); if (v) save(true, v.msg); };
+      };
+      bindMaint();
+      API.maint().then(m => { if (JSON.stringify(m.on ? m : null) !== JSON.stringify(App.user.maint || null)) App.setMaint(m); draw(m); })
+        .catch(e => { if (!mBox.isConnected) return; mBox.innerHTML = maintRows(App.user.maint, /không hợp lệ/.test(e.message) ? 'Máy chủ chưa cập nhật Code.gs mới — dán Code.gs rồi triển khai phiên bản mới thì mới dùng được' : e.message); });
+    }
     on('unlock', async () => { if (await Vault.ensureOpen()) A.settings(); });
     on('lock', () => { Vault.lock(); A.settings(); });
     on('install', () => Install.prompt());

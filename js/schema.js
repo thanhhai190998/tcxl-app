@@ -168,7 +168,13 @@
     sub: r => [r.Vi_tri, r.Tinh_trang].filter(Boolean).join(' · '),
     needs: ['KIEN', 'NHAN_SU'],   // NHAN_SU: gợi ý Người kiểm tra từ Danh bạ
     fields: [
-      { n: 'Kien', l: 'Kiện', t: 'ref', ref: 'KIEN', req: true },
+      // many: thêm mới chọn được nhiều kiện (1 vị trí trên công trường để nhiều kiện) → mỗi kiện 1 dòng, các ô khác giống nhau;
+      // optSub: dòng phụ trong ô chọn — gói · No. · PKL · kiện · hệ thống · vị trí hiện tại (gõ "T12 F5" ra kiện T12 đang ở F5);
+      // optChip: chữ trên thẻ kiện đã chọn (nhiều kiện cùng mô tả → thêm No. cho phân biệt)
+      { n: 'Kien', l: 'Kiện', t: 'ref', ref: 'KIEN', req: true, many: true,
+        optChip: k => (k.STT !== '' && k.STT != null ? 'No.' + k.STT + ' · ' : '') + (k.Mo_ta || '(chưa có mô tả)'),
+        optSub: (k, db) => { const c = lastCheck(db, k.id);
+          return [k.Goi_thau, k.STT !== '' && k.STT != null && 'No.' + k.STT, db.sub('KIEN', k), c && c.Vi_tri && 'đang ở ' + c.Vi_tri].filter(Boolean).join(' · '); } },
       // Cột ảo: gói thầu lấy theo kiện (lần kiểm tra không lưu gói riêng) → lọc / hiện gói ở danh sách
       { n: 'Goi_thau', l: 'Gói thầu', t: 'ref', ref: 'GOI_THAU', v: (r, db) => { const k = db.get('KIEN', r.Kien); return k ? k.Goi_thau : ''; } },
       { n: 'Ngay', l: 'Ngày kiểm tra', s: 'Ngày', t: 'date', init: 'today', req: true },

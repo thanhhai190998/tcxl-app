@@ -493,6 +493,23 @@ label.qd { display: inline-flex; align-items: center; gap: 6px; }
 .fld:not(.err) .ferr { display: none; }
 .fdup { font-size: 12.5px; font-weight: 600; color: var(--warn); line-height: 1.45; }
 .fdup.bad { color: var(--bad); }
+
+/* ---- Ô chọn nhiều bản ghi (field many, vd thêm vị trí cho nhiều kiện cùng lúc) ---- */
+.mpick { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+.mp-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.mp-chips:empty { display: none; }
+.mp-chip { display: inline-flex; align-items: center; gap: 2px; max-width: min(100%, 360px); padding: 2px 2px 2px 11px; border-radius: 99px; font-size: 13.5px; font-weight: 600;
+  background: color-mix(in srgb, var(--pri) 13%, transparent); color: var(--pri); border: 1px solid color-mix(in srgb, var(--pri) 30%, transparent); }
+.mp-chip > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mp-chip button { display: grid; place-items: center; flex: none; width: 26px; height: 26px; border: 0; border-radius: 50%; background: none; color: inherit; cursor: pointer; }
+.mp-chip button:hover { background: color-mix(in srgb, var(--pri) 18%, transparent); }
+.mp-chip .ico { width: 14px; height: 14px; }
+.mp-more { padding: 0 4px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.mp-cnt { flex-basis: 100%; display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); }
+.mp-cnt b { color: var(--text); }
+.mp-cnt button { padding: 2px 4px; border: 0; background: none; font: inherit; font-weight: 600; color: var(--pri); text-decoration: underline; cursor: pointer; }
+.cbx-o.mp-all { border-bottom: 1px dashed var(--line); border-radius: 8px 8px 0 0; margin-bottom: 2px; }
+.cbx-o.mp-all small { display: inline; margin-left: 8px; }
 .fbar { position: sticky; bottom: 0; z-index: 8; display: flex; justify-content: flex-end; gap: 8px;
   padding: 10px 0 calc(10px + env(safe-area-inset-bottom)); background: linear-gradient(transparent, var(--bg) 30%); }
 .fbar .btn .ico { width: 18px; height: 18px; }

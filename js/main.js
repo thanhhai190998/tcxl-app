@@ -33,6 +33,7 @@
       bn.querySelector('[data-menu]').onclick = e => { e.preventDefault(); App.toggleDrawer(); };
       document.getElementById('menuBtn').innerHTML = Icon('menu');
       document.getElementById('menuBtn').onclick = () => App.toggleDrawer();
+      App.navInit();
       document.getElementById('scrim').onclick = () => App.closeDrawer();
       if (!App._escBound) { App._escBound = true; document.addEventListener('keydown', e => { if (e.key === 'Escape') App.closeDrawer(); }); }
       document.body.classList.add('has-bnav', 'has-drawer');
@@ -47,15 +48,15 @@
       dr.innerHTML = `<div class="dr-h"><img src="icons/icon.svg" width="30" height="30" alt=""><b>${esc(C.appName)}</b>
           <button type="button" class="dr-x" aria-label="Đóng menu">${Icon('x')}</button></div>
         <label class="dr-search">${Icon('search')}<input type="search" placeholder="Tìm mục…" autocomplete="off"></label>
-        <nav class="dr-nav"><a class="dr-i" href="#/"><span class="dr-ic">${Icon('home', 'sm')}</span><span>Trang chủ</span></a>
+        <nav class="dr-nav"><a class="dr-i" href="#/" title="Trang chủ"><span class="dr-ic">${Icon('home', 'sm')}</span><span>Trang chủ</span></a>
         ${groups.map(g => `<div class="dr-g ${opened.includes(g.key) ? '' : 'closed'}" data-g="${g.key}" style="--gc:${g.color}">
           <button type="button" class="dr-gh"><span class="gic">${Icon(g.ic)}</span><span class="dr-gl">${esc(g.label)}</span>
             <span class="cnt">${g.items.length}</span><span class="dr-ch">${Icon('chevron')}</span></button>
-          <div class="dr-items">${g.items.map(it => `<a class="dr-i" href="${Views.hrefOf(it)}" data-s="${esc(U.norm(it.label + ' ' + (it.desc || '')))}">
+          <div class="dr-items" data-l="${esc(g.label)}">${g.items.map(it => `<a class="dr-i" href="${Views.hrefOf(it)}" data-s="${esc(U.norm(it.label + ' ' + (it.desc || '')))}">
             <span class="dr-ic">${Icon(it.ic, 'sm')}</span><span>${esc(it.label)}</span></a>`).join('')}</div></div>`).join('')}
         </nav>
         <div class="dr-art" aria-hidden="true"></div>
-        <div class="dr-f"><a class="dr-i" href="#/settings"><span class="dr-ic">${Icon('gear', 'sm')}</span><span>Cài đặt</span></a></div>`;
+        <div class="dr-f"><a class="dr-i" href="#/settings" title="Cài đặt"><span class="dr-ic">${Icon('gear', 'sm')}</span><span>Cài đặt</span></a></div>`;
       dr.querySelector('.dr-x').onclick = () => App.closeDrawer();
       dr.querySelectorAll('.dr-gh').forEach(b => b.onclick = () => {
         const g = b.closest('.dr-g'), open = !g.classList.toggle('closed');
@@ -89,7 +90,34 @@
     },
     // Nhóm trong menu người dùng tự mở (mặc định gập hết cho gọn)
     drOpened() { try { return JSON.parse(localStorage.getItem('tcxl-drawer-open') || '[]'); } catch (e) { return []; } },
-    toggleDrawer() { document.body.classList.contains('dr-open') ? App.closeDrawer() : App.openDrawer(); },
+    // Menu trái trên máy tính (≥1100 px): mặc định thu thành dải biểu tượng, nút ☰ mở menu đầy đủ / thu lại.
+    // Máy nhớ lần chọn cuối ('tcxl-nav-mini'). Màn hình hẹp hơn: ☰ mở menu trượt đè lên trang như cũ.
+    navInit() {
+      if (App._navInit) return; App._navInit = true;
+      let v = null; try { v = localStorage.getItem('tcxl-nav-mini'); } catch (e) { /* bỏ qua */ }
+      document.body.classList.toggle('nav-mini', v !== '0');
+      App.navBtn();
+      matchMedia('(min-width: 1100px)').addEventListener('change', App.navBtn);
+    },
+    wideNav: () => matchMedia('(min-width: 1100px)').matches,
+    // Chữ gợi ý của nút ☰ theo trạng thái menu
+    navBtn() {
+      const b = document.getElementById('menuBtn'), mini = document.body.classList.contains('nav-mini');
+      if (!b) return;
+      if (!App.wideNav()) { b.title = 'Menu'; b.removeAttribute('aria-expanded'); return; }
+      b.title = mini ? 'Mở menu đầy đủ' : 'Thu gọn menu'; b.setAttribute('aria-expanded', String(!mini));
+    },
+    toggleDrawer() {
+      if (App.wideNav()) {   // máy tính: ☰ thu / mở menu cố định bên trái
+        const b = document.body, mini = !b.classList.contains('nav-mini');
+        b.classList.add('nav-anim'); b.classList.toggle('nav-mini', mini);
+        try { localStorage.setItem('tcxl-nav-mini', mini ? '1' : '0'); } catch (e) { /* bỏ qua */ }
+        App.navBtn();
+        setTimeout(() => { b.classList.remove('nav-anim'); window.dispatchEvent(new Event('resize')); App.drArt(); }, 260);   // bảng / trang chủ tính lại theo bề rộng mới
+        return;
+      }
+      document.body.classList.contains('dr-open') ? App.closeDrawer() : App.openDrawer();
+    },
     openDrawer() { document.body.classList.add('dr-open'); },
     closeDrawer() { document.body.classList.remove('dr-open'); },
     navActive() {

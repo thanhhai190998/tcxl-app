@@ -233,12 +233,42 @@ body:has(#hero:not([hidden]) .hero-img) .top:not(.solid) { background: transpare
 #menuBtn .ico { width: 22px; height: 22px; margin: auto; }
 @media (max-width: 759px) { #menuBtn { display: none; } }
 @media (min-width: 1100px) {
+  /* --nav-w = bề rộng menu trái đang chiếm (thu / mở menu: xem khối "Menu trái thu / mở" bên dưới) */
+  .has-drawer { --nav-w: 264px; }
   .has-drawer .drawer { top: calc(54px + env(safe-area-inset-top)); transform: none; visibility: visible; transition: none; box-shadow: none; z-index: 15; padding-top: 0; width: 264px; }
-  .has-drawer .dr-h, .has-drawer .scrim, .has-drawer #menuBtn { display: none; }
+  .has-drawer .dr-h, .has-drawer .scrim { display: none; }
   .has-drawer .dr-search { margin-top: 12px; }
-  .has-drawer main, .has-drawer .foot { margin-left: calc(264px + max(0px, (100vw - 264px - 1040px) / 2)); margin-right: auto; }
-  .has-drawer #hero { padding-left: 264px; }
+  .has-drawer main, .has-drawer .foot { margin-left: calc(var(--nav-w) + max(0px, (100vw - var(--nav-w) - 1040px) / 2)); margin-right: auto; }
+  .has-drawer #hero { padding-left: var(--nav-w); }
   .dr-open { overflow: auto; }
+
+  /* ---- Menu trái thu / mở (user chọn 31/10): nút ☰ trên thanh trên; mặc định thu thành dải biểu tượng nền màu chủ đạo
+     (nối liền thanh trên), rê chuột lên biểu tượng nhóm thì bung danh sách mục; bấm ☰ → menu đầy đủ, bấm lần nữa thu lại ---- */
+  .nav-anim main, .nav-anim .foot { transition: margin-left .22s ease; }
+  .nav-anim #hero { transition: padding-left .22s ease; }
+  .nav-anim .drawer { transition: width .22s ease !important; }
+  .nav-anim .drawer, .nav-anim .dr-nav { overflow: hidden; }   /* đang co / giãn: chữ không tràn, không xuống dòng */
+  .nav-anim .dr-i, .nav-anim .dr-gh, .nav-anim .dr-search { white-space: nowrap; }
+  .has-drawer.nav-mini { --nav-w: 68px; }
+  .has-drawer.nav-mini .drawer { width: 68px; background: linear-gradient(180deg, var(--pri) 0%, var(--pri2) 100%); border-right-color: transparent; }
+  .has-drawer.nav-mini .dr-search, .has-drawer.nav-mini .dr-art, .has-drawer.nav-mini .dr-gl, .has-drawer.nav-mini .dr-gh .cnt, .has-drawer.nav-mini .dr-ch,
+  .has-drawer.nav-mini .dr-nav > .dr-i > span:not(.dr-ic), .has-drawer.nav-mini .dr-f .dr-i > span:not(.dr-ic) { display: none; }
+  .has-drawer.nav-mini .dr-nav { overflow: visible; padding-top: 12px; }
+  .has-drawer.nav-mini .dr-nav > .dr-i, .has-drawer.nav-mini .dr-f .dr-i { justify-content: center; padding: 10px 0; }
+  .has-drawer.nav-mini .dr-gh { justify-content: center; padding: 7px 0; }
+  .has-drawer.nav-mini .dr-nav > .dr-i, .has-drawer.nav-mini .dr-f .dr-i, .has-drawer.nav-mini .dr-nav > .dr-i .dr-ic, .has-drawer.nav-mini .dr-f .dr-ic { color: #fff; }
+  .has-drawer.nav-mini .dr-gh .gic { background: rgba(255, 255, 255, .16); color: #fff; }
+  .has-drawer.nav-mini .dr-nav > .dr-i:hover, .has-drawer.nav-mini .dr-gh:hover, .has-drawer.nav-mini .dr-f .dr-i:hover { background: rgba(255, 255, 255, .14); }
+  .has-drawer.nav-mini .dr-nav > .dr-i.on, .has-drawer.nav-mini .dr-g:has(.dr-i.on) > .dr-gh { background: rgba(255, 255, 255, .22); }   /* mục / nhóm đang mở */
+  .has-drawer.nav-mini .dr-g:has(.dr-i.on) .gic { background: #fff; color: var(--pri); }
+  .has-drawer.nav-mini .dr-f { border-top-color: rgba(255, 255, 255, .18); }
+  /* Danh sách mục bung ra cạnh biểu tượng nhóm (thẻ nổi, nền thường) */
+  .has-drawer.nav-mini .dr-g { position: relative; }
+  .has-drawer.nav-mini .dr-g .dr-items { display: none; position: absolute; left: calc(100% + 2px); top: -6px; z-index: 30; min-width: 230px; padding: 6px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 32px rgba(0, 0, 0, .22); }
+  .has-drawer.nav-mini .dr-g .dr-items::before { content: attr(data-l); display: block; padding: 6px 10px 8px; font-weight: 700; font-size: 13px; color: var(--muted); }
+  .has-drawer.nav-mini .dr-g .dr-items::after { content: ""; position: absolute; left: -12px; top: 0; bottom: 0; width: 12px; }   /* cầu nối: rê chuột sang không bị tắt */
+  .has-drawer.nav-mini .dr-g:hover .dr-items, .has-drawer.nav-mini .dr-g:focus-within .dr-items { display: block; }
 }
 
 /* ---- Thanh điều hướng dưới (điện thoại) ---- */
@@ -811,7 +841,7 @@ a.hb:hover { background: var(--hover); }
   .has-mp .foot { padding-bottom: 78px; }
 }
 @media (min-width: 1100px) {
-  .has-drawer .mp { left: 264px; padding: 0 max(16px, calc((100vw - 264px - 1040px) / 2)); }
+  .has-drawer .mp { left: var(--nav-w); padding: 0 max(16px, calc((100vw - var(--nav-w) - 1040px) / 2)); }
 }
 
 /* ---- Khoá ứng dụng (mã PIN) ---- */
@@ -1078,7 +1108,7 @@ a.hb:hover { background: var(--hover); }
 body:has(#view .gwrap) main, body:has(#view .gwrap) .foot { max-width: none; }
 body:has(#view .gwrap) main { padding-left: 16px; padding-right: 16px; padding-bottom: 8px; min-height: 0; }   /* bảng tự tính chiều cao (Grid.fit) → đáy bảng sát vạch chân trang */
 body:has(#view .gwrap) .foot { margin-top: 0; }
-@media (min-width: 1100px) { .has-drawer:has(#view .gwrap) main, .has-drawer:has(#view .gwrap) .foot { margin-left: 264px; margin-right: 0; } }
+@media (min-width: 1100px) { .has-drawer:has(#view .gwrap) main, .has-drawer:has(#view .gwrap) .foot { margin-left: var(--nav-w); margin-right: 0; } }
 #view .lsum { margin-top: 4px; }
 @media (max-width: 759px) { .lbar .ladd[data-cols] { display: inline-flex; padding: 0 12px; } .lbar .ladd[data-cols] span { display: none; } .dt { font-size: 13px; } }
 

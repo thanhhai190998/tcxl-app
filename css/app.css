@@ -269,6 +269,7 @@ body:has(#hero:not([hidden]) .hero-img) .top:not(.solid) { background: transpare
   .has-drawer.nav-mini .dr-g .dr-items::before { content: attr(data-l); display: block; padding: 6px 10px 8px; font-weight: 700; font-size: 13px; color: var(--muted); }
   .has-drawer.nav-mini .dr-g .dr-items::after { content: ""; position: absolute; left: -12px; top: 0; bottom: 0; width: 12px; }   /* cầu nối: rê chuột sang không bị tắt */
   .has-drawer.nav-mini .dr-g:hover .dr-items, .has-drawer.nav-mini .dr-g:focus-within .dr-items { display: block; }
+  .has-drawer.nav-mini .dr-g.fly-off .dr-items { display: none; }   /* vừa chọn mục: cất danh sách tới khi chuột rời nhóm (main.js) */
 }
 
 /* ---- Thanh điều hướng dưới (điện thoại) ---- */

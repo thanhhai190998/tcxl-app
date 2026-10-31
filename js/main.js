@@ -75,7 +75,16 @@
         });
         App.drArt();
       };
-      dr.querySelectorAll('a.dr-i').forEach(a => a.addEventListener('click', () => { inp.value = ''; inp.oninput(); App.closeDrawer(); }));
+      dr.querySelectorAll('a.dr-i').forEach(a => a.addEventListener('click', () => {
+        inp.value = ''; inp.oninput(); App.closeDrawer();
+        // Dải biểu tượng: chọn xong thì cất danh sách bung ra — bỏ focus (giữ :focus-within) và tạm tắt bung khi rê
+        // tới lúc chuột rời nhóm (hoặc chuột vào lại, khi chọn bằng bàn phím)
+        const g = a.closest('.dr-g');
+        if (!g || !document.body.classList.contains('nav-mini')) return;
+        a.blur(); g.classList.add('fly-off');
+        const clear = () => { g.classList.remove('fly-off'); g.removeEventListener('mouseleave', clear); g.removeEventListener('mouseenter', clear); };
+        g.addEventListener('mouseleave', clear); g.addEventListener('mouseenter', clear);
+      }));
       App.navActive();
       App.drArt();
       if (!App._artBound) { App._artBound = true; let tm; window.addEventListener('resize', () => { clearTimeout(tm); tm = setTimeout(App.drArt, 150); }); }

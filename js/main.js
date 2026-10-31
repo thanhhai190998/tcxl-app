@@ -149,7 +149,21 @@
       document.querySelectorAll('#drawer .dr-g').forEach(g =>
         g.classList.toggle('closed', !opened.includes(g.dataset.g) && !g.querySelector('a.dr-i.on')));
     },
-    loading() { App.main.innerHTML = '<div class="center pad"><span class="spin"></span></div>'; },
+    // Đang tải: khung xương mờ nhấp nháy đúng bố cục thẻ (giao diện mềm); không có .soft thì vòng quay
+    loading() {
+      App.main.innerHTML = document.body.classList.contains('soft') ? '<div class="skp" aria-label="Đang tải"><i class="s1"></i><i class="s2"></i><i class="s3"></i><i class="s4"></i></div>'
+        : '<div class="center pad"><span class="spin"></span></div>';
+    },
+    // Số liệu đếm lên khi vừa mở trang (giao diện mềm) — mỗi ô (key) chỉ đếm 1 lần mỗi lần đổi trang; vẽ lại ngầm thì đặt thẳng số
+    countTo(el, n, key) {
+      if (!el) return;
+      if (App._cntAt !== App.navAt) { App._cntAt = App.navAt; App._cntKeys = new Set(); }
+      const again = key != null && App._cntKeys.has(key); if (key != null) App._cntKeys.add(key);
+      if (again || !document.body.classList.contains('soft') || Date.now() - (App.navAt || 0) > 4000 || !(n > 0) || matchMedia('(prefers-reduced-motion: reduce)').matches) { el.textContent = U.int(n); return; }
+      const t0 = performance.now(), D = App.cntD || 800;
+      const step = t => { const k = Math.min(1, (t - t0) / D), e = 1 - Math.pow(1 - k, 3); el.textContent = U.int(Math.round(n * e)); if (k < 1 && el.isConnected) requestAnimationFrame(step); };
+      requestAnimationFrame(step);
+    },
     // Chân trang: bản quyền + chính sách bảo mật + phiên bản (cả màn hình đăng nhập)
     footer() {
       const y = new Date().getFullYear(), since = C.copyrightSince || y;
@@ -187,7 +201,7 @@
     const params = new URLSearchParams(qs || '');
     const y = window.scrollY;
     DB.track = new Set();
-    if (!keep) App.guard = null;   // trang nào cần hỏi trước khi rời (vd đang chọn kiện) tự đặt lại
+    if (!keep) { App.guard = null; App.navAt = Date.now(); }   // trang nào cần hỏi trước khi rời (vd đang chọn kiện) tự đặt lại
     if (!keep) window.scrollTo(0, 0);
     try {
       if (!p.length) await Views.home();
@@ -204,6 +218,10 @@
       else if (p[0] === 'settings') await Admin.settings();
       else App.notFound();
       if (keep) window.scrollTo(0, y);
+      else if (document.body.classList.contains('soft')) {   // giao diện mềm: hiệu ứng vào trang (chỉ khi đổi trang, không khi vẽ lại ngầm)
+        const b = document.body; b.classList.remove('vin'); void b.offsetWidth; b.classList.add('vin');
+        clearTimeout(App._vinT); App._vinT = setTimeout(() => b.classList.remove('vin'), 900);
+      }
       try { performance.mark('route:' + location.hash); } catch (e) { /* đo thời gian mở trang (DevTools → Performance) */ }
     } catch (e) {
       console.error(e);
@@ -368,6 +386,8 @@
     const ub = document.getElementById('update'); ub.innerHTML = Icon('refresh'); ub.onclick = () => App.refresh();
     Vault.onChange = () => App.lockIcon();
 
+    // Giao diện mềm (user duyệt 31/10, css khối cuối app.css): luôn bật — bỏ dòng này là về giao diện cũ
+    document.body.classList.add('soft');
     if (C.mode === 'live') Auth.restore();
     // Đã mở app trên máy này (cùng tài khoản) → vào ngay bằng thông tin đã lưu, kiểm tra lại với máy chủ ở phía sau
     const cached = lsGet(ME_KEY), who = whoAmI();

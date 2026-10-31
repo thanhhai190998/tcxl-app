@@ -1294,3 +1294,95 @@ a.hrow2:hover .hg { color: var(--pri); }
   :root:not([data-theme="light"]) .hero-img { filter: brightness(.82); }
   :root:not([data-theme="light"]) .dr-art { filter: brightness(.55) saturate(.85); -webkit-mask-image: linear-gradient(180deg, transparent 0%, transparent 18%, #000 66%); mask-image: linear-gradient(180deg, transparent 0%, transparent 18%, #000 66%); }
 }
+
+/* =====================================================================
+   GIAO DIỆN MỀM (user duyệt 31/10 sau bản demo; main.js luôn thêm body.soft — bỏ class là về giao diện cũ). Chỉ đổi khi có .soft:
+   1) hình khối: thẻ không viền, bóng mềm nhiều lớp, bo góc lớn; mép ảnh đầu trang mờ dần vào nền
+   2) chữ & màu: số / tiêu đề bớt đậm, ô biểu tượng tông pastel, đường kẻ nhạt, nền trang có quầng màu rất nhẹ
+   3) chuyển động: chuyển trang mờ dần + thẻ trượt lên lần lượt, rê chuột thẻ nổi lên, bấm nút lún nhẹ, số đếm lên,
+      thanh 3 Phase chạy dần, khung xương khi tải, danh sách menu bung ra mờ dần
+   ===================================================================== */
+body.soft { --r: 18px; --sh-soft: 0 1px 2px rgba(15, 23, 42, .03), 0 6px 20px rgba(15, 23, 42, .045);   /* user 31/10: bóng nhạt hơn */
+  --sh-lift: 0 2px 4px rgba(15, 23, 42, .04), 0 10px 24px rgba(15, 23, 42, .075); --ease: cubic-bezier(.22, .8, .24, 1);
+  background: radial-gradient(1100px 520px at 78% -8%, color-mix(in srgb, var(--pri) 7%, transparent), transparent 70%),
+    radial-gradient(900px 600px at -10% 110%, color-mix(in srgb, var(--pri2) 6%, transparent), transparent 70%), var(--bg);
+  background-attachment: fixed; }
+/* 1) Hình khối */
+.soft .rows, .soft .lgrp, .soft .card, .soft .kcard { border-color: transparent; box-shadow: var(--sh-soft); }
+/* Thoáng hơn: khoảng cách giữa thẻ, đệm trong thẻ, bo góc lớn */
+.soft .kpi-row.home { gap: 16px; }
+.soft .kpi-row.home .kcard { padding: 12px 16px; }
+.soft .hcols { gap: 16px; margin-top: 16px; }
+.soft .hcard { padding: 14px 18px; border-radius: 22px; }
+.soft .kcard { border-radius: 20px; transition: transform .25s var(--ease), box-shadow .25s var(--ease); }
+.soft .kcard:hover { transform: translateY(-3px); box-shadow: var(--sh-lift); }
+.soft .gwrap { border-color: transparent; border-radius: 16px; box-shadow: var(--sh-soft); }
+.soft #hero:has(.hero-img) { -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 90px), transparent);
+  mask-image: linear-gradient(180deg, #000 calc(100% - 90px), transparent); }
+.soft .top { box-shadow: 0 3px 12px rgba(15, 23, 42, .07); }
+/* Bảng trang chủ: kẻ nhạt, rê chuột cả dòng nền bo tròn */
+.soft .hrow2 + .hrow2 { border-top-color: color-mix(in srgb, var(--line) 55%, transparent); }
+.soft .hrow2.hth { background: color-mix(in srgb, var(--pri) 6%, var(--card)); border-radius: 10px; }
+.soft a.hrow2 { border-radius: 10px; transition: background .18s, color .18s; }
+.soft a.hrow2:hover { background: color-mix(in srgb, var(--pri) 7%, transparent); }
+.soft a.hrow2:hover, .soft a.hrow2:hover + .hrow2 { border-top-color: transparent; }
+.soft .hrow2 .hg { font-weight: 600; transition: color .18s; }
+/* Thanh 3 Phase: tròn hai đầu, các đoạn tách bằng khe nhỏ, đoạn đã mở có chuyển màu; chạy dần khi mở trang */
+.soft .pbar3 { height: 10px; border-radius: 99px; background: color-mix(in srgb, var(--line) 70%, transparent); gap: 2px;
+  animation: barIn .9s var(--ease) both; }
+.soft .pbar3 > * { border-radius: 99px; }
+.soft .pbar3 > * + * { box-shadow: none; }
+.soft .pbar3 .p3 { background: linear-gradient(90deg, var(--pri), color-mix(in srgb, var(--pri) 65%, var(--pri2))); }
+@keyframes barIn { from { clip-path: inset(0 100% 0 0 round 99px); } to { clip-path: inset(0 0 0 0 round 99px); } }
+/* Thao tác nhanh: không viền, ô biểu tượng pastel, rê chuột nổi nhẹ */
+.soft .hact { border-color: transparent; background: color-mix(in srgb, var(--ac) 5%, var(--card)); transition: transform .22s var(--ease), box-shadow .22s var(--ease), background .2s; }
+.soft .hact:hover { transform: translateY(-2px); box-shadow: 0 6px 16px color-mix(in srgb, var(--ac) 10%, transparent); background: color-mix(in srgb, var(--ac) 9%, var(--card)); border-color: transparent; }
+.soft .hai { background: color-mix(in srgb, var(--ac) 16%, var(--card)); color: var(--ac); }
+/* Trang Phase: ô chức năng & ô số liệu không viền, bóng mềm, rê chuột nổi lên */
+.soft .hub-grid { gap: 16px; }
+.soft .hstat { border-color: transparent; box-shadow: var(--sh-soft); border-radius: 16px; }
+.soft .htile { border-color: transparent; box-shadow: var(--sh-soft); border-radius: 20px; transition: transform .25s var(--ease), box-shadow .25s var(--ease), background .2s; }
+.soft .htile:hover { border-color: transparent; transform: translateY(-3px); box-shadow: var(--sh-lift); }
+.soft .htile.main { background: linear-gradient(135deg, var(--gc, var(--pri)), color-mix(in srgb, var(--gc, var(--pri)) 70%, var(--pri2)));
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--gc, var(--pri)) 18%, transparent); }
+.soft .ht-ic { border-radius: 14px; }
+.soft.vin .hub-grid > *, .soft.vin .hub-stats > * { animation: riseIn .45s var(--ease) both; }
+.soft.vin .hub-grid > :nth-child(2) { animation-delay: .04s; } .soft.vin .hub-grid > :nth-child(3) { animation-delay: .08s; }
+.soft.vin .hub-grid > :nth-child(4) { animation-delay: .12s; } .soft.vin .hub-grid > :nth-child(5) { animation-delay: .16s; }
+.soft.vin .hub-grid > :nth-child(n+6) { animation-delay: .2s; }
+/* Bảng dữ liệu: đầu bảng và kẻ nhạt hơn */
+.soft .dt th, .soft .dt td { border-bottom-color: color-mix(in srgb, var(--line) 60%, transparent); }
+.soft .dt thead th { background: color-mix(in srgb, var(--pri) 6%, var(--card)); border-bottom-color: color-mix(in srgb, var(--pri) 18%, var(--line)); }
+.soft .dt tr.odd td { background: color-mix(in srgb, var(--pri) 3%, var(--card)); }
+.soft .dt tbody tr[data-k] td { transition: background .15s; }
+/* 2) Chữ */
+.soft .kn { font-weight: 700; letter-spacing: -.01em; }
+.soft .hsec-h h2, .soft .card h3, .soft .hcard h2, .soft .hcard h3 { font-weight: 650; }
+.soft .kpi-row.home .kic { border-radius: 14px; }
+/* Nút: chuyển màu êm, bấm lún nhẹ */
+.soft .btn, .soft .ibtn, .soft .segb { transition: transform .12s var(--ease), filter .15s, background .18s, box-shadow .18s; }
+.soft .btn:active, .soft .ibtn:active, .soft .segb:active { transform: scale(.96); }
+.soft .btn:not(.ghost):not(.danger) { box-shadow: 0 3px 10px color-mix(in srgb, var(--pri) 16%, transparent); }
+.soft .dr-i, .soft .dr-gh { transition: background .18s, color .18s; }
+/* Danh sách bung ra từ dải biểu tượng: mờ dần + trượt nhẹ */
+.soft.has-drawer.nav-mini .dr-g:hover .dr-items, .soft.has-drawer.nav-mini .dr-g:focus-within .dr-items { animation: flyIn .18s var(--ease) both; }
+@keyframes flyIn { from { opacity: 0; transform: translateX(-6px) scale(.98); } }
+/* 3) Chuyển trang: trang mờ dần, các thẻ trượt lên lần lượt (main.js thêm body.vin khi đổi trang) */
+.soft.vin main { animation: fadeIn .28s ease both; }
+.soft.vin #hero .hero-in { animation: riseIn .5s var(--ease) both; }
+.soft.vin .kpi-row > *, .soft.vin .hcols > * > *, .soft.vin main > .card, .soft.vin .settings > * { animation: riseIn .45s var(--ease) both; }
+.soft.vin .kpi-row > :nth-child(2), .soft.vin .hcols > * > :nth-child(2) { animation-delay: .05s; }
+.soft.vin .kpi-row > :nth-child(3) { animation-delay: .1s; }
+.soft.vin .kpi-row > :nth-child(4) { animation-delay: .15s; }
+.soft.vin .hcols > :nth-child(2) > * { animation-delay: .08s; }
+.soft.vin .hcols > :nth-child(2) > :nth-child(2) { animation-delay: .14s; }
+@keyframes fadeIn { from { opacity: 0; } }
+@keyframes riseIn { from { opacity: 0; transform: translateY(10px); } }
+/* Khung xương khi đang tải (thay vòng quay) */
+.skp { display: grid; gap: 12px; padding: 4px 0; }
+.skp i { display: block; border-radius: 14px; background: linear-gradient(90deg, var(--line), var(--hover), var(--line)); background-size: 200% 100%;
+  animation: shimmer 1.2s infinite linear; opacity: .7; }
+.skp .s1 { height: 46px; } .skp .s2 { height: 36px; width: 60%; } .skp .s3 { height: 220px; } .skp .s4 { height: 140px; }
+@media (prefers-reduced-motion: reduce) {
+  .soft *, .soft *::before, .soft *::after { animation-duration: .001ms !important; animation-delay: 0s !important; transition-duration: .001ms !important; }
+}

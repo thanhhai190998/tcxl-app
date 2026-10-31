@@ -208,11 +208,11 @@
     await Promise.all(need.map(t => DB.loadDeps(t).catch(() => {})));
     if (!App.main.querySelector('.kpi-row, .hcard')) return;   // đã sang trang khác trong lúc chờ
     const kien = DB.rows('KIEN'), fmt = n => U.int(n);
-    const set = (id, n) => { const card = App.main.querySelector(`[data-k="${id}"]`); if (card) card.querySelector('.kn').textContent = n; };
-    set('tot', fmt(kien.length));
-    set('ve', fmt(kien.filter(r => SCHEMA.phaseIdx(r) === 1).length));
-    set('mo', fmt(kien.filter(r => r.GIR).length));
-    set('osd', fmt(DB.rows('OSD').length));
+    const set = (id, n) => { const card = App.main.querySelector(`[data-k="${id}"]`); if (card) App.countTo(card.querySelector('.kn'), n, id); };
+    set('tot', kien.length);
+    set('ve', kien.filter(r => SCHEMA.phaseIdx(r) === 1).length);
+    set('mo', kien.filter(r => r.GIR).length);
+    set('osd', DB.rows('OSD').length);
 
     const pct = (n, tot) => tot ? Math.round(n / tot * 100) : 0;
     const phOf = SCHEMA.phaseIdx;   // kiểm đếm tại cảng vẫn tính là chưa về

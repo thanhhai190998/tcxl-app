@@ -8,7 +8,7 @@
   // ---------------- DANH SÁCH NGƯỜI DÙNG ----------------
   A.users = async () => {
     if (!App.user.admin) return App.notFound();
-    App.head('Phân quyền', { back: true });
+    App.head('Quản lý phân quyền', { back: true });
     App.loading();
     const users = (await API.users()).slice().sort((a, b) => (b.Kich_hoat - a.Kich_hoat) || String(a.Ho_ten || a.Email).localeCompare(String(b.Ho_ten || b.Email), 'vi'));
     const n = u => Object.keys(u.Quyen || {}).length;
@@ -87,7 +87,7 @@
                   <span class="pi-l">${esc(r.it.label)}${r.it.pd ? `<small>${esc(r.it.pd)}</small>` : ''}</span>
                   ${tri(`data-k="${esc(r.it.perm)}" data-gg="${g.key}"${r.child ? ` data-phk="${esc(r.child)}"` : ''}`, q[r.it.perm] || '', isDash(r.it))}</div>`).join('')}</div></div>`;
         }).join('')}
-        <div class="muted small">Trang Phase hiện khi được xem ít nhất 1 mục trong Phase đó. Tổng quan chỉ lấy số liệu từ những gói thầu và mục người đó được xem.</div>
+        <div class="muted small">Trang Phase hiện khi được xem ít nhất 1 mục trong Phase đó. Tổng quan vật tư chỉ lấy số liệu từ những gói thầu và mục người đó được xem.</div>
       </div>
       <div class="fbar">${isNew ? '' : `<button type="button" class="btn danger ghost" data-del title="Xoá người dùng">${Icon('trash')}</button>`}
         <button type="button" class="btn ghost" data-cancel>Huỷ</button><button class="btn" type="submit">${Icon('check')} Lưu</button></div></form>`;
@@ -179,7 +179,7 @@
   const fmtTime = s => { const m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})(?: (\d{2}:\d{2}))?/); return m ? `${m[3]}/${m[2]}/${m[1]}${m[4] ? ' ' + m[4] : ''}` : String(s); };
   // o.here = đang ở trang chi tiết của chính dòng đó (không lặp tên bảng / mã)
   A.histList = (rows, o = {}) => {
-    if (!rows.length) return `<div class="muted small rel-empty">Chưa có lịch sử${o.here ? ' — tính năng ghi lịch sử bắt đầu từ bản 0.11.0; lần nạp file lớn (hơn 200 dòng) chỉ ghi tóm tắt ở trang Lịch sử chỉnh sửa' : ''}.</div>`;
+    if (!rows.length) return `<div class="muted small rel-empty">Chưa có lịch sử${o.here ? ' — tính năng ghi lịch sử bắt đầu từ bản 0.11.0; lần nạp file lớn (hơn 200 dòng) chỉ ghi tóm tắt ở trang Nhật ký hoạt động' : ''}.</div>`;
     return `<div class="hlist">${rows.map(h => {
       const [al, tone] = ACT[h.Thao_tac] || [h.Thao_tac, ''];
       let d = null; try { d = h.Chi_tiet ? JSON.parse(h.Chi_tiet) : null; } catch (e) { d = null; }
@@ -198,7 +198,7 @@
   };
   A.log = async () => {
     if (!App.user.owner) return App.notFound();
-    App.head('Lịch sử chỉnh sửa', { back: true });
+    App.head('Nhật ký hoạt động', { back: true });
     const st = A.logSt = A.logSt || { table: '', act: '', q: '' };
     const TB = ['KIEN', 'MGMER', 'KIEM_TRA', 'GIR', 'OSD', 'GOI_THAU', 'NHAN_SU', 'LINK', 'NHAP_EXCEL', '_NGUOIDUNG', '_BAOTRI'];
     App.main.innerHTML = `<div class="card hlog"><p class="muted small">Máy chủ tự ghi mỗi lần thêm / sửa / xoá trên app: thời gian, tài khoản Google của người làm,
@@ -235,7 +235,7 @@
   // ---------------- AI ĐANG ONLINE (chỉ quản trị viên chính) ----------------
   // Máy chủ ghi "vừa thấy" mỗi lần app gọi; app đang mở trên màn hình gửi thêm tín hiệu 2 phút/lần → gọi trong 5 phút gần nhất = đang online.
   // Trang tự cập nhật 30 giây/lần khi đang mở.
-  const ago = ms => { const m = Math.floor(ms / 60000); return m < 1 ? 'vừa xong' : m < 60 ? m + ' phút trước' : m < 1440 ? Math.floor(m / 60) + ' giờ trước' : Math.floor(m / 1440) + ' ngày trước'; };
+  const ago = ms => { const m = Math.floor(ms / 60000); return m < 1 ? 'Vừa hoạt động' : m < 60 ? m + ' phút trước' : m < 1440 ? Math.floor(m / 60) + ' giờ trước' : Math.floor(m / 1440) + ' ngày trước'; };
   const lastSeen = t => {
     const d = new Date(t), hm = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
     const day = U.iso(d), td = U.today(), yd = U.iso(new Date(Date.now() - 864e5));
@@ -244,14 +244,14 @@
   const older = (a, b) => { const x = String(a).split('.').map(Number), y = String(b).split('.').map(Number); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) < (y[i] || 0); return false; };
   A.online = async () => {
     if (!App.user.owner) return App.notFound();
-    App.head('Ai đang online', { back: true });
+    App.head('Người dùng trực tuyến', { back: true });
     App.loading();
     clearInterval(A.onlTimer);
     const draw = async () => {
       let r;
       try { r = await API.online(); } catch (e) {
         if (location.hash !== '#/admin/online') return;
-        App.main.innerHTML = `<div class="xerr">${Icon('alert')}<span>${esc(/không hợp lệ/.test(e.message) ? 'Máy chủ chưa cập nhật Code.gs có tính năng "Ai đang online" — dán Code.gs mới rồi triển khai phiên bản mới' : e.message)}</span></div>`;
+        App.main.innerHTML = `<div class="xerr">${Icon('alert')}<span>${esc(/không hợp lệ/.test(e.message) ? 'Máy chủ chưa cập nhật Code.gs có tính năng "Người dùng trực tuyến" — dán Code.gs mới rồi triển khai phiên bản mới' : e.message)}</span></div>`;
         return;
       }
       if (location.hash !== '#/admin/online') return;
@@ -272,14 +272,14 @@
       };
       const at = new Date(r.now);
       App.main.innerHTML = `<div class="card uinfo onl-h"><span class="gic" style="--gc:var(--ok)">${Icon('wifi')}</span>
-          <div><b>${live.length} người đang online</b>
-          <div class="muted small">Đang mở app trong 5 phút gần nhất · tự cập nhật 30 giây/lần · lúc ${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}:${String(at.getSeconds()).padStart(2, '0')}</div></div>
+          <div><b>${live.length} người dùng trực tuyến</b>
+          <div class="muted small">Đang sử dụng ứng dụng trong 5 phút gần nhất · tự cập nhật 30 giây/lần · lúc ${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}:${String(at.getSeconds()).padStart(2, '0')}</div></div>
           <button type="button" class="btn sm ghost" data-r title="Cập nhật ngay">${Icon('refresh')}</button></div>
-        <h3 class="onl-sec">Đang online <span class="muted">(${live.length})</span></h3>
-        ${live.length ? `<div class="rows">${live.map(row).join('')}</div>` : '<div class="card muted small onl-none">Không có ai đang mở app.</div>'}
-        <h3 class="onl-sec">Không online <span class="muted">(${rest.length})</span></h3>
+        <h3 class="onl-sec">Trực tuyến <span class="muted">(${live.length})</span></h3>
+        ${live.length ? `<div class="rows">${live.map(row).join('')}</div>` : '<div class="card muted small onl-none">Không có ai đang sử dụng ứng dụng.</div>'}
+        <h3 class="onl-sec">Ngoại tuyến <span class="muted">(${rest.length})</span></h3>
         ${rest.length ? `<div class="rows">${rest.map(row).join('')}</div>` : ''}
-        <p class="muted small onl-note">Tính là online khi app đang mở trên màn hình (không bị khoá PIN, không thu nhỏ / chạy nền) hoặc vừa thao tác trong 5 phút.
+        <p class="muted small onl-note">Tính là trực tuyến khi ứng dụng đang mở trên màn hình (không bị khoá PIN, không thu nhỏ / chạy nền) hoặc vừa thao tác trong 5 phút.
           "Chưa thấy" = chưa mở app từ khi có tính năng này. Máy còn bản cũ chỉ được ghi nhận khi thao tác, cần bấm ⟳ để cập nhật.</p>`;
       App.main.querySelector('[data-r]').onclick = e => { e.currentTarget.disabled = true; draw(); };
     };
@@ -371,7 +371,7 @@
   };
   A.srcFiles = async () => {
     if (!App.user.owner) return App.notFound();
-    App.head('Gắn file biên bản từ Drive', { back: true });
+    App.head('Tệp đính kèm Google Drive', { back: true });
     App.loading();
     await Promise.all(['KIEN', 'MGMER', 'GIR', 'OSD'].map(t => DB.loadDeps(t).catch(() => {})));
     App.main.innerHTML = `<div class="card sfi"><p>App đọc danh mục file trong thư mục <b>Goods delivered to Site</b> trên Drive phòng (mỗi biên bản kiểm đếm một thư mục
@@ -394,7 +394,7 @@
         } while (pending && ++n < 60);
       }
       catch (e) {
-        box.innerHTML = `<div class="xerr">${Icon('alert')}<span>${esc(/không hợp lệ/.test(e.message) ? 'Máy chủ / kho file chưa cập nhật bản có "Gắn file từ Drive" — dán Code.gs và FileService.gs mới rồi triển khai phiên bản mới' : e.message)}</span></div>`;
+        box.innerHTML = `<div class="xerr">${Icon('alert')}<span>${esc(/không hợp lệ/.test(e.message) ? 'Máy chủ / kho file chưa cập nhật bản có "Tệp đính kèm Google Drive" — dán Code.gs và FileService.gs mới rồi triển khai phiên bản mới' : e.message)}</span></div>`;
         btn.disabled = false; btn.innerHTML = `${Icon('search')} Dò file trên Drive phòng`; return;
       }
       btn.disabled = false; btn.innerHTML = `${Icon('refresh')} Dò lại`;
@@ -472,7 +472,7 @@
   };
   A.check = async () => {
     if (!App.user.owner) return App.notFound();   // chỉ quản trị viên chính
-    App.head('Kiểm tra dữ liệu', { back: true });
+    App.head('Kiểm tra & đối soát dữ liệu', { back: true });
     App.loading();
     await Promise.all(['KIEN', 'MGMER', 'GIR', 'OSD', 'KIEM_TRA', 'GOI_THAU'].map(t => DB.loadDeps(t).catch(() => {})));
     const K = DB.rows('KIEN'), goiSet = new Set(DB.rows('GOI_THAU').map(g => String(g.MaGoi)));
@@ -536,7 +536,7 @@
       return list(c.rows);
     };
     App.main.innerHTML = `<div class="card ck-top"><b>${need ? need + ' nhóm cần xem' : 'Không có dữ liệu bất thường cần sửa'}</b>
-        <span class="muted small">Kiểm tra trên toàn bộ dữ liệu đang có trên máy (bấm ⟳ để lấy mới nhất). Mọi lần sửa ở đây được ghi vào Lịch sử chỉnh sửa.</span></div>
+        <span class="muted small">Kiểm tra trên toàn bộ dữ liệu đang có trên máy (bấm ⟳ để lấy mới nhất). Mọi lần sửa ở đây được ghi vào Nhật ký hoạt động.</span></div>
       ${checks.map(c => `<details class="card ck" data-c="${c.id}" ${c.n && !c.info ? 'open' : ''}><summary>
           <span class="badge ${!c.n ? 'ok' : c.info ? 'info' : 'warn'}">${c.n ? U.int(c.n) : '✓'}</span><b>${esc(c.l)}</b></summary>
           <p class="muted small">${esc(c.d)}</p>${body(c)}</details>`).join('')}`;
@@ -548,7 +548,7 @@
       if (!goi) return U.toast('Chọn gói thầu trước', 'err');
       busy(b, async () => {
         if (!(await U.confirm(`Gán gói ${goi} cho ${U.int(c.rows.length)} kiện?`))) throw new Error('Đã huỷ');
-        if (!DB.get('GOI_THAU', goi)) await DB.add('GOI_THAU', { MaGoi: goi, TenGoi: c.goiTen || 'Gói ' + goi, Tinh_trang: 'Đang thực hiện', Ghi_chu: 'Tạo từ trang Kiểm tra dữ liệu' });
+        if (!DB.get('GOI_THAU', goi)) await DB.add('GOI_THAU', { MaGoi: goi, TenGoi: c.goiTen || 'Gói ' + goi, Tinh_trang: 'Đang thực hiện', Ghi_chu: 'Tạo từ trang Kiểm tra & đối soát dữ liệu' });
         await DB.updateMany('KIEN', c.rows.map(r => ({ id: r.id, Goi_thau: goi })), (d, n) => { b.textContent = `Đang sửa ${U.int(d)}/${U.int(n)}…`; }, CHK_VIA + ': gán gói ' + goi);
         U.toast(`Đã gán gói ${goi} cho ${U.int(c.rows.length)} kiện`, 'ok');
       });
@@ -602,7 +602,7 @@
     const sec = (hasEnc ? srow('lock', 'var(--g6)', 'Mật khẩu chủ', esc(vSub) + (Vault.isSet() ? '' : ' · <b>quên là không khôi phục được</b>'), vAct) : '')
       + (hasEnc && Vault.isSet() && App.user.owner ? srow('refresh', 'var(--g6)', 'Đổi mật khẩu chủ', 'Dữ liệu không cần mã hoá lại, đổi xong ngay', '<button class="btn sm ghost" data-act="chgvault">Đổi</button>') : '')
       + (hasEnc && Vault.isSet() && App.user.admin ? srow('key', 'var(--g6)', 'Mã hoá dữ liệu cũ', 'Tìm và mã hoá các giá trị còn để dạng chữ thường', '<button class="btn sm ghost" data-act="migrate">Chạy</button>') : '')
-      + (demo ? '' : srow('logout', 'var(--g6)', 'Đăng xuất trên mọi máy',
+      + (demo ? '' : srow('logout', 'var(--g6)', 'Đăng xuất khỏi tất cả thiết bị',
           (Auth.hasSession() ? '✅ Máy này nhớ đăng nhập đến <b>' + U.fmtDate(new Date(Auth.sexp)) + '</b> (tự gia hạn khi dùng)'
             : '⚠️ Chưa có phiên dài hạn — sẽ phải đăng nhập lại sau khoảng 1 giờ') + ' · bấm để huỷ đăng nhập trên tất cả điện thoại, máy tính (vd khi mất máy)',
           '<button class="btn sm ghost" data-act="logoutall">Đăng xuất</button>'));
@@ -610,30 +610,30 @@
 
     // Công tắc khoá app (riêng máy này): bật = đặt mã PIN; tắt = nhập mã PIN hiện tại rồi bỏ khoá. Đang bật mới hiện đổi PIN / tự khoá / vân tay
     const la = Lock.after(), lockOn = Lock.hasPin();
-    h += group('Khoá ứng dụng',
-      srow('lock', 'var(--g6)', 'Khoá app bằng mã PIN', lockOn ? 'Đang bật · cần nhập mã PIN khi mở app trên máy này' : 'Đang tắt — ai cầm máy này cũng mở được app',
-        `<input type="checkbox" class="sw" data-act="lockon" ${lockOn ? 'checked' : ''} aria-label="Khoá app bằng mã PIN">`)
+    h += group('Bảo vệ ứng dụng',
+      srow('lock', 'var(--g6)', 'Khoá ứng dụng bằng mã PIN', lockOn ? 'Đang bật · cần nhập mã PIN khi mở app trên máy này' : 'Đang tắt — ai cầm máy này cũng mở được app',
+        `<input type="checkbox" class="sw" data-act="lockon" ${lockOn ? 'checked' : ''} aria-label="Khoá ứng dụng bằng mã PIN">`)
       + (lockOn ? srow('refresh', 'var(--g6)', 'Đổi mã PIN', 'Nhập mã cũ rồi đặt mã mới', '<button class="btn sm ghost" data-act="chgpin">Đổi</button>')
         + srow('clock', 'var(--g6)', 'Tự khoá khi rời app hoặc không thao tác', 'Áp dụng trên máy này',
           `<div class="seg mini" data-act="lockafter">${[[0, 'Ngay'], [1, '1 phút'], [5, '5 phút'], [15, '15 phút']].map(([v, l]) => `<button type="button" class="segb ${v === la ? 'on' : ''}" data-v="${v}">${l}</button>`).join('')}</div>`)
         + `<div data-biorow hidden>${srow('key', 'var(--g6)', 'Mở khoá bằng vân tay / khuôn mặt', 'Windows Hello, vân tay, Face ID của máy này — mã PIN vẫn dùng được',
           `<input type="checkbox" class="sw" data-act="bio" ${Lock.bioOn() ? 'checked' : ''} aria-label="Mở khoá bằng vân tay / khuôn mặt">`)}</div>` : ''));
-    h += group('Giao diện', srow(th === 'dark' ? 'moon' : 'sun', 'var(--g4)', 'Chế độ màu', 'Áp dụng trên máy này',
-      `<div class="seg mini" data-act="theme">${[['', 'Theo máy'], ['light', 'Sáng'], ['dark', 'Tối']].map(([v, l]) => `<button type="button" class="segb ${v === th ? 'on' : ''}" data-v="${v}">${l}</button>`).join('')}</div>`));
+    h += group('Giao diện', srow(th === 'dark' ? 'moon' : 'sun', 'var(--g4)', 'Chủ đề giao diện', 'Áp dụng trên máy này',
+      `<div class="seg mini" data-act="theme">${[['', 'Theo hệ thống'], ['light', 'Sáng'], ['dark', 'Tối']].map(([v, l]) => `<button type="button" class="segb ${v === th ? 'on' : ''}" data-v="${v}">${l}</button>`).join('')}</div>`));
 
-    h += group('Ứng dụng',
-      srow('download', 'var(--g0)', 'Cài app vào máy', esc(Install.hint()),
+    h += group('Thông tin & lưu trữ',
+      srow('download', 'var(--g0)', 'Cài đặt ứng dụng lên thiết bị', esc(Install.hint()),
         `<button class="btn sm${App.installPrompt ? '' : ' ghost'}" data-act="install">${App.installPrompt ? 'Cài' : 'Hướng dẫn'}</button>`)
-      + srow('refresh', 'var(--g0)', 'Phiên bản ' + esc(C.version), demo ? 'Chế độ DEMO — dữ liệu giả' : 'Dữ liệu trên Google Sheets', '<button class="btn sm ghost" data-act="update">Kiểm tra</button>')
-      + srow('saved', 'var(--g0)', 'Dữ liệu lưu tạm trên máy', '<span data-disk>Giúp mở app nhanh và xem được khi mất mạng</span>', '<button class="btn sm ghost" data-act="wipe">Xoá</button>')
+      + srow('refresh', 'var(--g0)', 'Phiên bản ứng dụng: ' + esc(C.version), demo ? 'Chế độ DEMO — dữ liệu giả' : 'Dữ liệu trên Google Sheets', '<button class="btn sm ghost" data-act="update">Kiểm tra</button>')
+      + srow('saved', 'var(--g0)', 'Dung lượng lưu trữ trên thiết bị', '<span data-disk>Giúp mở app nhanh và xem được khi mất mạng</span>', '<button class="btn sm ghost" data-act="wipe">Xoá dữ liệu tạm</button>')
       + slink('privacy.html', 'shield', 'var(--g0)', 'Chính sách bảo mật', ''));
 
     if (App.user.admin) {
-      h += group('Quản trị', slink('#/admin', 'users', 'var(--g7)', 'Phân quyền', '<span data-ucount>Người dùng và quyền truy cập</span>')
-        + (App.user.owner ? slink('#/admin/log', 'clock', 'var(--g7)', 'Lịch sử chỉnh sửa', 'Ai thêm / sửa / xoá gì, lúc nào') : '')
-        + (App.user.owner ? slink('#/admin/online', 'wifi', 'var(--g7)', 'Ai đang online', 'Tài khoản đang mở app, lần cuối dùng app, máy và phiên bản')
-          + slink('#/admin/srcfiles', 'file', 'var(--g7)', 'Gắn file biên bản từ Drive', 'Ghép file MGMER / GIR / OSD có sẵn trên Drive phòng vào biên bản, không phải tải lên')
-          + slink('#/admin/check', 'check', 'var(--g7)', 'Kiểm tra dữ liệu', 'Kiện chưa có gói, ngày gõ nhầm, tình trạng lạ… và sửa nhanh')
+      h += group('Quản trị hệ thống', slink('#/admin', 'users', 'var(--g7)', 'Quản lý phân quyền', '<span data-ucount>Người dùng và quyền truy cập</span>')
+        + (App.user.owner ? slink('#/admin/log', 'clock', 'var(--g7)', 'Nhật ký hoạt động', 'Ai thêm / sửa / xoá gì, lúc nào') : '')
+        + (App.user.owner ? slink('#/admin/online', 'wifi', 'var(--g7)', 'Người dùng trực tuyến', 'Tài khoản đang sử dụng ứng dụng, lần cuối sử dụng, thiết bị và phiên bản')
+          + slink('#/admin/srcfiles', 'file', 'var(--g7)', 'Tệp đính kèm Google Drive', 'Ghép file MGMER / GIR / OSD có sẵn trên Drive phòng vào biên bản, không phải tải lên')
+          + slink('#/admin/check', 'check', 'var(--g7)', 'Kiểm tra &amp; đối soát dữ liệu', 'Kiện chưa có gói, ngày gõ nhầm, tình trạng lạ… và sửa nhanh')
           // Bảo trì: bật = máy chủ chặn mọi người khác (kể cả quản trị viên), họ chỉ thấy màn hình "App đang bảo trì"
           + `<div data-maint>${maintRows(App.user.maint)}</div>` : '')
         + srow('folder', 'var(--g7)', 'Kho file (PDF, ảnh tải lên)', '<span data-fstore>Đang kiểm tra…</span>'));

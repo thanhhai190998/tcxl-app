@@ -361,7 +361,7 @@
   const GROUPS = [
     { key: 'g0', label: 'Quản lý vật tư', ic: 'box', color: 'var(--g2)', items: [
       // Khoá quyền giữ DASH_VATTU (người dùng cũ đã được cấp "Thống kê tổng") — nay là trang Tổng quan: Bảng + Biểu đồ
-      { key: 'DASH_VATTU', label: 'Tổng quan', ic: 'table', desc: 'Bảng tổng hợp P1–P3, biểu đồ tiến độ', type: 'overview', pd: 'Bảng tổng hợp + biểu đồ (chỉ có mức Xem)' },
+      { key: 'DASH_VATTU', label: 'Tổng quan vật tư', ic: 'table', desc: 'Bảng tổng hợp P1–P3, biểu đồ tiến độ', type: 'overview', pd: 'Bảng tổng hợp + biểu đồ (chỉ có mức Xem)' },
       // 3 trang Phase (js/hub.js): các nút thao tác — tạo biên bản, danh sách, tải form, tải file lên. Không có khoá quyền riêng:
       // hiện khi người dùng được xem ít nhất 1 bảng trong đó (tables)
       { key: 'P1', label: 'Phase 1 · Nhập vật tư', ic: 'box', desc: 'Kiện nhà thầu thông báo: thêm tay, nhập file', type: 'hub', tables: ['KIEN'] },
@@ -378,7 +378,7 @@
       { key: 'EXCEL', label: 'Nhập / xuất Excel (cả 3 Phase)', ph: 'P1–P3', ic: 'upload', desc: 'Tải mẫu, điền, tải lên cả loạt', type: 'excel', hidden: true,
         pd: 'Xem = tải form mẫu; Sửa = tải file lên, hoàn tác lần nhập' }
     ] },
-    { key: 'g1', label: 'Gói thầu & nhân sự', ic: 'folder', color: 'var(--g0)', items: [
+    { key: 'g1', label: 'Dự án & nhân sự', ic: 'folder', color: 'var(--g0)', items: [
       { key: 'GOI_THAU', ic: 'folder', desc: 'Nhà thầu, hợp đồng, phụ trách' },
       { key: 'NHAN_SU', ic: 'contacts', desc: 'Phòng, Ban, nhà thầu, tư vấn' },
       { key: 'LINK', ic: 'link', desc: 'Thư mục, hệ thống hay dùng' }

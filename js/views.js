@@ -129,13 +129,13 @@
   // ---------------- MENU: các nhóm/mục người dùng được xem (dùng cho trang chủ + menu trượt) ----------------
   V.navGroups = () => {
     const groups = V.items().map(g => ({ ...g, items: g.items.filter(it => !it.hidden && canItem(it)) })).filter(g => g.items.length);
-    if (App.user.admin) groups.push({ key: 'adm', label: 'Quản trị', ic: 'shield', color: 'var(--g7)', items: [
-      { key: '_admin', label: 'Phân quyền', ic: 'shield', desc: 'Người dùng & quyền', href: '#/admin', color: 'var(--g7)' },
+    if (App.user.admin) groups.push({ key: 'adm', label: 'Quản trị hệ thống', ic: 'shield', color: 'var(--g7)', items: [
+      { key: '_admin', label: 'Quản lý phân quyền', ic: 'shield', desc: 'Người dùng & quyền', href: '#/admin', color: 'var(--g7)' },
       // Lịch sử chỉnh sửa (máy chủ cũng chỉ trả cho quản trị viên chính) + Kiểm tra dữ liệu: chỉ quản trị viên chính
-      ...(App.user.owner ? [{ key: '_log', label: 'Lịch sử chỉnh sửa', ic: 'clock', desc: 'Ai thêm / sửa / xoá gì, lúc nào', href: '#/admin/log', color: 'var(--g7)' },
-        { key: '_online', label: 'Ai đang online', ic: 'wifi', desc: 'Tài khoản đang mở app', href: '#/admin/online', color: 'var(--g7)' },
-        { key: '_srcfiles', label: 'Gắn file từ Drive', ic: 'file', desc: 'Ghép file biên bản có sẵn trên Drive phòng', href: '#/admin/srcfiles', color: 'var(--g7)' },
-        { key: '_check', label: 'Kiểm tra dữ liệu', ic: 'check', desc: 'Dữ liệu bất thường cần sửa', href: '#/admin/check', color: 'var(--g7)' }] : []),
+      ...(App.user.owner ? [{ key: '_log', label: 'Nhật ký hoạt động', ic: 'clock', desc: 'Ai thêm / sửa / xoá gì, lúc nào', href: '#/admin/log', color: 'var(--g7)' },
+        { key: '_online', label: 'Người dùng trực tuyến', ic: 'wifi', desc: 'Tài khoản đang sử dụng ứng dụng', href: '#/admin/online', color: 'var(--g7)' },
+        { key: '_srcfiles', label: 'Tệp đính kèm Google Drive', ic: 'file', desc: 'Ghép file biên bản có sẵn trên Drive phòng', href: '#/admin/srcfiles', color: 'var(--g7)' },
+        { key: '_check', label: 'Kiểm tra & đối soát dữ liệu', ic: 'check', desc: 'Dữ liệu bất thường cần sửa', href: '#/admin/check', color: 'var(--g7)' }] : []),
       { key: '_settings', label: 'Cài đặt', ic: 'gear', desc: 'Giao diện, khoá app, cài app', href: '#/settings', color: 'var(--g7)' }
     ] });
     return groups;
@@ -191,7 +191,7 @@
       // Thẻ cuối mỗi cột kéo dài, các dòng giãn đều → đáy 2 cột luôn bằng nhau (css .hcols)
       const L = [], R = [];
       if (kienOk) L.push(`<section class="card hcard"><div class="hch"><h2>${Icon('folder', 'sm')} Theo gói thầu</h2>
-        ${can('DASH_VATTU') > 0 || App.user.admin ? '<a class="small hmore" href="#/i/DASH_VATTU">Xem Tổng quan →</a>' : ''}</div>
+        ${can('DASH_VATTU') > 0 || App.user.admin ? '<a class="small hmore" href="#/i/DASH_VATTU">Xem Tổng quan vật tư →</a>' : ''}</div>
         <div class="hlist" id="hgoi"><span class="skel"></span></div></section>`);
       if (acts.length) R.push(`<section class="card hcard hq"><div class="hch"><h2>${Icon('box', 'sm')} Thao tác nhanh</h2></div>
         ${acts.map(a => `<a class="hact" href="${a.href}" style="--ac:${a.c}"><span class="hai">${Icon(a.ic)}</span>
@@ -233,7 +233,7 @@
           const gr = DB.get('GOI_THAU', o.k);
           return `<a class="hrow2 goi" href="#/i/KIEN?Goi_thau=${encodeURIComponent(o.k)}" title="${esc(gr ? gr.TenGoi || o.k : o.k)}">
             <b class="hg">${esc(o.k)}</b><span class="pbar3 sm">${bar(o.x, o.n)}</span><span class="hn">${fmt(o.n)}</span><span class="hn">${fmt(o.x[1] + o.x[2])}</span><span class="hn">${fmt(o.x[2])}</span></a>`;
-        }).join('') + (goi.length > LIM ? `<div class="muted small hrest">+ ${goi.length - LIM} gói khác — xem ở Tổng quan</div>` : '')
+        }).join('') + (goi.length > LIM ? `<div class="muted small hrest">+ ${goi.length - LIM} gói khác — xem ở Tổng quan vật tư</div>` : '')
         : '<div class="muted small hrest">Chưa có kiện nào</div>'; };
     }
 

@@ -175,7 +175,7 @@
       else if (e.target.closest('[data-x]')) hide();
       else if (e.target.closest('[data-skip]')) { L.locked = false; hide(); }
       else if (e.target.closest('[data-off]')) {
-        if (!(await U.confirm('Không dùng khoá app trên máy này? Ai cầm máy cũng mở được app. Có thể bật lại bất cứ lúc nào ở Cài đặt → Khoá ứng dụng.'))) return;
+        if (!(await U.confirm('Không dùng khoá app trên máy này? Ai cầm máy cũng mở được app. Có thể bật lại bất cứ lúc nào ở Cài đặt → Bảo vệ ứng dụng.'))) return;
         ls.set(offKey(), true); L.locked = false; hide(); lastAct = Date.now(); if (App.lockIcon) App.lockIcon();
         U.toast('Đã tắt khoá app trên máy này', 'ok');
       }
@@ -231,7 +231,7 @@
     const offerReBio = async () => {
       if (!(await U.confirm('Mở khoá bằng Windows Hello / vân tay vừa bị lỗi. Đăng ký lại cho app trên máy này?'))) return;
       try { await L.bioEnable(); U.toast('Đã đăng ký lại — lần khoá sau bấm 🔑 để mở', 'ok'); }
-      catch (e) { U.toast('Chưa đăng ký lại được (' + (e.name || e.message) + ') — vẫn dùng mã PIN; có thể tắt mục này trong Cài đặt → Khoá ứng dụng', 'err'); }
+      catch (e) { U.toast('Chưa đăng ký lại được (' + (e.name || e.message) + ') — vẫn dùng mã PIN; có thể tắt mục này trong Cài đặt → Bảo vệ ứng dụng', 'err'); }
     };
     pad(box, {
       title: 'Nhập mã PIN', sub: 'App đang khoá', bio: bioOk ? tryBio : null,

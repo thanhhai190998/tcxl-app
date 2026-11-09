@@ -145,6 +145,11 @@
     };
     // Vẽ ngay khi cuộn (trình duyệt đã gộp sự kiện cuộn theo khung hình; khoảng dòng không đổi thì không vẽ lại)
     wrap.onscroll = () => { st.top = wrap.scrollTop; st.left = wrap.scrollLeft; paint(); };
+    // Bảng tự cao / thấp theo cửa sổ (G.fit dùng CSS 100vh) → vẽ thêm dòng cho phần vừa giãn ra (1 bộ theo dõi cho mỗi bảng)
+    if (window.ResizeObserver && !wrap._ro) {
+      wrap._ro = new ResizeObserver(() => { if (wrap.isConnected) wrap.dispatchEvent(new Event('scroll')); else wrap._ro.disconnect(); });
+      wrap._ro.observe(wrap);
+    }
     // Tạm cao hết chỗ trống → vẽ (khoảng trống trên dưới cho đủ chiều cao) → về đúng vị trí cuộn cũ → thu chiều cao vừa nội dung
     G.fit(wrap, true);
     paint(true);
@@ -181,16 +186,21 @@
   // Chiều cao bảng: luôn kéo tới sát chân trang (giống bảng dữ liệu MS Access) — ít dòng thì phần dưới bảng để trống,
   // chân trang đứng yên ở đáy màn hình, không nhảy lên khi lọc còn vài dòng (user chốt 17/10).
   // Máy tính: chừa chỗ cho chân trang (thấy ngay, không phải cuộn trang); điện thoại: chừa thanh menu dưới, chân trang nằm dưới cùng.
-  G.fit = (wrap, full) => {   // full: giữ tham số cho chỗ gọi cũ (nay luôn cao hết chỗ trống)
+  G.fit = (wrap, full) => {   // full: lần tính đầu khi vừa dựng bảng (chưa bớt phần lố)
     if (!wrap.isConnected) return;
     const bn = document.getElementById('bnav'), bh = bn && getComputedStyle(bn).display !== 'none' ? bn.offsetHeight : 0;
     const foot = document.getElementById('foot'), fh = !bh && foot && foot.offsetParent ? foot.offsetHeight + (parseFloat(getComputedStyle(foot).marginTop) || 0) : 0;
     const main = wrap.closest('main'), pb = main ? parseFloat(getComputedStyle(main).paddingBottom) || 0 : 0;
     const top = wrap.getBoundingClientRect().top + window.scrollY;
-    const avail = Math.max(260, window.innerHeight - top - bh - fh - pb - 2);
-    wrap.style.height = avail + 'px';
-    // Máy tính: trang vẫn dài hơn màn hình (lề / chân trang tính thiếu) → bớt đúng phần lố để không phải cuộn trang
-    if (!full && !bh) { const over = document.documentElement.scrollHeight - window.innerHeight; if (over > 0) wrap.style.height = Math.max(160, wrap.offsetHeight - over) + 'px'; }
+    const k = top + bh + fh + pb + 2;   // phần không phải bảng: mọi thứ phía trên bảng + chân trang / thanh menu dưới + lề
+    if (bh) { wrap.style.height = Math.max(260, window.innerHeight - k) + 'px'; return; }   // điện thoại: như cũ
+    // Máy tính: chiều cao = 100vh − phần cố định, tính bằng CSS → cửa sổ phóng to / thu nhỏ lúc nào bảng cũng giãn theo ngay,
+    // không cần chờ sự kiện resize (09/11: phóng to cửa sổ app mà bảng giữ chiều cao cũ → chân trang nổi lên giữa màn hình)
+    const css = (lo, n) => `max(${lo}px, calc(100vh - ${+n.toFixed(2)}px))`;
+    wrap.style.height = css(260, k);
+    // Trang vẫn dài hơn màn hình (lề / chân trang tính thiếu) → bớt đúng phần lố để không phải cuộn trang
+    // (cao mới = cao hiện tại − phần lố, viết lại dạng 100vh − n; đúng cả khi bảng đang bị giữ ở mức tối thiểu 260 px)
+    if (!full) { const ih = window.innerHeight, over = document.documentElement.scrollHeight - ih; if (over > 0) wrap.style.height = css(160, ih - wrap.getBoundingClientRect().height + over); }
   };
   let rzT = null;
   window.addEventListener('resize', () => { clearTimeout(rzT); rzT = setTimeout(() => document.querySelectorAll('.gwrap').forEach(w => { G.fit(w); w.dispatchEvent(new Event('scroll')); }), 120); });

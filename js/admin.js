@@ -16,7 +16,7 @@
       <span class="lead av" style="--gc:${u.Admin ? 'var(--g7)' : 'var(--g0)'}">${esc(initials(u.Ho_ten || u.Email))}</span>
       <div class="row-main"><div class="row-title">${esc(u.Ho_ten || u.Email)}</div><div class="row-sub">${esc(u.Email)}</div>
       <div class="row-meta"><span>${u.Admin ? 'Toàn quyền' : n(u) + ' mục được cấp'}</span><span>${u.Goi_thau ? 'Gói ' + esc(u.Goi_thau.replace(/,/g, ', ')) : 'Mọi gói'}</span></div></div>
-      ${u.Kich_hoat ? (u.Admin ? '<span class="badge info">Quản trị</span>' : '<span class="badge ok">Đang dùng</span>') : '<span class="badge">Đã khoá</span>'}</a>`;
+      ${u.Kich_hoat ? (u.Admin ? '<span class="badge info">Quản trị viên</span>' : '<span class="badge ok">Người dùng</span>') : '<span class="badge">Đã khoá</span>'}</a>`;   // nhãn = loại tài khoản (như trang Cài đặt); tài khoản khoá thì báo khoá
     App.main.innerHTML = `<div class="card uinfo"><span class="gic" style="--gc:var(--g7)">${Icon('shield')}</span>
         <div><b>${users.filter(u => u.Kich_hoat).length} người dùng đang hoạt động</b>
         <div class="muted small">Quản trị viên chính${App.user.owner ? ' (<b>' + esc(App.user.email) + '</b>)' : ''} luôn có toàn quyền và không hiện trong danh sách.</div></div>

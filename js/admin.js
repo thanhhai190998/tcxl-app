@@ -611,7 +611,7 @@
     // Công tắc khoá app (riêng máy này): bật = đặt mã PIN; tắt = nhập mã PIN hiện tại rồi bỏ khoá. Đang bật mới hiện đổi PIN / tự khoá / vân tay
     const la = Lock.after(), lockOn = Lock.hasPin();
     h += group('Bảo vệ ứng dụng',
-      srow('lock', 'var(--g6)', 'Khoá ứng dụng bằng mã PIN', lockOn ? 'Đang bật · cần nhập mã PIN khi mở app trên máy này' : 'Đang tắt — ai cầm máy này cũng mở được app',
+      srow('lock', 'var(--g6)', 'Khoá ứng dụng bằng mã PIN', lockOn ? 'Đang bật · cần nhập mã PIN khi mở app trên máy này' : '',   // đang tắt: không ghi mô tả (user 14/11)
         `<input type="checkbox" class="sw" data-act="lockon" ${lockOn ? 'checked' : ''} aria-label="Khoá ứng dụng bằng mã PIN">`)
       + (lockOn ? srow('refresh', 'var(--g6)', 'Đổi mã PIN', 'Nhập mã cũ rồi đặt mã mới', '<button class="btn sm ghost" data-act="chgpin">Đổi</button>')
         + srow('clock', 'var(--g6)', 'Tự khoá khi rời app hoặc không thao tác', 'Áp dụng trên máy này',

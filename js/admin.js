@@ -603,8 +603,7 @@
       + (hasEnc && Vault.isSet() && App.user.owner ? srow('refresh', 'var(--g6)', 'Đổi mật khẩu chủ', 'Dữ liệu không cần mã hoá lại, đổi xong ngay', '<button class="btn sm ghost" data-act="chgvault">Đổi</button>') : '')
       + (hasEnc && Vault.isSet() && App.user.admin ? srow('key', 'var(--g6)', 'Mã hoá dữ liệu cũ', 'Tìm và mã hoá các giá trị còn để dạng chữ thường', '<button class="btn sm ghost" data-act="migrate">Chạy</button>') : '')
       + (demo ? '' : srow('logout', 'var(--g6)', 'Đăng xuất khỏi tất cả thiết bị',
-          (Auth.hasSession() ? '✅ Máy này nhớ đăng nhập đến <b>' + U.fmtDate(new Date(Auth.sexp)) + '</b> (tự gia hạn khi dùng)'
-            : '⚠️ Chưa có phiên dài hạn — sẽ phải đăng nhập lại sau khoảng 1 giờ') + ' · bấm để huỷ đăng nhập trên tất cả điện thoại, máy tính (vd khi mất máy)',
+          Auth.hasSession() ? '' : '⚠️ Chưa có phiên dài hạn — sẽ phải đăng nhập lại sau khoảng 1 giờ',   // bình thường không ghi mô tả (user 14/11), chỉ báo khi có trục trặc
           '<button class="btn sm ghost" data-act="logoutall">Đăng xuất</button>'));
     if (sec) h += group('Bảo mật', sec);
 
@@ -622,9 +621,9 @@
       `<div class="seg mini" data-act="theme">${[['', 'Theo hệ thống'], ['light', 'Sáng'], ['dark', 'Tối']].map(([v, l]) => `<button type="button" class="segb ${v === th ? 'on' : ''}" data-v="${v}">${l}</button>`).join('')}</div>`));
 
     h += group('Thông tin & lưu trữ',
-      srow('download', 'var(--g0)', 'Cài đặt ứng dụng lên thiết bị', esc(Install.hint()),
+      srow('download', 'var(--g0)', 'Cài đặt ứng dụng lên thiết bị', '',   // bỏ mô tả (user 14/11) — cách cài xem ở nút Hướng dẫn
         `<button class="btn sm${App.installPrompt ? '' : ' ghost'}" data-act="install">${App.installPrompt ? 'Cài' : 'Hướng dẫn'}</button>`)
-      + srow('refresh', 'var(--g0)', 'Phiên bản ứng dụng: ' + esc(C.version), demo ? 'Chế độ DEMO — dữ liệu giả' : 'Dữ liệu trên Google Sheets', '<button class="btn sm ghost" data-act="update">Kiểm tra</button>')
+      + srow('refresh', 'var(--g0)', 'Phiên bản ứng dụng: ' + esc(C.version), '','<button class="btn sm ghost" data-act="update">Kiểm tra</button>')
       + srow('saved', 'var(--g0)', 'Dung lượng lưu trữ trên thiết bị', '<span data-disk>Giúp mở app nhanh và xem được khi mất mạng</span>', '<button class="btn sm ghost" data-act="wipe">Xoá dữ liệu tạm</button>')
       + slink('privacy.html', 'shield', 'var(--g0)', 'Chính sách bảo mật', ''));
 

@@ -151,7 +151,7 @@
     const demo = C().mode === 'demo';
     const step1 = () => pad(box, {
       title: changing ? 'Mã PIN mới' : 'Đặt mã PIN cho máy này',
-      sub: changing ? 'Nhập 4 số mới' : 'Mỗi lần mở app trên máy này sẽ cần mã PIN 4 số — để người khác cầm máy không xem được dữ liệu. Không cần thì bấm "Không dùng khoá" bên dưới.',
+      sub: changing ? 'Nhập 4 số mới' : '',   // đặt PIN lần đầu: không ghi đoạn giải thích (user 14/11)
       foot: changing ? '<button type="button" class="linkbtn" data-x>Huỷ</button>'
         : '<button type="button" class="linkbtn" data-off>Không dùng khoá trên máy này</button>' + (demo ? ' · <button type="button" class="linkbtn" data-skip>Bỏ qua (chỉ ở bản demo)</button>' : ''),
       onDone: pin => {

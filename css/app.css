@@ -641,9 +641,16 @@ input.sw:checked::after { transform: translateX(18px); }
 .schev { color: var(--muted); }
 .seg.mini { flex-wrap: nowrap; gap: 4px; }
 .seg.mini .segb { padding: 5px 9px; min-height: 32px; font-size: 12.5px; }
+/* Màu của app (Cài đặt, chỉ QTV chính): ô tròn màu — giống app DTH */
+.accs { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.accb { width: 30px; height: 30px; padding: 0; border-radius: 50%; cursor: pointer; border: 2px solid var(--card);
+  background: linear-gradient(135deg, var(--a1), var(--a2)); box-shadow: 0 0 0 1px var(--line); transition: transform .2s ease, box-shadow .2s; }
+.accb:hover { transform: scale(1.12); }
+.accb.on { box-shadow: 0 0 0 2px var(--a1), 0 4px 12px color-mix(in srgb, var(--a1) 45%, transparent); }
+.accs.busy { pointer-events: none; opacity: .6; }
 .seg.mini .segb.on::before { content: none; }   /* hàng nút nhỏ không xuống dòng → bỏ dấu ✓ cho khỏi tràn */
 .btn.wide { width: 100%; margin-top: 18px; }
-@media (max-width: 420px) { .srow:has(.seg.mini) { flex-wrap: wrap; } .srow:has(.seg.mini) .sa { width: 100%; padding-left: 44px; } }
+@media (max-width: 420px) { .srow:has(.seg.mini, .accs) { flex-wrap: wrap; } .srow:has(.seg.mini, .accs) .sa { width: 100%; padding-left: 44px; } .sa .accs { justify-content: flex-start; } }
 
 /* ---- Dashboard ---- */
 /* Màu series đã kiểm tra chuẩn mù màu (xanh dương / cam), sáng và tối */

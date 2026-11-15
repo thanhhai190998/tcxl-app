@@ -205,13 +205,14 @@
   const maintOn = () => (state.maint && state.maint.on ? state.maint : null);
   function me() {
     const email = currentEmail();
-    if (email === OWNER) return { email, name: 'Quản trị viên (demo)', admin: true, owner: true, goi: [], quyen: {}, maint: maintOn() && clone(maintOn()) };
+    const ac = state.accent ? { accent: state.accent } : {};   // màu app QTV chính chọn — giống máy chủ: mọi tài khoản đều nhận
+    if (email === OWNER) return { email, name: 'Quản trị viên (demo)', admin: true, owner: true, goi: [], quyen: {}, maint: maintOn() && clone(maintOn()), ...ac };
     const u = state.users.find(x => x.Email === email && x.Kich_hoat);
     if (!u) { const e = new Error('Tài khoản ' + email + ' chưa được cấp quyền dùng app'); e.code = 'NOT_ALLOWED'; throw e; }
     // Giống máy chủ (Code.gs doPost): đang bảo trì → mọi yêu cầu của người không phải quản trị viên chính bị chặn
     const m = maintOn();
     if (m) { const e = new Error('App đang bảo trì'); e.code = 'MAINT'; e.maint = { msg: m.msg || '', t: m.t }; if (window.App && App.maintenance) App.maintenance(e.maint); throw e; }
-    return { email, name: u.Ho_ten, admin: !!u.Admin, owner: false, goi: (u.Goi_thau || '').split(',').map(s => s.trim()).filter(Boolean), quyen: u.Quyen || {} };
+    return { email, name: u.Ho_ten, admin: !!u.Admin, owner: false, goi: (u.Goi_thau || '').split(',').map(s => s.trim()).filter(Boolean), quyen: u.Quyen || {}, ...ac };
   }
   const rows = t => { if (!T()[t]) throw new Error('Sai bảng'); return (state.tables[t] = state.tables[t] || []); };
   // Dòng cha theo khoá (dùng cho quyền theo gói của bảng con) — có chỉ mục, không quét cả bảng kiện cho từng dòng
@@ -265,6 +266,15 @@
       if (on && (old ? old.msg : '') !== msg) ch.Loi_nhan = [old ? old.msg : '', msg];
       audit(u, 'update', '_BAOTRI', '', 1, ch, 'Cài đặt');
       await persist(); return clone(maintOn() || { on: false });
+    },
+    async setAccent(k) {
+      await wait(); const u = me();
+      if (!u.owner) throw new Error('Chỉ quản trị viên chính được đổi màu của app');
+      const name = x => (App.accents.find(a => a.k === x) || {}).l;
+      k = String(k || ''); if (!name(k)) throw new Error('Sai mã màu');
+      const old = state.accent || ''; state.accent = k || undefined;
+      if (old !== k) audit(u, 'update', '_GIAODIEN', '', 1, { Mau_chu_dao: [name(old) || old, name(k)] }, 'Cài đặt');
+      await persist(); return k;
     },
     async list(t) { await wait(); const u = me(); return clone(rows(t).filter(r => level(u, t, r) >= 1)); },
     async batch(ts) {

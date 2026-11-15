@@ -7,6 +7,27 @@
     user: null, installPrompt: null,
     main: document.getElementById('view'),
 
+    // Màu của app (giống app DTH) — QTV chính chọn ở Cài đặt, máy chủ lưu và trả trong `me` (accent) → áp dụng cho mọi người dùng.
+    // p = màu chính, p2 = màu thứ 2 của dải màu thanh trên, dk = màu sẫm mép trên ảnh trang chủ. Thêm / bớt màu: sửa cả ACCENTS trong gas/Code.gs
+    accents: [
+      { k: '', l: 'Xanh lá', p: C.primaryColor, p2: C.primaryColor2, dk: '#0a5b55' },
+      { k: 'blue', l: 'Xanh dương', p: '#0089ff', p2: '#5b5bd6', dk: '#0454a4' },
+      { k: 'teal', l: 'Xanh ngọc', p: '#0d9488', p2: '#2563eb', dk: '#0f4f4a' },
+      { k: 'violet', l: 'Tím', p: '#7c3aed', p2: '#c026d3', dk: '#3b1a7a' },
+      { k: 'rose', l: 'Hồng', p: '#e11d48', p2: '#9333ea', dk: '#7a1230' },
+      { k: 'sunset', l: 'Cam hoàng hôn', p: '#ea580c', p2: '#db2777', dk: '#7c2d12' }
+    ],
+    accentKey: '',
+    accent: () => App.accents.find(a => a.k === App.accentKey) || App.accents[0],
+    // Đổi màu đang hiện; nhớ trên máy (tcxl-accent) để màn đăng nhập / lần mở sau có màu ngay, trước khi máy chủ trả lời
+    setAccent(k) {
+      App.accentKey = App.accents.some(a => a.k === k) ? k : '';
+      try { localStorage.setItem('tcxl-accent|' + C.mode, App.accentKey); } catch (e) { /* bỏ qua */ }
+      const a = App.accent(), st = document.documentElement.style;
+      st.setProperty('--pri', a.p); st.setProperty('--pri2', a.p2);
+      if (App.topTint) App.topTint();
+    },
+
     head(title, opt = {}) {
       document.getElementById('title').textContent = title;
       document.getElementById('back').hidden = !opt.back;
@@ -262,7 +283,7 @@
       API.getConfig('vault').then(setVault).catch(() => {});
       const u = await API.me();
       lsSet(ME_KEY, u);
-      if (JSON.stringify(u) !== JSON.stringify(App.user)) { App.user = u; App.buildNav(); App.maintPill(); }
+      if (JSON.stringify(u) !== JSON.stringify(App.user)) { App.user = u; App.setAccent(u.accent || ''); App.buildNav(); App.maintPill(); }
       const n = await DB.refresh();
       U.toast(n ? 'Đã cập nhật dữ liệu mới' : 'Dữ liệu đã là mới nhất', 'ok');
     } catch (e) { U.toast('Không làm mới được: ' + e.message, 'err'); }
@@ -343,6 +364,8 @@
   };
   // Cài đặt vừa bật / tắt / sửa lời nhắn bảo trì → cập nhật thông tin tài khoản lưu trên máy + nhãn trên thanh trên
   App.setMaint = m => { if (!App.user) return; App.user.maint = m && m.on ? m : null; lsSet(ME_KEY, App.user); App.maintPill(); };
+  // Cài đặt vừa đổi màu app trên máy chủ → cập nhật thông tin tài khoản lưu trên máy (khỏi dựng lại trang khi `me` trả về)
+  App.saveAccent = k => { if (!App.user) return; if (k) App.user.accent = k; else delete App.user.accent; lsSet(ME_KEY, App.user); App.setAccent(k || ''); };
 
   // Đăng xuất: xoá cả dữ liệu lưu tạm trên máy (bảng, ảnh, thông tin tài khoản)
   App.signOut = async () => {
@@ -367,8 +390,8 @@
 
   async function start() {
     loadFont();
-    document.documentElement.style.setProperty('--pri', C.primaryColor);
-    if (C.primaryColor2) document.documentElement.style.setProperty('--pri2', C.primaryColor2);
+    let acc0 = ''; try { acc0 = localStorage.getItem('tcxl-accent|' + C.mode) || ''; } catch (e) { /* bỏ qua */ }
+    App.setAccent(acc0);   // màu app lần trước (máy chủ trả màu mới nhất trong `me` → đổi theo bên dưới)
     document.getElementById('appname').textContent = C.appName;
     App.footer();
     if (C.mode === 'demo') document.body.classList.add('is-demo');
@@ -398,6 +421,7 @@
       App.loading();
       try { App.user = await API.me(); lsSet(ME_KEY, App.user); } catch (e) { return failStart(e); }
     }
+    App.setAccent(App.user.accent || '');
     Lock.boot();   // khoá bằng mã PIN (hoặc bắt đặt PIN lần đầu) trước khi hiện dữ liệu — trang vẫn tải ngầm phía sau
     API.getConfig('vault').then(setVault).catch(() => {});
     document.getElementById('avatar').textContent = ((window.Auth && Auth.name) || App.user.name || App.user.email || '?').trim().charAt(0).toUpperCase();
@@ -420,8 +444,8 @@
       API.me().then(u => {
         lsSet(ME_KEY, u);
         if (JSON.stringify(u) === JSON.stringify(App.user)) return;
-        App.user = u;   // quyền vừa được đổi → dựng lại menu và trang đang xem
-        App.buildNav(); App.maintPill(); route(true);
+        App.user = u;   // quyền / màu app vừa được đổi → dựng lại menu và trang đang xem
+        App.setAccent(u.accent || ''); App.buildNav(); App.maintPill(); route(true);
       }).catch(async e => {
         if (e.code !== 'NOT_ALLOWED') return;   // mất mạng: vẫn dùng dữ liệu đã lưu trên máy
         await DB.wipe(); try { localStorage.removeItem(ME_KEY); } catch (er) { /* bỏ qua */ }
@@ -473,9 +497,9 @@
   // Trang chủ: thanh tiêu đề trong suốt trên ảnh đầu trang (css) — cuộn xuống thì hiện lại nền màu cho chữ dễ đọc.
   // Thanh tiêu đề cửa sổ (app đã cài trên máy tính / thanh trạng thái điện thoại) theo màu theme-color: trên ảnh thì đổi màu sẫm
   // giống mép trên ảnh cho liền một khối, trang khác / đã cuộn thì về màu chính.
-  const topBar = document.querySelector('.top'), tcMeta = document.querySelector('meta[name="theme-color"]'), TC = tcMeta && tcMeta.content;
+  const topBar = document.querySelector('.top'), tcMeta = document.querySelector('meta[name="theme-color"]');
   App.topTint = () => {
-    const solid = window.scrollY > 4, tc = !solid && document.querySelector('#hero:not([hidden]) .hero-img') ? '#0a5b55' : TC;
+    const a = App.accent(), solid = window.scrollY > 4, tc = !solid && document.querySelector('#hero:not([hidden]) .hero-img') ? a.dk : a.p;
     topBar.classList.toggle('solid', solid);
     if (tcMeta && tcMeta.content !== tc) tcMeta.content = tc;
   };

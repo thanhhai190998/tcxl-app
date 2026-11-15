@@ -168,6 +168,7 @@
     online: () => call('online'),                                         // ai đang online (chỉ quản trị viên chính)
     maint: () => call('maint'),                                           // chế độ bảo trì: xem / bật / tắt (chỉ quản trị viên chính)
     setMaint: (on, msg) => call('setMaint', { on: !!on, msg: msg || '', via: 'Cài đặt' }),
+    setAccent: k => call('setAccent', { accent: k || '', via: 'Cài đặt' }),   // màu của app cho mọi người dùng (chỉ quản trị viên chính)
     srcIndex: pending => call('srcIndex', { pending: pending || null }),   // danh mục file biên bản gốc trên Drive phòng (chỉ QTV chính) — đọc từng phần
     signOut: () => Auth.signOut()
   };

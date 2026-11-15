@@ -165,9 +165,9 @@
 
   // ---------------- LỊCH SỬ CHỈNH SỬA (chỉ quản trị viên chính — máy chủ cũng chỉ trả cho quản trị viên chính) ----------------
   const ACT = { add: ['Thêm', 'ok'], update: ['Sửa', 'info'], remove: ['Xoá', 'bad'], clear: ['Xoá cả bảng', 'bad'] };
-  const tblName = t => t === '_NGUOIDUNG' ? 'Người dùng / phân quyền' : t === '_CAUHINH' ? 'Cấu hình' : t === '_BAOTRI' ? 'Bảo trì app' : (SCHEMA.tables[t] ? SCHEMA.tables[t].label : t);
+  const tblName = t => t === '_NGUOIDUNG' ? 'Người dùng / phân quyền' : t === '_CAUHINH' ? 'Cấu hình' : t === '_BAOTRI' ? 'Bảo trì app' : t === '_GIAODIEN' ? 'Màu của app' : (SCHEMA.tables[t] ? SCHEMA.tables[t].label : t);
   const fDef = (t, f) => { const d = SCHEMA.tables[t]; return d && d.fields.find(y => y.n === f); };
-  const fLabel = (t, f) => { const x = fDef(t, f); return x ? x.l : ({ Ho_ten: 'Họ tên', Kich_hoat: 'Kích hoạt', Admin: 'Quản trị viên', Goi_thau: 'Gói thầu', Quyen: 'Quyền' }[f] || f); };
+  const fLabel = (t, f) => { const x = fDef(t, f); return x ? x.l : ({ Ho_ten: 'Họ tên', Kich_hoat: 'Kích hoạt', Admin: 'Quản trị viên', Goi_thau: 'Gói thầu', Quyen: 'Quyền', Bao_tri: 'Bảo trì', Loi_nhan: 'Lời nhắn', Mau_chu_dao: 'Màu chủ đạo' }[f] || f); };
   const fVal = (t, f, v) => {
     if (v === '' || v == null) return '<i class="muted">(trống)</i>';
     const x = fDef(t, f);
@@ -200,7 +200,7 @@
     if (!App.user.owner) return App.notFound();
     App.head('Nhật ký hoạt động', { back: true });
     const st = A.logSt = A.logSt || { table: '', act: '', q: '' };
-    const TB = ['KIEN', 'MGMER', 'KIEM_TRA', 'GIR', 'OSD', 'GOI_THAU', 'NHAN_SU', 'LINK', 'NHAP_EXCEL', '_NGUOIDUNG', '_BAOTRI'];
+    const TB = ['KIEN', 'MGMER', 'KIEM_TRA', 'GIR', 'OSD', 'GOI_THAU', 'NHAN_SU', 'LINK', 'NHAP_EXCEL', '_NGUOIDUNG', '_BAOTRI', '_GIAODIEN'];
     App.main.innerHTML = `<div class="card hlog"><p class="muted small">Máy chủ tự ghi mỗi lần thêm / sửa / xoá trên app: thời gian, tài khoản Google của người làm,
         giá trị cũ → mới (dòng bị xoá giữ lại nội dung). <b>Chỉ quản trị viên chính</b> xem được. Lần nhập / nạp file lớn (hơn 200 dòng) ghi 1 dòng tóm tắt.</p>
         <div class="hfilter">
@@ -618,7 +618,10 @@
         + `<div data-biorow hidden>${srow('key', 'var(--g6)', 'Mở khoá bằng vân tay / khuôn mặt', 'Windows Hello, vân tay, Face ID của máy này — mã PIN vẫn dùng được',
           `<input type="checkbox" class="sw" data-act="bio" ${Lock.bioOn() ? 'checked' : ''} aria-label="Mở khoá bằng vân tay / khuôn mặt">`)}</div>` : ''));
     h += group('Giao diện', srow(th === 'dark' ? 'moon' : 'sun', 'var(--g4)', 'Chủ đề giao diện', 'Áp dụng trên máy này',
-      `<div class="seg mini" data-act="theme">${[['', 'Theo hệ thống'], ['light', 'Sáng'], ['dark', 'Tối']].map(([v, l]) => `<button type="button" class="segb ${v === th ? 'on' : ''}" data-v="${v}">${l}</button>`).join('')}</div>`));
+      `<div class="seg mini" data-act="theme">${[['', 'Theo hệ thống'], ['light', 'Sáng'], ['dark', 'Tối']].map(([v, l]) => `<button type="button" class="segb ${v === th ? 'on' : ''}" data-v="${v}">${l}</button>`).join('')}</div>`)
+      // Màu của app — chỉ quản trị viên chính thấy và đổi; lưu trên máy chủ nên áp dụng cho mọi người dùng
+      + (App.user.owner ? srow('palette', 'var(--g5)', 'Màu chủ đạo', 'Đang dùng: <b data-accl>' + esc(App.accent().l) + '</b> · áp dụng cho mọi người dùng',
+        `<div class="accs" data-act="accent">${App.accents.map(a => `<button type="button" class="accb ${a.k === App.accent().k ? 'on' : ''}" data-v="${a.k}" title="${esc(a.l)}" aria-label="${esc(a.l)}" style="--a1:${a.p};--a2:${a.p2}"></button>`).join('')}</div>`) : ''));
 
     h += group('Thông tin & lưu trữ',
       srow('download', 'var(--g0)', 'Cài đặt ứng dụng lên thiết bị', '',   // bỏ mô tả (user 14/11) — cách cài xem ở nút Hướng dẫn
@@ -723,6 +726,20 @@
     on('reset', async () => { if (await U.confirm('Xoá toàn bộ dữ liệu demo (kể cả dữ liệu đã nạp thử) và tạo lại dữ liệu mẫu?')) { await API.demo.reset(); await DB.wipe(); localStorage.removeItem('tcxl-demo-user'); location.hash = '#/'; location.reload(); } });
     const tb = App.main.querySelector('[data-act="theme"]');
     tb.onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; App.setTheme(b.dataset.v); A.settings(); };
+    // Đổi màu app: đổi ngay trên máy này rồi lưu lên máy chủ; lưu không được thì trả lại màu cũ
+    const ab = App.main.querySelector('[data-act="accent"]');
+    if (ab) ab.onclick = async e => {
+      const b = e.target.closest('[data-v]'), prev = App.accent().k; if (!b || b.dataset.v === prev) return;
+      const mark = k => { ab.querySelectorAll('.accb').forEach(x => x.classList.toggle('on', x.dataset.v === k)); const l = App.main.querySelector('[data-accl]'); if (l) l.textContent = App.accent().l; };
+      App.setAccent(b.dataset.v); mark(b.dataset.v); ab.classList.add('busy');
+      try {
+        App.saveAccent(await API.setAccent(b.dataset.v));
+        U.toast(`Đã đổi màu app sang ${App.accent().l} — người dùng khác thấy màu mới khi mở app`, 'ok');
+      } catch (er) {
+        App.setAccent(prev); mark(prev);
+        U.toast('Chưa đổi được màu: ' + (/Thao tác không hợp lệ/.test(er.message) ? 'máy chủ chưa cập nhật Code.gs mới' : er.message), 'err');
+      } finally { if (ab.isConnected) ab.classList.remove('busy'); }
+    };
     on('update', async () => {
       try {
         const reg = navigator.serviceWorker && await navigator.serviceWorker.getRegistration();

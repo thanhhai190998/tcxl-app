@@ -160,7 +160,8 @@
     const PH = SCHEMA.PHASES, kl = '#/i/KIEN?Phase=';
     const kpis = [
       { id: 'tot', ts: ['KIEN'], label: 'Tổng số kiện', ic: 'box', c: 'var(--g0)', href: '#/i/KIEN' },
-      { id: 've', ts: ['KIEN'], label: 'Đã về, chưa mở kiện', ic: 'inspect', c: 'var(--warn)', href: kl + encodeURIComponent(PH[1]) },
+      // Tổng số kiện đã về công trường = P2 (chưa mở) + P3 (đã mở) — user 15/11 (trước là "Đã về, chưa mở kiện")
+      { id: 've', ts: ['KIEN'], label: 'Tổng số kiện đã về', ic: 'inspect', c: 'var(--warn)', href: kl + encodeURIComponent(PH[1]) + '&Phase=' + encodeURIComponent(PH[2]) },
       { id: 'mo', ts: ['KIEN'], label: 'Đã mở kiện', ic: 'open', c: 'var(--pri)', href: kl + encodeURIComponent(PH[2]) },
       { id: 'osd', ts: ['OSD'], label: 'Biên bản OSD', ic: 'alert', c: 'var(--bad)', href: '#/i/OSD' }
     ].filter(k => k.ts.some(t => can(t) > 0));
@@ -210,7 +211,7 @@
     const kien = DB.rows('KIEN'), fmt = n => U.int(n);
     const set = (id, n) => { const card = App.main.querySelector(`[data-k="${id}"]`); if (card) App.countTo(card.querySelector('.kn'), n, id); };
     set('tot', kien.length);
-    set('ve', kien.filter(r => SCHEMA.phaseIdx(r) === 1).length);
+    set('ve', kien.filter(r => SCHEMA.phaseIdx(r) >= 1).length);
     set('mo', kien.filter(r => r.GIR).length);
     set('osd', DB.rows('OSD').length);
 
@@ -307,7 +308,8 @@
     const qs = new URLSearchParams(location.hash.split('?')[1] || '');
     if ([...qs.keys()].length) {
       st.flt = {}; st.top = 0;
-      qs.forEach((v, k) => { if (DB.field(t, k)) st.flt[k] = { vals: [v === '' || v === '(trống)' ? Grid.EMPTY : v] }; });
+      // Cùng một cột lặp lại (?Phase=P2&Phase=P3) → lọc nhiều giá trị
+      qs.forEach((v, k) => { if (DB.field(t, k)) st.flt[k] = { vals: [...(st.flt[k] ? st.flt[k].vals : []), v === '' || v === '(trống)' ? Grid.EMPTY : v] }; });
       st.q = qs.get('q') || '';
       history.replaceState(null, '', '#/i/' + enc(key));
     }

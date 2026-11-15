@@ -3,6 +3,32 @@
   const C = window.APP_CONFIG;
   window.API = C.mode === 'live' ? window.LiveAPI : window.MockAPI;
 
+  // Logo theo màu app (xem App.logoSrc). Mã SVG gốc lưu trên máy theo phiên bản app → lần mở sau đổi màu logo ngay, không chờ tải
+  const LOGO_KEY = 'tcxl-logo-svg|' + C.version;
+  let logoSvg = null, logoUrl = '', logoLoading = false;
+  try { logoSvg = localStorage.getItem(LOGO_KEY); } catch (e) { /* bỏ qua */ }
+  // Pha màu: w = 0…1 phần màu t (255 = trắng, 0 = đen)
+  const mixHex = (h, t, w) => '#' + [1, 3, 5].map(i => Math.round(parseInt(h.slice(i, i + 2), 16) * (1 - w) + t * w).toString(16).padStart(2, '0')).join('');
+  function paintLogo() {
+    const a = App.accent();
+    if (a.k && !logoSvg) {   // chưa có mã SVG gốc → tải 1 lần rồi tô lại
+      if (!logoLoading) {
+        logoLoading = true;
+        fetch('icons/icon.svg').then(r => (r.ok ? r.text() : '')).then(t => {
+          if (!/<svg[\s>]/.test(t)) return;
+          logoSvg = t;
+          try { Object.keys(localStorage).filter(k => k.startsWith('tcxl-logo-svg|')).forEach(k => localStorage.removeItem(k)); localStorage.setItem(LOGO_KEY, t); } catch (e) { /* bỏ qua */ }
+          paintLogo();
+        }).catch(() => {}).finally(() => { logoLoading = false; });
+      }
+      return;
+    }
+    logoUrl = a.k ? 'data:image/svg+xml,' + encodeURIComponent(logoSvg.replace(/#12A07C/gi, mixHex(a.p, 255, 0.12)).replace(/#0B5F8A/gi, mixHex(a.p2, 0, 0.18))) : '';
+    const src = App.logoSrc();
+    document.querySelectorAll('img.applogo').forEach(i => { if (i.getAttribute('src') !== src) i.src = src; });
+    const fav = document.querySelector('link[rel="icon"][type="image/svg+xml"]'); if (fav) fav.href = src;
+  }
+
   const App = (window.App = {
     user: null, installPrompt: null,
     main: document.getElementById('view'),
@@ -26,7 +52,11 @@
       const a = App.accent(), st = document.documentElement.style;
       st.setProperty('--pri', a.p); st.setProperty('--pri2', a.p2);
       if (App.topTint) App.topTint();
+      paintLogo();
     },
+    // Logo theo màu app: ảnh icons/icon.svg đổi 2 màu nền (#12A07C → #0B5F8A) sang sắc của màu đang dùng; màu mặc định = logo gốc.
+    // Mọi chỗ hiện logo dùng <img class="applogo" src="App.logoSrc()">. Biểu tượng app đã cài / thanh tiêu đề cửa sổ lấy từ manifest → vẫn logo gốc
+    logoSrc: () => logoUrl || 'icons/icon.svg',
 
     head(title, opt = {}) {
       document.getElementById('title').textContent = title;
@@ -66,7 +96,7 @@
       const opened = App.drOpened();
       // "Cài đặt" đã có ở chân menu → không lặp lại trong nhóm Quản trị
       const groups = Views.navGroups().map(g => ({ ...g, items: g.items.filter(it => it.href !== '#/settings') }));
-      dr.innerHTML = `<div class="dr-h"><img src="icons/icon.svg" width="30" height="30" alt=""><b>${esc(C.appName)}</b>
+      dr.innerHTML = `<div class="dr-h"><img class="applogo" src="${App.logoSrc()}" width="30" height="30" alt=""><b>${esc(C.appName)}</b>
           <button type="button" class="dr-x" aria-label="Đóng menu">${Icon('x')}</button></div>
         <label class="dr-search">${Icon('search')}<input type="search" placeholder="Tìm mục…" autocomplete="off"></label>
         <nav class="dr-nav"><a class="dr-i" href="#/" title="Trang chủ"><span class="dr-ic">${Icon('home', 'sm')}</span><span>Trang chủ</span></a>
@@ -321,7 +351,7 @@
     if (!box) {
       box = document.createElement('div'); box.id = 'maintscr'; box.className = 'lockscr maintscr';
       box.setAttribute('role', 'alertdialog'); box.setAttribute('aria-modal', 'true'); box.setAttribute('aria-labelledby', 'mt-h');
-      box.innerHTML = `<div class="lk-in"><div class="lk-who"><img src="icons/icon.svg" alt="" width="56" height="56"><b class="lk-app">${U.esc(C.appName)}</b>
+      box.innerHTML = `<div class="lk-in"><div class="lk-who"><img class="applogo" src="${App.logoSrc()}" alt="" width="56" height="56"><b class="lk-app">${U.esc(C.appName)}</b>
           ${C.copyright ? `<span class="lk-org">${U.esc(C.copyright)}</span>` : ''}</div>
         <span class="mt-ic">${Icon('tool')}</span><h2 id="mt-h">App đang bảo trì</h2>
         <p class="lk-sub">Quản trị viên đang bảo trì app nên tạm thời chưa dùng được. Vui lòng quay lại sau.</p>

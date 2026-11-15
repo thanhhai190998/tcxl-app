@@ -69,7 +69,7 @@
       const wrap = document.createElement('div');
       wrap.className = 'modal-bg';
       wrap.innerHTML = `<div class="modal ins" role="dialog" aria-modal="true" aria-label="Cài app lên máy">
-        <div class="ins-h"><img src="icons/icon.svg" alt="" width="40" height="40"><div><h3>Cài app lên máy</h3>
+        <div class="ins-h"><img class="applogo" src="${App.logoSrc()}" alt="" width="40" height="40"><div><h3>Cài app lên máy</h3>
           <p class="muted small">Có biểu tượng trên màn hình chính, mở toàn màn hình như app thường. Không cần vào App Store / CH Play.</p></div></div>
         ${I.standalone() ? `<p class="ins-ok">${Icon('check')} Bạn đang dùng app đã cài trên máy này.</p>` : ''}
         ${App.installPrompt && !app ? `<button type="button" class="btn" data-ins="now">${Icon('download')} Cài ngay trên máy này</button>` : ''}

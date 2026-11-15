@@ -110,7 +110,7 @@
   function hide() { const box = document.getElementById('lockscr'); if (box) { box.hidden = true; box.innerHTML = ''; box._press = null; } document.body.classList.remove('locked'); }
   const who = () => {
     const u = App.user || {}, name = (window.Auth && Auth.name) || u.name || u.email || '';
-    return `<div class="lk-who"><img src="icons/icon.svg" alt="" width="56" height="56"><b class="lk-app">${U.esc(C().appName)}</b>
+    return `<div class="lk-who"><img class="applogo" src="${App.logoSrc ? App.logoSrc() : 'icons/icon.svg'}" alt="" width="56" height="56"><b class="lk-app">${U.esc(C().appName)}</b>
       ${C().copyright ? `<span class="lk-org">${U.esc(C().copyright)}</span>` : ''}
       <div class="lk-user"><b>${U.esc(name)}</b><small>${U.esc(u.email || '')}</small></div></div>`;
   };
